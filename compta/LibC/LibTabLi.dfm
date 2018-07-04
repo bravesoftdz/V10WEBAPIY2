@@ -1,0 +1,499 @@
+object FLibTabLi: TFLibTabLi
+  Left = 231
+  Top = 98
+  HelpContext = 1205000
+  ActiveControl = BFerme
+  BorderIcons = [biSystemMenu]
+  BorderStyle = bsSingle
+  Caption = 'Personnalisation des tables libres'
+  ClientHeight = 286
+  ClientWidth = 375
+  Color = clBtnFace
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -11
+  Font.Name = 'MS Sans Serif'
+  Font.Style = []
+  OldCreateOrder = True
+  Position = poScreenCenter
+  OnCloseQuery = FormCloseQuery
+  OnCreate = FormCreate
+  OnShow = FormShow
+  PixelsPerInch = 96
+  TextHeight = 13
+  object PTop: TPanel
+    Left = 0
+    Top = 0
+    Width = 375
+    Height = 49
+    Align = alTop
+    BevelInner = bvLowered
+    TabOrder = 4
+    object TTl: TLabel
+      Left = 27
+      Top = 20
+      Width = 79
+      Height = 13
+      Caption = '&Tables libres des'
+      FocusControl = Tl
+    end
+    object Tl: THValComboBox
+      Left = 115
+      Top = 16
+      Width = 233
+      Height = 21
+      Style = csDropDownList
+      ItemHeight = 13
+      TabOrder = 0
+      OnChange = TlChange
+      TagDispatch = 0
+    end
+  end
+  object HPB: TPanel
+    Left = 0
+    Top = 251
+    Width = 375
+    Height = 35
+    Align = alBottom
+    BevelInner = bvLowered
+    Ctl3D = True
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clBlack
+    Font.Height = -11
+    Font.Name = 'MS Sans Serif'
+    Font.Style = []
+    ParentCtl3D = False
+    ParentFont = False
+    ParentShowHint = False
+    ShowHint = False
+    TabOrder = 0
+    object BAnnuler: THBitBtn
+      Left = 120
+      Top = 4
+      Width = 28
+      Height = 27
+      Hint = 'Annuler la derni'#232're action'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clBlack
+      Font.Height = -11
+      Font.Name = 'MS Sans Serif'
+      Font.Style = [fsBold]
+      ParentFont = False
+      ParentShowHint = False
+      ShowHint = True
+      TabOrder = 4
+      OnClick = BAnnulerClick
+      Margin = 2
+      Spacing = -1
+      GlobalIndexImage = 'Z0075_S16G1'
+      IsControl = True
+    end
+    object BFirst: THBitBtn
+      Left = 4
+      Top = 4
+      Width = 28
+      Height = 27
+      Hint = 'Premier'
+      ParentShowHint = False
+      ShowHint = True
+      TabOrder = 0
+      OnClick = BFirstClick
+      GlobalIndexImage = 'Z0301_S16G1'
+    end
+    object BPrev: THBitBtn
+      Left = 32
+      Top = 4
+      Width = 28
+      Height = 27
+      Hint = 'Pr'#233'c'#233'dent'
+      ParentShowHint = False
+      ShowHint = True
+      TabOrder = 1
+      OnClick = BPrevClick
+      GlobalIndexImage = 'Z0017_S16G1'
+    end
+    object BNext: THBitBtn
+      Left = 60
+      Top = 4
+      Width = 28
+      Height = 27
+      Hint = 'Suivant'
+      ParentShowHint = False
+      ShowHint = True
+      TabOrder = 2
+      OnClick = BNextClick
+      GlobalIndexImage = 'Z0031_S16G1'
+    end
+    object BLast: THBitBtn
+      Left = 88
+      Top = 4
+      Width = 28
+      Height = 27
+      Hint = 'Dernier'
+      ParentShowHint = False
+      ShowHint = True
+      TabOrder = 3
+      OnClick = BLastClick
+      GlobalIndexImage = 'Z0264_S16G1'
+    end
+    object Panel1: TPanel
+      Left = 210
+      Top = 2
+      Width = 163
+      Height = 31
+      Align = alRight
+      BevelOuter = bvNone
+      TabOrder = 5
+      object BAide: THBitBtn
+        Left = 131
+        Top = 2
+        Width = 28
+        Height = 27
+        Hint = 'Aide'
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clBlack
+        Font.Height = -11
+        Font.Name = 'MS Sans Serif'
+        Font.Style = [fsBold]
+        ParentFont = False
+        ParentShowHint = False
+        ShowHint = True
+        TabOrder = 1
+        OnClick = BAideClick
+        Margin = 2
+        Spacing = -1
+        GlobalIndexImage = 'Z1117_S16G1'
+        IsControl = True
+      end
+      object BFerme: THBitBtn
+        Left = 99
+        Top = 2
+        Width = 28
+        Height = 27
+        Hint = 'Fermer'
+        Cancel = True
+        ParentShowHint = False
+        ShowHint = True
+        TabOrder = 2
+        OnClick = BFermeClick
+        Glyph.Data = {
+          CE070000424DCE07000000000000360000002800000024000000120000000100
+          1800000000009807000000000000000000000000000000000000008284008284
+          0082840082840082840082840082840082840082840082840082840082840082
+          8400828400828400828400828400828400828400828400828400828400828400
+          8284008284008284008284008284008284008284008284008284008284008284
+          0082840082840082840082840082840082848482848482840082840082840082
+          8400828400828400828400828400828400828400828400828400828400828400
+          8284008284008284008284FFFFFF008284008284008284008284008284008284
+          0082840082840082840082840082840082840082840082840082840000FF0000
+          840000848482840082840082840082840082840082840000FF84828400828400
+          8284008284008284008284008284008284008284848284848284FFFFFF008284
+          008284008284008284008284008284FFFFFF0082840082840082840082840082
+          840082840082840000FF00008400008400008484828400828400828400828400
+          00FF000084000084848284008284008284008284008284008284008284848284
+          FFFFFF008284848284FFFFFF008284008284008284FFFFFF848284848284FFFF
+          FF0082840082840082840082840082840082840000FF00008400008400008400
+          00848482840082840000FF000084000084000084000084848284008284008284
+          008284008284008284848284FFFFFF008284008284848284FFFFFF008284FFFF
+          FF848284008284008284848284FFFFFF00828400828400828400828400828400
+          82840000FF000084000084000084000084848284000084000084000084000084
+          000084848284008284008284008284008284008284848284FFFFFF0082840082
+          84008284848284FFFFFF848284008284008284008284008284848284FFFFFF00
+          82840082840082840082840082840082840000FF000084000084000084000084
+          0000840000840000840000848482840082840082840082840082840082840082
+          84008284848284FFFFFF00828400828400828484828400828400828400828400
+          8284FFFFFF848284008284008284008284008284008284008284008284008284
+          0000FF0000840000840000840000840000840000848482840082840082840082
+          84008284008284008284008284008284008284848284FFFFFF00828400828400
+          8284008284008284008284FFFFFF848284008284008284008284008284008284
+          0082840082840082840082840082840000840000840000840000840000848482
+          8400828400828400828400828400828400828400828400828400828400828400
+          8284848284FFFFFF008284008284008284008284008284848284008284008284
+          0082840082840082840082840082840082840082840082840082840000FF0000
+          8400008400008400008484828400828400828400828400828400828400828400
+          8284008284008284008284008284008284848284FFFFFF008284008284008284
+          8482840082840082840082840082840082840082840082840082840082840082
+          840082840000FF00008400008400008400008400008484828400828400828400
+          8284008284008284008284008284008284008284008284008284008284848284
+          008284008284008284008284848284FFFFFF0082840082840082840082840082
+          840082840082840082840082840000FF00008400008400008484828400008400
+          0084000084848284008284008284008284008284008284008284008284008284
+          008284008284848284008284008284008284008284008284848284FFFFFF0082
+          840082840082840082840082840082840082840082840000FF00008400008400
+          00848482840082840000FF000084000084000084848284008284008284008284
+          008284008284008284008284008284848284008284008284008284848284FFFF
+          FF008284008284848284FFFFFF00828400828400828400828400828400828400
+          82840000FF0000840000848482840082840082840082840000FF000084000084
+          000084848284008284008284008284008284008284008284848284FFFFFF0082
+          84008284848284008284848284FFFFFF008284008284848284FFFFFF00828400
+          82840082840082840082840082840082840000FF000084008284008284008284
+          0082840082840000FF0000840000840000840082840082840082840082840082
+          84008284848284FFFFFFFFFFFF848284008284008284008284848284FFFFFF00
+          8284008284848284FFFFFF008284008284008284008284008284008284008284
+          0082840082840082840082840082840082840082840000FF0000840000FF0082
+          8400828400828400828400828400828400828484828484828400828400828400
+          8284008284008284848284FFFFFFFFFFFFFFFFFF848284008284008284008284
+          0082840082840082840082840082840082840082840082840082840082840082
+          8400828400828400828400828400828400828400828400828400828400828400
+          8284008284008284008284008284008284008284008284848284848284848284
+          0082840082840082840082840082840082840082840082840082840082840082
+          8400828400828400828400828400828400828400828400828400828400828400
+          8284008284008284008284008284008284008284008284008284008284008284
+          008284008284008284008284008284008284}
+        NumGlyphs = 2
+      end
+      object BValider: THBitBtn
+        Left = 68
+        Top = 2
+        Width = 28
+        Height = 27
+        Hint = 'Valider'
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clBlack
+        Font.Height = -11
+        Font.Name = 'MS Sans Serif'
+        Font.Style = [fsBold]
+        ParentFont = False
+        ParentShowHint = False
+        ShowHint = True
+        TabOrder = 3
+        OnClick = BValiderClick
+        Glyph.Data = {
+          BE060000424DBE06000000000000360400002800000024000000120000000100
+          0800000000008802000000000000000000000001000000010000000000000000
+          80000080000000808000800000008000800080800000C0C0C000C0DCC000F0C8
+          A400000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          000000000000000000000000000000000000F0FBFF00A4A0A000808080000000
+          FF0000FF000000FFFF00FF000000FF00FF00FFFF0000FFFFFF00030303030303
+          0303030303030303030303030303030303030303030303030303030303030303
+          03030303030303030303030303030303030303030303FF030303030303030303
+          03030303030303040403030303030303030303030303030303F8F8FF03030303
+          03030303030303030303040202040303030303030303030303030303F80303F8
+          FF030303030303030303030303040202020204030303030303030303030303F8
+          03030303F8FF0303030303030303030304020202020202040303030303030303
+          0303F8030303030303F8FF030303030303030304020202FA0202020204030303
+          0303030303F8FF0303F8FF030303F8FF03030303030303020202FA03FA020202
+          040303030303030303F8FF03F803F8FF0303F8FF03030303030303FA02FA0303
+          03FA0202020403030303030303F8FFF8030303F8FF0303F8FF03030303030303
+          FA0303030303FA0202020403030303030303F80303030303F8FF0303F8FF0303
+          0303030303030303030303FA0202020403030303030303030303030303F8FF03
+          03F8FF03030303030303030303030303FA020202040303030303030303030303
+          0303F8FF0303F8FF03030303030303030303030303FA02020204030303030303
+          03030303030303F8FF0303F8FF03030303030303030303030303FA0202020403
+          030303030303030303030303F8FF0303F8FF03030303030303030303030303FA
+          0202040303030303030303030303030303F8FF03F8FF03030303030303030303
+          03030303FA0202030303030303030303030303030303F8FFF803030303030303
+          030303030303030303FA0303030303030303030303030303030303F803030303
+          0303030303030303030303030303030303030303030303030303030303030303
+          0303}
+        Margin = 2
+        NumGlyphs = 2
+        Spacing = -1
+        IsControl = True
+      end
+      object BImprimer: THBitBtn
+        Left = 36
+        Top = 2
+        Width = 28
+        Height = 27
+        Hint = 'Imprimer'
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clBlack
+        Font.Height = -11
+        Font.Name = 'MS Sans Serif'
+        Font.Style = [fsBold]
+        ParentFont = False
+        ParentShowHint = False
+        ShowHint = True
+        TabOrder = 4
+        OnClick = BImprimerClick
+        Margin = 2
+        GlobalIndexImage = 'Z0369_S16G1'
+      end
+      object bChamps: THBitBtn
+        Left = 4
+        Top = 2
+        Width = 28
+        Height = 27
+        Hint = 'Informations libres de la table'
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clBlack
+        Font.Height = -11
+        Font.Name = 'MS Sans Serif'
+        Font.Style = [fsBold]
+        ParentFont = False
+        ParentShowHint = False
+        ShowHint = True
+        TabOrder = 0
+        OnClick = bChampsClick
+        Spacing = -1
+        GlobalIndexImage = 'Z1628_S16G1'
+        IsControl = True
+      end
+    end
+  end
+  object FListe: THDBGrid
+    Left = 0
+    Top = 49
+    Width = 375
+    Height = 202
+    Align = alClient
+    DataSource = SCommun
+    Options = [dgEditing, dgTitles, dgIndicator, dgColLines, dgRowLines, dgTabs, dgCancelOnExit]
+    TabOrder = 1
+    TitleFont.Charset = DEFAULT_CHARSET
+    TitleFont.Color = clWindowText
+    TitleFont.Height = -11
+    TitleFont.Name = 'MS Sans Serif'
+    TitleFont.Style = []
+    OnColEnter = FListeColEnter
+    OnDblClick = FListeDblClick
+    OnKeyDown = FListeKeyDown
+    OnKeyPress = FListeKeyPress
+    OnRowEnter = FListeRowEnter
+    Row = 1
+    MultiSelection = False
+    SortEnabled = False
+    MyDefaultRowHeight = 0
+    Columns = <
+      item
+        Expanded = False
+        FieldName = 'CO_CODE'
+        ReadOnly = True
+        Title.Alignment = taCenter
+        Title.Caption = 'Code'
+        Width = 34
+        Visible = True
+      end
+      item
+        Expanded = False
+        FieldName = 'CO_LIBELLE'
+        Title.Alignment = taCenter
+        Title.Caption = 'Libell'#233
+        Width = 254
+        Visible = True
+      end
+      item
+        Alignment = taCenter
+        Expanded = False
+        FieldName = 'CO_ABREGE'
+        Title.Alignment = taCenter
+        Title.Caption = 'Visible'
+        Width = 48
+        Visible = True
+      end>
+  end
+  object DBNav: TDBNavigator
+    Left = 220
+    Top = 108
+    Width = 80
+    Height = 18
+    DataSource = SCommun
+    VisibleButtons = [nbFirst, nbPrior, nbNext, nbLast]
+    ConfirmDelete = False
+    TabOrder = 2
+    Visible = False
+  end
+  object FAutoSave: TCheckBox
+    Left = 221
+    Top = 131
+    Width = 45
+    Height = 17
+    Caption = 'Auto'
+    Color = clYellow
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clRed
+    Font.Height = -11
+    Font.Name = 'MS Sans Serif'
+    Font.Style = []
+    ParentColor = False
+    ParentFont = False
+    TabOrder = 3
+    Visible = False
+  end
+  object MsgBox: THMsgBox
+    Police.Charset = DEFAULT_CHARSET
+    Police.Color = clBlack
+    Police.Height = -11
+    Police.Name = 'MS Sans Serif'
+    Police.Style = []
+    Mess.Strings = (
+      
+        '0;?caption?;Voulez-vous enregistrer les modifications?;Q;YNC;Y;C' +
+        ';'
+      '1;?caption?;Vous devez renseigner un libell'#233' !;W;O;O;O;'
+      'L'#39'enregistrement est inaccessible')
+    Left = 57
+    Top = 193
+  end
+  object SCommun: TDataSource
+    DataSet = QCommun
+    OnDataChange = SCommunDataChange
+    OnUpdateData = SCommunUpdateData
+    Left = 171
+    Top = 193
+  end
+  object HMTrad: THSystemMenu
+    Caption = '&Personnalisation'
+    Separator = True
+    Traduction = True
+    Left = 227
+    Top = 193
+  end
+  object QCommun: TQuery
+    OnNewRecord = QCommunNewRecord
+    DatabaseName = 'SOC'
+    RequestLive = True
+    SQL.Strings = (
+      'Select * From COMMUN Where CO_TYPE="NAT"')
+    Left = 111
+    Top = 193
+  end
+  object HMCombo: THMsgBox
+    Police.Charset = DEFAULT_CHARSET
+    Police.Color = clBlack
+    Police.Height = -11
+    Police.Name = 'MS Sans Serif'
+    Police.Style = []
+    Mess.Strings = (
+      'G;Comptes g'#233'n'#233'raux;'
+      'T;Comptes auxiliaires;'
+      'B;Comptes budg'#233'taires;'
+      'D;Sections budg'#233'taires;'
+      'S;Sections analytiques;'
+      'E;Ecritures comptables;'
+      'A;Ecritures analytiques;'
+      'U;Ecritures budg'#233'taires;'
+      'I;Immobilisations;')
+    Left = 282
+    Top = 193
+  end
+end

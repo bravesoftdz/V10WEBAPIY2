@@ -1,0 +1,655 @@
+unit CpyBudMu;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
+  HSysMenu, hmsgbox, StdCtrls, Buttons, ExtCtrls, Ent1, HEnt1, Grids,
+{$IFDEF EAGLCLIENT}
+  UTOB,
+{$ELSE}
+  DB, DBTables,
+{$ENDIF}
+  Hctrls, SaisUtil, HStatus, ComCtrls, HPanel, UiUtil, HTB97, Vierge ;
+
+Procedure RecopieBudgetMultiple ;
+
+Type TInfoBud = Class
+        ExoDeb   : String ;
+        ExoFin   : String ;
+        PerDeb   : String ;
+        PerFin   : String ;
+        Axe      : String ;
+        GeneAtt  : String ;
+        SectAtt  : String ;
+        CpteGen  : String ;
+        CpteSec  : String ;
+        Souche   : String ;
+        NbPer    : Integer ;
+        NbPiece  : Integer ;
+        NumPiece : String ;
+        NatPiece : String ;
+        CoefCpy  : Double ;
+        NatPieceCpy :String ;
+      end ;
+
+type
+  TFCpyBudMu = class(TFVierge)
+    PG: TPanel;
+    Bevel1: TBevel;
+    TNatbud: TLabel;
+    Nb1: TLabel;
+    Tex1: TLabel;
+    FListe: THGrid;
+    PerdebS: THValComboBox;
+    PerfinS: THValComboBox;
+    PD: TPanel;
+    Bevel2: TBevel;
+    TBudJal: TLabel;
+    BudD: TLabel;
+    BudJal: THValComboBox;
+    GbComplement: TGroupBox;
+    TExoDebD: TLabel;
+    TExoFinD: TLabel;
+    TPerDebD: TLabel;
+    TPerFinD: TLabel;
+    ExoDebD: THValComboBox;
+    ExoFinD: THValComboBox;
+    PerDebD: THValComboBox;
+    PerFinD: THValComboBox;
+    RgCopi: TRadioGroup;
+    BZoom: TToolbarButton97;
+    BOpt: TToolbarButton97;
+    HM: THMsgBox;
+    QNbEcr: TQuery;
+    QInser: TQuery;
+    procedure FormShow(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure BudJalChange(Sender: TObject);
+    procedure FListeKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure FListeMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+    procedure BOptClick(Sender: TObject);
+    procedure BValiderClick(Sender: TObject);
+    procedure FListeDblClick(Sender: TObject);
+    procedure BZoomClick(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
+  private
+    TotalSelec : Integer ;
+    ListBud    : TStringList ;
+    NowFutur   : TDateTime ;
+    QCpy : TQuery; // VL 14012005 FQ 15182
+    Procedure ChargeCbBudDestination(Q : TQuery) ;
+    Function  CombiendePeriode(Q : TQuery) : Integer ;
+    Function  RempliUnTinfoBud(Q : TQuery) : TInfoBud ;
+    Procedure DetruitObjetCombo ;
+    Procedure RempliFListe(Q : TQuery) ;
+    Procedure ChercheNbEcr(X : TInfoBud ; St : String) ;
+    Procedure CompteElemSelectionner ;
+    Function  CpteAttOk(ARow : Integer) : Boolean ;
+    Function  NbPeriodeOk(ARow : Integer) : Boolean ;
+    Function  ListeCpteOk(ARow : Integer) : Boolean ;
+    Function  NbPieceOk(ARow : Integer) : Boolean ;
+    Function  ConTroleBudOk(ARow : Integer) : Boolean ;
+    Function  ChercheDateCompta(D : TDateTime ; Exo : String ; ARow : Integer) : TDateTime ;
+    Function  ChercheExo(D : TDateTime) : String ;
+    Procedure RunLaCopie ;
+    Procedure InsereLesEnreg(Info : TInfoBud ; ARow : Integer) ;
+    Procedure RequeteInsertion(Info : TInfoBud ; NextNumPiece : Longint ; Exo : String ; DCpta : TDateTime ; D,C : Double) ;
+    Procedure MajLesEnreg(Info : TInfoBud ;ARow : Integer) ;
+    Procedure MajNbEcr ;
+    Procedure RempliPeriodeSource(Arow : Integer) ;
+    Procedure VoirBudget(UnJal : String) ;
+    Procedure InverseSelection ;
+    Procedure GetCellCanvas(Acol,ARow : LongInt ; Canvas : TCanvas; AState: TGridDrawState) ;
+    Function  GetCountBUDECR ( StCond : String ) : Integer ;
+  end;
+
+
+implementation
+
+{$R *.DFM}
+
+Uses OptCpyBu, SaisBud ;
+
+Procedure RecopieBudgetMultiple ;
+var FCpyBudMu : TFCpyBudMu ;
+    PP : THPanel ;
+begin
+FCpyBudMu:=TFCpyBudMu.Create(Application) ;
+PP:=FindInsidePanel ;
+if PP=Nil then
+   begin
+    Try
+     FCpyBudMu.ShowModal ;
+    Finally
+     FCpyBudMu.Free ;
+    end ;
+   SourisNormale ;
+   end else
+   begin
+   InitInside(FCpyBudMu,PP) ;
+   FCpyBudMu.Show ;
+   end ;
+end ;
+
+procedure TFCpyBudMu.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+  FListe.VidePile(True) ;
+  DetruitObjetCombo ;
+  ListBud.Free ;
+  inherited;
+end;
+
+procedure TFCpyBudMu.FormShow(Sender: TObject);
+var
+  QLoc : TQuery ;
+begin
+  inherited;
+  FListe.GetCellCanvas:=GetCellCanvas ;
+  QNbEcr.Close ;
+  ChangeSql(QNbEcr) ; //QNbEcr.Prepare ;
+  PrepareSQLODBC(QNbEcr) ;
+
+  // Combo destination
+  QLoc:=OpenSql('Select * from BUDJAL Where BJ_FERME="-"',True) ;
+  ChargeCbBudDestination(QLoc) ;
+  Ferme(QLoc) ;
+
+  // Liste origine
+  QLoc:=OpenSql('Select * from BUDJAL B Where BJ_FERME="-" AND EXISTS(Select BE_BUDJAL from BUDECR Where BE_BUDJAL=B.BJ_BUDJAL)',True) ;
+  RempliFliste(QLoc) ;
+  Ferme(QLoc) ;
+  QNbEcr.Close ;
+  SourisNormale ;
+  if BudJal.Values.Count>0 then BudJal.Value:=BudJal.Values[0] ;
+  ListBud:=TStringList.Create ;
+  QInser.Close ;
+  QInser.Sql.Clear ;
+  QInser.Sql.Add('Select * from BUDECR Where BE_BUDJAL="'+W_W+'"') ;
+  ChangeSql(QInser) ;
+  QInser.RequestLive:=True ;
+end;
+
+Function TFCpyBudMu.CombiendePeriode(Q : TQuery) : Integer ;
+var
+  a,m,j,a1,m1,j1 : Word ;
+begin
+  if Q.FindField('BJ_EXODEB').AsString=Q.FindField('BJ_EXOFIN').AsString then
+    begin
+    DecodeDate(Q.FindField('BJ_PERDEB').AsDateTime,a,m,j) ;
+    DecodeDate(Q.FindField('BJ_PERFIN').AsDateTime,a1,m1,j1) ;
+    Result:=(m1-m)+1 ;
+    end
+  else begin
+    DecodeDate(Q.FindField('BJ_PERDEB').AsDateTime,a,m,j) ;
+    DecodeDate(Q.FindField('BJ_PERFIN').AsDateTime,a1,m1,j1) ;
+    Result:=((12-m)+1)+m1 ;
+  end ;
+end ;
+
+Procedure TFCpyBudMu.ChargeCbBudDestination(Q : TQuery) ;
+var
+  X : TInfoBud ;
+begin
+  BudJal.Values.Clear ;
+  BudJal.Items.Clear ;
+  Q.First ;
+  While Not Q.Eof do
+    begin
+    X:=RempliUnTinfoBud(Q) ;
+    ChercheNbEcr(X,Q.FindField('BJ_BUDJAL').AsString) ;
+    Budjal.Values.AddObject(Q.FindField('BJ_BUDJAL').AsString,X) ;
+    Budjal.Items.Add(Q.FindField('BJ_LIBELLE').AsString) ;
+    Q.Next ;
+  end ;
+end ;
+
+Procedure TFCpyBudMu.RempliFListe(Q : TQuery) ;
+var
+  X : TInfoBud ;
+  i : Integer ;
+begin
+  Q.First ;
+  i:=2 ;
+  BOpt.Enabled:=(Not Q.Eof);
+  While Not Q.Eof do
+    begin
+    FListe.RowCount:=i ;
+    X:=RempliUnTinfoBud(Q) ;
+    FListe.Cells[0,FListe.RowCount-1]:=Q.FindField('BJ_BUDJAL').AsString ;
+    ChercheNbEcr(X,FListe.Cells[0,FListe.RowCount-1]) ;
+    FListe.Objects[0,FListe.RowCount-1]:=X ;
+    FListe.Cells[1,FListe.RowCount-1]:=Q.FindField('BJ_LIBELLE').AsString ;
+    FListe.Cells[2,FListe.RowCount-1]:=IntToStr(X.NbPer) ;
+    FListe.Cells[3,FListe.RowCount-1]:=IntToStr(X.NbPiece) ;
+    Q.Next ; Inc(i) ;
+  end;
+end ;
+
+Procedure TFCpyBudMu.MajNbEcr ;
+var
+  i : Integer ;
+  St : String ;
+begin
+  St:=BudJal.Value ;
+  for i:=1 to FListe.RowCount-1 do
+    if Fliste.Cells[0,i]=St then
+      begin
+      ChercheNbEcr(TInfoBud(FListe.Objects[0,i]),St) ;
+      FListe.Cells[3,i]:=IntToStr(TInfoBud(FListe.Objects[0,i]).NbPiece) ;
+      FListe.Invalidate ; Break ;
+    end ;
+end ;
+
+Procedure TFCpyBudMu.ChercheNbEcr(X : TInfoBud ; St : String) ;
+var
+  i : Integer ;
+begin
+  QNbEcr.Close ;
+  QNbEcr.Params[0].AsString:=St ;
+  QNbEcr.Open ;
+  i:=0 ;
+  X.NumPiece:='' ;
+  X.NbPiece:=0 ;
+  X.NatPiece:='' ;
+  X.NatPieceCpy:='' ;
+  While Not QNbEcr.Eof do
+    begin
+    X.NumPiece:=X.NumPiece+IntToStr(QNbEcr.Fields[0].AsInteger)+':'+QNbEcr.Fields[1].AsString+'@' ;
+    if Pos(QNbEcr.Fields[1].AsString,X.NatPiece)<=0 then
+      X.NatPiece:=X.NatPiece+QNbEcr.Fields[1].AsString+';' ;
+    Inc(i) ;
+    QNbEcr.Next ;
+  end ;
+  X.NbPiece:=i ;
+  X.NatPieceCpy:=X.NatPiece ;
+  QNbEcr.Close ;
+end ;
+
+Function TFCpyBudMu.RempliUnTinfoBud(Q : TQuery) : TInfoBud ;
+var
+  X : TInfoBud ;
+begin
+  X:=TInfoBud.Create ;
+  X.ExoDeb:=Q.FindField('BJ_EXODEB').AsString ;
+  X.ExoFin:=Q.FindField('BJ_EXOFIN').AsString ;
+  X.PerDeb:=Q.FindField('BJ_PERDEB').AsString ;
+  X.PerFin:=Q.FindField('BJ_PERFIN').AsString ;
+  X.Axe:=Q.FindField('BJ_AXE').AsString ;
+  X.GeneAtt:=Q.FindField('BJ_GENEATTENTE').AsString ;
+  X.SectAtt:=Q.FindField('BJ_SECTATTENTE').AsString ;
+  X.CpteGen:=Q.FindField('BJ_BUDGENES').AsString ;
+  X.CpteSec:=Q.FindField('BJ_BUDSECTS').AsString ;
+  if Q.FindField('BJ_BUDGENES2').AsString<>'' then X.CpteGen:=Trim(Q.FindField('BJ_BUDGENES').AsString)+Trim(Q.FindField('BJ_BUDGENES2').AsString)
+                                              else X.CpteGen:=Trim(Q.FindField('BJ_BUDGENES').AsString) ;
+  if Q.FindField('BJ_BUDSECTS2').AsString<>'' then X.CpteSec:=Trim(Q.FindField('BJ_BUDSECTS').AsString)+Trim(Q.FindField('BJ_BUDSECTS2').AsString)
+                                              else X.CpteSec:=Trim(Q.FindField('BJ_BUDSECTS').AsString) ;
+  X.Souche:=Q.FindField('BJ_COMPTEURNORMAL').AsString ;
+  X.NbPer:=CombiendePeriode(Q) ; X.NumPiece:='' ;
+  X.NbPiece:=0 ;
+  X.NatPiece:='' ;
+  X.CoefCpy:=0 ;
+  Result:=X ;
+end ;
+
+Procedure TFCpyBudMu.DetruitObjetCombo ;
+var
+  i : Integer ;
+begin
+  for i:=0 to BudJal.Values.Count-1 do
+    TObject(BudJal.Values.Objects[i]).Free ;
+end ;
+
+procedure TFCpyBudMu.BudJalChange(Sender: TObject);
+var
+  i : Integer ;
+begin
+  if BudJal.Value='' then Exit ;
+  ExoDebD.Value:=TInfoBud(Budjal.Values.Objects[BudJal.Values.IndexOf(BudJal.Value)]).ExoDeb ;
+  ExoFinD.Value:=TInfoBud(Budjal.Values.Objects[BudJal.Values.IndexOf(BudJal.Value)]).ExoFin ;
+  ListePeriode(ExoDebD.Value,PerDebD.Items,PerDebD.Values,True) ;
+  ListePeriode(ExoFinD.Value,PerFinD.Items,PerFinD.Values,False) ;
+  PerDebD.Value:=TInfoBud(Budjal.Values.Objects[BudJal.Values.IndexOf(BudJal.Value)]).PerDeb ;
+  PerFinD.Value:=TInfoBud(Budjal.Values.Objects[BudJal.Values.IndexOf(BudJal.Value)]).PerFin ;
+  for i:=1 to FListe.RowCount-1 do
+    begin
+    if FListe.Cells[0,i]=Budjal.Value then
+      begin
+      Fliste.Cells[FListe.ColCount-1,i]:='' ;
+      FListe.Invalidate ; CompteElemSelectionner ; Break ;
+    end ;
+  end ;
+end;
+
+Procedure TFCpyBudMu.GetCellCanvas(Acol,ARow : LongInt ; Canvas : TCanvas; AState: TGridDrawState) ;
+begin
+  if FListe.Cells[FListe.ColCount-1,ARow]='*' then FListe.Canvas.Font.Style:=FListe.Canvas.Font.Style+[fsItalic]
+                                              else FListe.Canvas.Font.Style:=FListe.Canvas.Font.Style-[fsItalic] ;
+end ;
+
+Procedure TFCpyBudMu.InverseSelection ;
+begin
+  if FListe.Cells[0,FListe.Row]=BudJal.Value then Exit ;
+  if FListe.Cells[0,FListe.Row]='' then Exit ;
+  if Fliste.Cells[FListe.ColCount-1,FListe.Row]='*' then Fliste.Cells[FListe.ColCount-1,FListe.Row]:=''
+                                                    else Fliste.Cells[FListe.ColCount-1,FListe.Row]:='*' ;
+  FListe.Invalidate ;
+  CompteElemSelectionner ;
+end ;
+
+procedure TFCpyBudMu.FListeKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+begin
+  if (ssShift in Shift) And (Key=VK_DOWN) then InverseSelection else
+  if (Shift=[]) And (Key=VK_SPACE) then
+    begin
+    InverseSelection ;
+    if ((FListe.Row<FListe.RowCount-1) and (Key<>VK_SPACE)) then FListe.Row:=FListe.Row+1 ;
+  end ;
+end;
+
+procedure TFCpyBudMu.FListeMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+begin
+  if (ssCtrl in Shift) And (Button=mbLeft)then InverseSelection ;
+end;
+
+Procedure TFCpyBudMu.CompteElemSelectionner ;
+var
+  i : Integer ;
+begin
+  TotalSelec:=0 ;
+  for i:=1 to FListe.RowCount-1 do
+    if FListe.Cells[FListe.ColCount-1,i]='*' then Inc(TotalSelec) ;
+  Nb1.Caption:=IntToStr(TotalSelec) ;
+  if TotalSelec>1 then Tex1.Caption:=HM.Mess[1]
+                  else Tex1.Caption:=HM.Mess[0];
+end ;
+
+procedure TFCpyBudMu.BOptClick(Sender: TObject);
+begin
+  OptiondeCopideBudget(FListe.Cells[0,FListe.Row],FListe.Cells[1,FListe.Row],TInfoBud(FListe.Objects[0,FListe.Row]).NatPiece,
+                       TInfoBud(FListe.Objects[0,FListe.Row]).NatPieceCpy,TInfoBud(FListe.Objects[0,FListe.Row]).CoefCpy) ;
+end;
+
+procedure TFCpyBudMu.FListeDblClick(Sender: TObject);
+begin
+  BOptClick(Nil) ;
+end;
+
+procedure TFCpyBudMu.BValiderClick(Sender: TObject);
+var
+  i : Integer ;
+  io : TIOErr ;
+begin
+  inherited;
+  if FListe.Cells[0,1]='' then Exit ;
+  if TotalSelec=0 then begin
+    HM.Execute(2,'','') ;
+    Exit ;
+  end ;
+  ListBud.Clear ;
+  for i:=1 to FListe.RowCount-1 do
+    begin
+    if FListe.Cells[FListe.ColCount-1,i]='*' then
+      if ConTroleBudOk(i) then ListBud.Add(FListe.Cells[0,i]) ;
+  end ;
+  if ListBud.Count=0 then begin
+    HM.Execute(3,'','') ;
+    Exit ;
+  end ;
+  if HM.Execute(4,'','')<>mrYes then Exit ;
+  io:=Transactions(RunLaCopie,2) ;
+  if io<>oeOk then MessageAlerte(HM.Mess[6])
+              else HM.Execute(7,'','') ;
+end;
+
+Function TFCpyBudMu.CpteAttOk(ARow : Integer) : Boolean ;
+begin
+  Result:=False ;
+  if TInfoBud(FListe.Objects[0,ARow]).GeneAtt<>TInfoBud(Budjal.Values.Objects[BudJal.Values.IndexOf(BudJal.Value)]).GeneAtt then Exit ;
+  if TInfoBud(FListe.Objects[0,ARow]).SectAtt<>TInfoBud(Budjal.Values.Objects[BudJal.Values.IndexOf(BudJal.Value)]).SectAtt then Exit ;
+  Result:=True ;
+end ;
+
+Function TFCpyBudMu.NbPeriodeOk(ARow : Integer) : Boolean ;
+begin
+  Result:=False ;
+  if TInfoBud(FListe.Objects[0,ARow]).NbPer<>TInfoBud(Budjal.Values.Objects[BudJal.Values.IndexOf(BudJal.Value)]).NbPer then Exit ;
+  Result:=True ;
+end ;
+
+Function TFCpyBudMu.ListeCpteOk(ARow : Integer) : Boolean ;
+var
+  StG,StS,St,StGD,StSD : String ;
+begin
+  Result:=False ;
+  if Length(TInfoBud(FListe.Objects[0,ARow]).CpteGen)<>Length(TInfoBud(Budjal.Values.Objects[BudJal.Values.IndexOf(BudJal.Value)]).CpteGen) then Exit ;
+  if Length(TInfoBud(FListe.Objects[0,ARow]).CpteSec)<>Length(TInfoBud(Budjal.Values.Objects[BudJal.Values.IndexOf(BudJal.Value)]).CpteSec) then Exit ;
+  StG:=TInfoBud(FListe.Objects[0,ARow]).CpteGen ;
+  StS:=TInfoBud(FListe.Objects[0,ARow]).CpteSec ;
+  StGD:=TInfoBud(Budjal.Values.Objects[BudJal.Values.IndexOf(BudJal.Value)]).CpteGen ;
+  StSD:=TInfoBud(Budjal.Values.Objects[BudJal.Values.IndexOf(BudJal.Value)]).CpteSec ;
+  While StG<>'' do
+    begin
+    St:=ReadTokenSt(StG) ;
+    if Pos(St,StGD)<=0 then Exit ;
+  end ;
+  While StS<>'' do
+    begin
+    St:=ReadTokenSt(StS) ;
+    if Pos(St,StSD)<=0 then Exit ;
+  end ;
+  Result:=True ;
+end ;
+
+Function TFCpyBudMu.NbPieceOk(ARow : Integer) : Boolean ;
+begin
+  Result:=False ;
+  if TInfoBud(FListe.Objects[0,ARow]).NbPiece=0 then Exit ;
+  Result:=True ;
+end ;
+
+Function TFCpyBudMu.ConTroleBudOk(ARow : Integer) : Boolean ;
+begin
+  Result:=False ;
+  if Not CpteAttOk(ARow)   then Exit ;
+  if Not NbPeriodeOk(ARow) then Exit ;
+  if Not ListeCpteOk(ARow) then Exit ;
+  if Not NbPieceOk(ARow)   then Exit ;
+  Result:=True ;
+end ;
+
+Procedure TFCpyBudMu.RempliPeriodeSource(Arow : Integer) ;
+begin
+  ListePeriode(TInfoBud(FListe.Objects[0,ARow]).ExoDeb,PerDebS.Items,PerDebS.Values,True) ;
+  ListePeriode(TInfoBud(FListe.Objects[0,ARow]).ExoFin,PerFinS.Items,PerFinS.Values,False) ;
+  PerDebS.Value:=TInfoBud(FListe.Objects[0,ARow]).PerDeb ;
+  PerFinS.Value:=TInfoBud(FListe.Objects[0,ARow]).PerFin ;
+end ;
+
+Function TFCpyBudMu.ChercheDateCompta(D : TDateTime ; Exo : String ; ARow : Integer) : TDateTime ;
+var
+  Ind : Integer ;
+begin
+  if Exo=TInfoBud(FListe.Objects[0,ARow]).ExoDeb then Ind:=PerDebS.Values.IndexOf(DateToStr(D))-PerDebS.ItemIndex
+                                                 else Ind:=PerDebS.Values.Count+PerFinS.Values.IndexOf(DateToStr(FinDeMois(D)))-PerDebS.ItemIndex ;
+  if (PerDebD.ItemIndex+Ind)<=(PerDebD.Values.Count-1) then Result:=StrToDate(PerDebD.Values[Ind+PerDebD.ItemIndex])
+                                                       else Result:=DebutdeMois(StrToDate(PerFinD.Values[(Ind+PerFinD.ItemIndex)-(PerFinD.Values.Count-1)])) ;
+end ;
+
+Function TFCpyBudMu.ChercheExo(D : TDateTime) : String ;
+begin
+  if PerDebD.Values.IndexOf(DateToStr(D))>=0 then Result:=ExoDebD.Value
+                                             else Result:=ExoFinD.Value ;
+end ;
+
+Procedure TFCpyBudMu.RunLaCopie ;
+var
+  Sql,St,Nature : String;
+  i,j,ARow : Integer;
+  QLoc : TQuery;
+begin
+  NowFutur:=NowH ;
+  if RgCopi.ItemIndex=0 then ExecuteSql('Delete From BUDECR Where BE_BUDJAL="'+BudJal.Value+'"') ;
+  for i:=0 to ListBud.Count-1 do
+    begin
+    ARow:=0 ;
+    for j:=1 to FListe.RowCount-1 do
+      if FListe.Cells[0,j]=ListBud.Strings[i] then begin
+        ARow:=j ;
+        Break ;
+      end ;
+    if ARow=0 then Continue ;
+    RempliPeriodeSource(ARow) ;
+    Nature:=TInfoBud(FListe.Objects[0,ARow]).NatPieceCpy ;
+
+    While Nature <>'' do
+      begin
+      St:=ReadTokenSt(Nature) ;
+      QLoc:=OpenSql('Select Distinct BE_NUMEROPIECE From BUDECR Where BE_BUDJAL="'+FListe.Cells[0,ARow]+'" '+
+                    'And BE_NATUREBUD="'+St+'" And BE_QUALIFPIECE="N" Order by BE_NUMEROPIECE',True) ;
+      While Not QLoc.Eof do
+        begin
+        Sql := 'BE_BUDJAL="'+FListe.Cells[0,ARow]
+             + '" AND BE_NATUREBUD="'  + St
+             + '" AND BE_NUMEROPIECE=' + IntToStr(QLoc.Fields[0].AsInteger)
+             + ' AND BE_QUALIFPIECE="N"';
+        InitMove(GetCountBUDECR(Sql),'') ;
+        Sql := 'SELECT * FROM BUDECR WHERE ' + Sql + ' ORDER BY BE_DATECOMPTABLE';
+        QCpy := OpenSQL(SQL, True); // VL 14012005 FQ 15182
+        if Not QCpy.Eof then
+          begin
+          QInser.Open ;
+          Case RgCopi.ItemIndex of
+            0,1 : InsereLesEnreg(TInfoBud(FListe.Objects[0,ARow]),ARow) ;
+            2   : MajLesEnreg(TInfoBud(FListe.Objects[0,ARow]),ARow) ;
+          end ;
+          QInser.Close ;
+        end ;
+        Ferme(QCpy); // VL 14012005 FQ 15182
+        QLoc.Next ;
+        FiniMove ;
+      end ;
+      Ferme(QLoc) ;
+    end ;
+  end ;
+  MajNbEcr ;
+  if HM.Execute(5,'','')=mrYes then VoirBudget(BudJal.Value) ;
+end ;
+
+Procedure TFCpyBudMu.InsereLesEnreg(Info : TInfoBud ; ARow : Integer) ;
+var
+  MM : String17 ;
+  NextNumPiece : Longint ;
+  Exo : String ;
+  DCpta : TDateTime ;
+  D,C : Double ;
+begin
+  NextNumPiece:=GetNum(EcrBud,TInfoBud(BudJal.Values.Objects[BudJal.Values.IndexOf(BudJal.Value)]).Souche,MM,0);
+  While Not QCpy.Eof do
+    begin
+    DCpta:=ChercheDateCompta(QCpy.FindField('BE_DATECOMPTABLE').AsDateTime,QCpy.FindField('BE_EXERCICE').AsSTring,ARow) ;
+    Exo:=ChercheExo(DCpta) ;
+    D:=QCpy.FindField('BE_DEBIT').AsFloat+((QCpy.FindField('BE_DEBIT').AsFloat*Info.CoefCpy)/100) ;
+    C:=QCpy.FindField('BE_CREDIT').AsFloat+((QCpy.FindField('BE_CREDIT').AsFloat*Info.CoefCpy)/100) ;
+    MoveCur(False) ;
+    RequeteInsertion(Info,NextNumPiece,Exo,DcPta,D,C) ;
+    QCpy.Next ;
+  end ;
+  SetIncNum(EcrBud,TInfoBud(BudJal.Values.Objects[BudJal.Values.IndexOf(BudJal.Value)]).Souche,NextNumPiece,0) ;
+end ;
+
+Procedure TFCpyBudMu.RequeteInsertion(Info : TInfoBud ; NextNumPiece : Longint ; Exo : String ; DCpta : TDateTime ; D,C : Double) ;
+var
+  i : Integer ;
+begin
+  QInser.Insert ;
+  InitNew(QInser) ;
+  for i:=0 to QInser.FieldCount-1 do
+    begin
+    if QInser.Fields[i].FieldName='BE_BUDJAL'        then QInser.Fields[i].AsVariant:=BudJal.Value else
+    if QInser.Fields[i].FieldName='BE_EXERCICE'      then QInser.Fields[i].AsVariant:=Exo          else
+    if QInser.Fields[i].FieldName='BE_DATECOMPTABLE' then QInser.Fields[i].AsVariant:=DCpta        else
+    if QInser.Fields[i].FieldName='BE_DATEMODIF'     then QInser.Fields[i].AsVariant:=NowFutur     else
+    if QInser.Fields[i].FieldName='BE_AXE'           then QInser.Fields[i].AsVariant:=Info.Axe     else
+    if QInser.Fields[i].FieldName='BE_NUMEROPIECE'   then QInser.Fields[i].AsVariant:=NextNumPiece else
+    if QInser.Fields[i].FieldName='BE_DEBIT'         then QInser.Fields[i].AsVariant:=D            else
+    if QInser.Fields[i].FieldName='BE_CREDIT'        then QInser.Fields[i].AsVariant:=C            else
+    if QInser.Fields[i].FieldName='BE_BLOCNOTE'      then
+      begin
+      if Not TMemoField(QCpy.FindField('BE_BLOCNOTE')).IsNull then TMemoField(QInser.FindField('BE_BLOCNOTE')).Assign(TMemoField(QCpy.FindField('BE_BLOCNOTE'))) ;
+      end
+    else QInser.Fields[i].AsVariant:=QCpy.Fields[i].AsVariant ;
+  end ;
+  QInser.Post ;
+end ;
+
+Procedure TFCpyBudMu.MajLesEnreg(Info : TInfoBud ;ARow : Integer) ;
+var
+  Exo    : String ;
+  lStSql : String ;
+  DCpta  : TDateTime ;
+  D,C    : Double ;
+  QMaj   : TQuery ;
+begin
+  While Not QCpy.Eof do
+    begin
+    MoveCur(False) ;
+    DCpta:=ChercheDateCompta(QCpy.FindField('BE_DATECOMPTABLE').AsDateTime,QCpy.FindField('BE_EXERCICE').AsSTring,ARow) ;
+    Exo:=ChercheExo(DCpta) ;
+    D:=QCpy.FindField('BE_DEBIT').AsFloat+((QCpy.FindField('BE_DEBIT').AsFloat*Info.CoefCpy)/100) ;
+    C:=QCpy.FindField('BE_CREDIT').AsFloat+((QCpy.FindField('BE_CREDIT').AsFloat*Info.CoefCpy)/100) ;
+    // Requête paramétrée remplacée par un openSql
+    lStSql := 'SELECT * FROM BUDECR '
+            + ' WHERE BE_BUDGENE="'       + QCpy.FindField('BE_BUDGENE').AsString
+            + '" AND BE_BUDJAL="'         + BudJal.Value
+            + '" AND BE_EXERCICE="'       + Exo
+            + '" AND BE_DATECOMPTABLE="'  + USDateTime(DCpta)
+            + '" AND BE_BUDSECT="'        + QCpy.FindField('BE_BUDSECT').AsString
+            + '" AND BE_AXE="'            + QCpy.FindField('BE_AXE').AsString
+            + '" AND BE_NATUREBUD="'      + QCpy.FindField('BE_NATUREBUD').AsString
+            + '" AND BE_QUALIFPIECE="'    + QCpy.FindField('BE_QUALIFPIECE').AsString
+            + '" ' ;
+    QMaj := OpenSQL( lstSQL, False) ;
+    if Not QMaj.Eof then
+      begin
+      QMaj.Edit ;
+      QMaj.FindField('BE_DEBIT').AsFloat        := QMaj.FindField('BE_DEBIT').AsFloat+D ;
+      QMaj.FindField('BE_CREDIT').AsFloat       := QMaj.FindField('BE_CREDIT').AsFloat+C ;
+      QMaj.FindField('BE_DATEMODIF').AsDateTime := NowFutur ;
+      QMaj.Post ;
+      end
+    else begin
+      RequeteInsertion(Info,QCpy.FindField('BE_NUMEROPIECE').AsInteger,Exo,DCpta,D,C) ;
+    end ;
+    QCpy.Next ;
+    Ferme(QMaj) ;
+  end ;
+end ;
+
+procedure TFCpyBudMu.BZoomClick(Sender: TObject);
+begin
+  VoirBudget(Fliste.Cells[0,FListe.Row]) ;
+end;
+
+Procedure TFCpyBudMu.VoirBudget(UnJal : String) ;
+begin
+  VisuConsoBudget('G',UnJal) ;
+end ;
+
+procedure TFCpyBudMu.FormCreate(Sender: TObject);
+begin
+  inherited;
+  PopUpMenu:=ADDMenuPop(PopUpMenu,'','') ;
+end;
+
+function TFCpyBudMu.GetCountBUDECR(StCond: String): Integer;
+var
+  QCount : TQuery ;
+begin
+  Result := 0 ;
+  QCount := OpenSQL('SELECT COUNT(*) TOTAL FROM BUDECR WHERE ' + StCond, True ) ;
+  if not QCount.Eof then Result := QCount.FindField('TOTAL').AsInteger ;
+  Ferme(QCount) ;
+end;
+
+end.

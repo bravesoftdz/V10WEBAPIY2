@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<definitions xmlns="http://schemas.xmlsoap.org/wsdl/" xmlns:xs="http://www.w3.org/2001/XMLSchema" name="IWSIISLSENomadeservice" targetNamespace="http://tempuri.org/" xmlns:tns="http://tempuri.org/" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:mime="http://schemas.xmlsoap.org/wsdl/mime/" xmlns:ns1="urn:WSNomadeDecl">
+  <types>
+    <xs:schema targetNamespace="urn:WSNomadeDecl" xmlns="urn:WSNomadeDecl">
+      <xs:complexType name="TWSUserParam">
+        <xs:sequence>
+          <xs:element name="UniqueID" type="xs:string"/>
+          <xs:element name="User" type="xs:string"/>
+          <xs:element name="Password" type="xs:string"/>
+        </xs:sequence>
+      </xs:complexType>
+      <xs:complexType name="TWSUser">
+        <xs:sequence>
+          <xs:element name="InternalID" type="xs:string"/>
+          <xs:element name="Ressource" type="xs:string"/>
+          <xs:element name="Codeuser" type="xs:string"/>
+          <xs:element name="DataBaseServer" type="xs:string"/>
+          <xs:element name="Database" type="xs:string"/>
+          <xs:element name="CodeErreur" type="xs:int"/>
+          <xs:element name="LibErreur" type="xs:string"/>
+        </xs:sequence>
+      </xs:complexType>
+      <xs:complexType name="TWSAppels">
+        <xs:complexContent>
+          <xs:restriction base="soapenc:Array">
+            <xs:sequence/>
+            <xs:attribute ref="soapenc:arrayType" n1:arrayType="ns1:TWSAppel[]" xmlns:n1="http://schemas.xmlsoap.org/wsdl/"/>
+          </xs:restriction>
+        </xs:complexContent>
+      </xs:complexType>
+      <xs:complexType name="TWSAppel">
+        <xs:sequence>
+          <xs:element name="CodeAppel" type="xs:string"/>
+          <xs:element name="EtatAppel" type="xs:string"/>
+          <xs:element name="Priorite" type="xs:int"/>
+          <xs:element name="Designation" type="xs:string"/>
+          <xs:element name="DateAppel" type="xs:string"/>
+          <xs:element name="NomClient" type="xs:string"/>
+          <xs:element name="NomContact" type="xs:string"/>
+          <xs:element name="TelContact" type="xs:string"/>
+          <xs:element name="Adresse1" type="xs:string"/>
+          <xs:element name="Adresse2" type="xs:string"/>
+          <xs:element name="CodePostal" type="xs:string"/>
+          <xs:element name="Ville" type="xs:string"/>
+        </xs:sequence>
+      </xs:complexType>
+    </xs:schema>
+  </types>
+  <message name="IsValideConnect0Request">
+    <part name="ParamIn" type="ns1:TWSUserParam"/>
+  </message>
+  <message name="IsValideConnect0Response">
+    <part name="return" type="ns1:TWSUser"/>
+  </message>
+  <message name="GetAppels1Request">
+    <part name="TheUSer" type="ns1:TWSUser"/>
+    <part name="Depuis" type="xs:string"/>
+  </message>
+  <message name="GetAppels1Response">
+    <part name="return" type="ns1:TWSAppels"/>
+  </message>
+  <portType name="IWSIISLSENomade">
+    <operation name="IsValideConnect">
+      <input message="tns:IsValideConnect0Request"/>
+      <output message="tns:IsValideConnect0Response"/>
+    </operation>
+    <operation name="GetAppels">
+      <input message="tns:GetAppels1Request"/>
+      <output message="tns:GetAppels1Response"/>
+    </operation>
+  </portType>
+  <binding name="IWSIISLSENomadebinding" type="tns:IWSIISLSENomade">
+    <soap:binding style="rpc" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <operation name="IsValideConnect">
+      <soap:operation soapAction="urn:WSIISLSENomadeIntf-IWSIISLSENomade#IsValideConnect" style="rpc"/>
+      <input message="tns:IsValideConnect0Request">
+        <soap:body use="encoded" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" namespace="urn:WSIISLSENomadeIntf-IWSIISLSENomade"/>
+      </input>
+      <output message="tns:IsValideConnect0Response">
+        <soap:body use="encoded" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" namespace="urn:WSIISLSENomadeIntf-IWSIISLSENomade"/>
+      </output>
+    </operation>
+    <operation name="GetAppels">
+      <soap:operation soapAction="urn:WSIISLSENomadeIntf-IWSIISLSENomade#GetAppels" style="rpc"/>
+      <input message="tns:GetAppels1Request">
+        <soap:body use="encoded" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" namespace="urn:WSIISLSENomadeIntf-IWSIISLSENomade"/>
+      </input>
+      <output message="tns:GetAppels1Response">
+        <soap:body use="encoded" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" namespace="urn:WSIISLSENomadeIntf-IWSIISLSENomade"/>
+      </output>
+    </operation>
+  </binding>
+  <service name="IWSIISLSENomadeservice">
+    <port name="IWSIISLSENomadePort" binding="tns:IWSIISLSENomadebinding">
+      <soap:address location="http://vm-2008/WebServices/WSIISNomade.dll/soap/IWSIISLSENomade"/>
+    </port>
+  </service>
+</definitions>
+

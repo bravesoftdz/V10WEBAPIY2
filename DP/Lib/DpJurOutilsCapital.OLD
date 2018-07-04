@@ -1,0 +1,255 @@
+{***********UNITE*************************************************
+Auteur  ...... : BM
+Créé le ...... : 28/04/2003
+Modifié le ... :
+Description .. : Unité commune entre le DP et JURI pour la gestion des blobs
+Mots clefs ... : DP;JURI
+*****************************************************************}
+unit DpJurOutilsCapital;
+
+interface
+
+uses
+   utob, comctrls,
+{$IFDEF EAGLCLIENT}
+{$ELSE}
+   dbTables,
+{$ENDIF}
+   hCtrls, SysUtils, hRichOLE, rtfcounter;
+
+/////////////////////////////////////////////////////////////////
+type
+   TCapital = class
+      public
+         iNbTitresOuv_c  : integer;
+         iNbTitresOuvn_c : integer;
+         iNbTitresOuvp_c : integer;
+         iNbTitresAugm_c : integer;
+         iNbTitresRed_c  : integer;
+         iNbTitresClo_c  : integer;
+         iCapital_c      : integer;
+
+         bChangement_c   : boolean;
+      private
+end;
+
+
+/////////// ENTETES DE FONCTIONS ////////////
+
+
+/////////// IMPLEMENTATION ////////////
+
+implementation
+
+
+/////////////////////////////////////////////////////////////////
+procedure CalculNbCapTitres;
+// était appelée dans AGLInitDP dans AGLRendNbLigne
+var
+   Q1         : TQuery;
+   iNbTitresOuvn: integer;
+   iNbTitresOuvp: integer;
+   iNbTitresAugm: integer;
+   iNbTitresRed : integer;
+   DateOuv      : TDateTime;
+   DateFin      : TDateTime;
+   bChange_l    : boolean;
+begin
+   Dateouv := iDate1900;
+   DateFin := iDate1900;
+   Q1 := OpenSQL('select DOR_DATEDEBUTEX, DOR_DATEFINEX ' +
+                 'from DPORGA ' +
+                 'where DOR_NODP = ' + Codperdos, TRUE) ;
+   if not Q1.eof then
+   begin
+      DateOuv := (Q1.Fields[0]).AsDateTime;
+      DateFin := (Q1.Fields[1]).AsDateTime;
+   end;
+   Ferme(Q1);
+   iNbTitresClo := 0;
+   iNbTitresOuvn := 0;
+   iNbTitresOuvp := 0;
+   iNbTitresAugm := 0;
+   iNbTitresRed := 0;
+   bChange_l := false;
+
+   // recherche le nb de titres à l'ouverture de l'exercice
+   // DPM_DATE < DateOuv AND DPM_SENS = '-'
+   Q1 := OpenSQL('select sum(DPM_NBTITRES) as somme ' +
+                 'from DPMVTCAP ' +
+                 'where DPM_NODP = ' + Codperdos +
+                 '  AND DPM_DATE < "' + USDATETIME(DateOuv) +'" ' +
+                 '  AND DPM_SENS = "-"', TRUE);
+
+   if not Q1.eof then   // somme <> null
+      iNbTitresOuvn := (-1) * Q1.FindField('somme').AsInteger;
+   Ferme(Q1);
+
+   // DPM_DATE < DateOuv AND DPM_SENS = '+'
+   Q1 := OpenSQL('select sum(DPM_NBTITRES) as somme ' +
+                 'from DPMVTCAP ' +
+                 'where DPM_NODP = ' + Codperdos +
+                 '  AND DPM_DATE < "' + USDATETIME(DateOuv) + '" AND DPM_SENS = "+"', TRUE);
+   if not Q1.eof then
+      iNbTitresOuvp := Q1.FindField('somme').AsInteger;
+   Ferme(Q1);
+
+   iNbTitresClo := iNbTitresOuvn + iNbTitresOuvp;
+   if GetField('JUR_NBTITRESOUV') <> iNbTitresClo then
+      SetField('JUR_NBTITRESOUV', iNbTitresClo);
+
+   if iNbTitresClo <> iNbTitresOuv_c then
+      bChange_l := true;
+
+   // DateOuv <= DPM_DATE < DateFin AND DPM_SENS = '+'
+   Q1 := OpenSQL('select sum(DPM_NBTITRES) as somme ' +
+                 'from DPMVTCAP ' +
+                 'where DPM_NODP = ' + Codperdos +
+                 '  AND DPM_DATE >= "' + USDATETIME(DateOuv) +'" ' +
+                 '  AND DPM_DATE <= "' + USDATETIME(DateFin) + '" ' +
+                 '  AND DPM_SENS = "+"', TRUE);
+   if Not Q1.eof then
+      iNbTitresAugm := Q1.FindField('somme').AsInteger ;
+   Ferme(Q1);
+
+   iNbTitresClo := iNbTitresClo + iNbTitresAugm;
+   if GetField('JUR_NBTITRESAUGM') <> iNbTitresAugm then
+      SetField('JUR_NBTITRESAUGM', iNbTitresAugm);
+
+   if iNbTitresAugm <> iNbTitresAugm_c then
+      bChange_l := true;
+
+   // on est dans l'intervalle date de l'exercice
+   // DateOuv <= DPM_DATE < DateFin AND DPM_SENS = '-'
+   Q1 := OpenSQL('select sum(DPM_NBTITRES) as somme ' +
+                 'from DPMVTCAP ' +
+                 'where DPM_NODP = ' + Codperdos +
+                 '  AND DPM_DATE >= "' + USDATETIME(DateOuv) + '" ' +
+                 '  AND DPM_DATE <= "' + USDATETIME(DateFin) + '" ' +
+                 '  AND DPM_SENS = "-"', TRUE);
+   if not Q1.eof then
+      iNbTitresRed := Q1.FindField('somme').AsInteger;
+   Ferme(Q1);
+
+   iNbTitresClo := iNbTitresClo - iNbTitresRed;
+   if GetField('JUR_NBTITRESRED') <> iNbTitresRed then
+      SetField('JUR_NBTITRESRED', iNbTitresRed);
+
+   if iNbTitresRed <> iNbTitresRed_c then
+      bChange_l := true;
+
+   // nb titres à la clot.
+   if GetField('JUR_CAPITAL') <> (GetField('JUR_VALNOMINCLOT') * iNbTitresClo) then
+      SetField('JUR_CAPITAL', GetField('JUR_VALNOMINCLOT') * iNbTitresClo);
+
+   if GetField('JUR_VALNOMINCLOT') * iNbTitresClo <> iCapital_c then
+      bChange_l := true;
+
+   //THDBSpinEdit(GetControl('JUR_NBTITRESCLOT')).value := iNbTitresClo;
+   if GetField('JUR_NBTITRESCLOT') <> iNbTitresClo then
+      SetField('JUR_NBTITRESCLOT', iNbTitresClo);
+
+   if iNbTitresClo <> iNbTitresClo_c then
+      bChange_l := true;
+
+   if GetField('JUR_NBDROITSVOTE') <> iNbTitresClo then
+      SetField('JUR_NBDROITSVOTE', iNbTitresClo);
+
+   // propagation vers l'annuaire
+   if bChange_l then
+      MajCapitalAnnuaire;
+end;
+{***********A.G.L.Privé.*****************************************
+Auteur  ...... : B. Mériaux
+Créé le ...... : 09/08/2004
+Modifié le ... :   /  /    
+Description .. : Appelé avant évolution de capital : sauvegarde des 
+Suite ........ : données
+Mots clefs ... : 
+*****************************************************************}
+procedure SauvNbCapTitres;
+// était appelée dans AGLInitDP dans AGLRendNbLigne
+var
+   QRYReq_l          : TQuery;
+   iNbTitresOuvn_l   : integer;
+   iNbTitresOuvp_l   : integer;
+   dDateOuv_l        : TDateTime;
+   dDateFin_l        : TDateTime;
+begin
+   dDateOuv_l := iDate1900;
+   dDateFin_l := iDate1900;
+   QRYReq_l := OpenSQL('select DOR_DATEDEBUTEX, DOR_DATEFINEX ' +
+                 'from DPORGA ' +
+                 'where DOR_NODP = ' + Codperdos, TRUE) ;
+   if not QRYReq_l.eof then
+   begin
+      dDateOuv_l := (QRYReq_l.Fields[0]).AsDateTime;
+      dDateFin_l := (QRYReq_l.Fields[1]).AsDateTime;
+   end;
+   Ferme(QRYReq_l);
+
+   iNbTitresOuv_c := 0;
+   iNbTitresAugm_c := 0;
+   iNbTitresRed_c := 0;
+   iNbTitresClo_c := 0;
+   iCapital_c := 0;
+
+   // recherche le nb de titres à l'ouverture de l'exercice
+   iNbTitresOuvn_l := 0;
+   iNbTitresOuvp_l := 0;
+
+   QRYReq_l := OpenSQL('select sum(DPM_NBTITRES) as somme ' +
+                       'from DPMVTCAP ' +
+                       'where DPM_NODP = ' + Codperdos +
+                       '  AND DPM_DATE < "' + USDATETIME(dDateOuv_l) +'" ' +
+                       '  AND DPM_SENS = "-"', TRUE);
+
+   if not QRYReq_l.eof then   // somme <> null
+      iNbTitresOuvn_l := (-1) * QRYReq_l.FindField('somme').AsInteger;
+   Ferme(QRYReq_l);
+
+   // DPM_DATE < DateOuv AND DPM_SENS = '+'
+   QRYReq_l := OpenSQL('select sum(DPM_NBTITRES) as somme ' +
+                       'from DPMVTCAP ' +
+                       'where DPM_NODP = ' + Codperdos +
+                       '  AND DPM_DATE < "' + USDATETIME(dDateOuv_l) + '" ' +
+                       '  AND DPM_SENS = "+"', TRUE);
+   if not QRYReq_l.eof then
+      iNbTitresOuvp_l := QRYReq_l.FindField('somme').AsInteger;
+   Ferme(QRYReq_l);
+
+   iNbTitresOuv_c := iNbTitresOuvn_l + iNbTitresOuvp_l;
+   iNbTitresClo_c := iNbTitresOuv_c;
+
+   // DateOuv <= DPM_DATE < DateFin AND DPM_SENS = '+'
+   QRYReq_l := OpenSQL('select sum(DPM_NBTITRES) as somme ' +
+                       'from DPMVTCAP ' +
+                       'where DPM_NODP = ' + Codperdos +
+                       '  AND DPM_DATE >= "' + USDATETIME(dDateOuv_l) +'" ' +
+                       '  AND DPM_DATE <= "' + USDATETIME(dDateFin_l) + '" ' +
+                       '  AND DPM_SENS = "+"', TRUE);
+   if Not QRYReq_l.eof then
+      iNbTitresAugm_c := QRYReq_l.FindField('somme').AsInteger ;
+   Ferme(QRYReq_l);
+
+   iNbTitresClo_c := iNbTitresClo_c + iNbTitresAugm_c;
+
+   // on est dans l'intervalle date de l'exercice
+   // DateOuv <= DPM_DATE < DateFin AND DPM_SENS = '-'
+   QRYReq_l := OpenSQL('select sum(DPM_NBTITRES) as somme ' +
+                 'from DPMVTCAP ' +
+                 'where DPM_NODP = ' + Codperdos +
+                 '  AND DPM_DATE >= "' + USDATETIME(dDateOuv_l) + '" ' +
+                 '  AND DPM_DATE <= "' + USDATETIME(dDateFin_l) + '" ' +
+                 '  AND DPM_SENS = "-"', TRUE);
+   if not QRYReq_l.eof then
+      iNbTitresRed_c := QRYReq_l.FindField('somme').AsInteger;
+   Ferme(QRYReq_l);
+
+   iNbTitresClo_c := iNbTitresClo_c - iNbTitresRed_c;
+   // nb titres à la clot.
+   iCapital_c := GetField('JUR_VALNOMINCLOT') * iNbTitresClo_c;
+end;
+
+/////////////////////////////////////////////////////////////////
+end.

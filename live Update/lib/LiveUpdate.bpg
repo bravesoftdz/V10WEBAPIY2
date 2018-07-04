@@ -1,0 +1,36 @@
+#------------------------------------------------------------------------------
+VERSION = BWS.01
+#------------------------------------------------------------------------------
+!ifndef ROOT
+ROOT = $(MAKEDIR)\..
+!endif
+#------------------------------------------------------------------------------
+MAKE = $(ROOT)\bin\make.exe -$(MAKEFLAGS) -f$**
+DCC = $(ROOT)\bin\dcc32.exe $**
+BRCC = $(ROOT)\bin\brcc32.exe $**
+#------------------------------------------------------------------------------
+PROJECTS = CreateRepoS.exe LSEClientMaj.exe SetParams.exe ExportParams.exe \
+  ImportParams.exe UpdVersions.exe
+#------------------------------------------------------------------------------
+default: $(PROJECTS)
+#------------------------------------------------------------------------------
+
+LSEClientMaj.exe: LSEClientMaj.dpr
+  $(DCC)
+
+SetParams.exe: SetParams.dpr
+  $(DCC)
+
+ExportParams.exe: ExportParams.dpr
+  $(DCC)
+
+ImportParams.exe: ImportParams.dpr
+  $(DCC)
+
+CreateRepoS.exe: ..\..\gescom\SynBTP\CreateRepoS.dpr
+  $(DCC)
+
+UpdVersions.exe: ..\LibStd\UpdVersions.dpr
+  $(DCC)
+
+

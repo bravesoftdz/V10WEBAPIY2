@@ -1,0 +1,18 @@
+Du fait de la limitation dans les bases ACCESS a moins de 10 champs dans les index.
+
+Il faut :
+
+	- Sur chaque table enregistrer les clefs de la table sur la base REF SQL SERVER
+	- Enlever les clefs totalment 
+	- Faire la copie de soc a soc pour générer le base acces
+	- Dans la base SQL SERVER remettre les clefs
+	- Dans la base ACCESS ajouter les clefs sans créer la table. (seule la structure est intéressante)
+
+Liste des tables
+
+SUR TABLE 
+
+CUMPERS : ( UPS_ENTITY,UPS_DATPER,UPS_TYPEANALYTIQUE,UPS_AXE,UPS_SOUSPLAN1,UPS_SOUSPLAN2,UPS_SOUSPLAN3,UPS_SOUSPLAN4,UPS_SOUSPLAN5,UPS_SOUSPLAN6,UPS_GENERAL,UPS_TYPE,UPS_ETABLISSEMENT,UPS_QUALIFPIECE )
+YLIGECR : ( YLE_NAL,YLE_SL,YLE_NL,YLE_IL,YLE_NOL,YLE_J,YLE_E,YLE_DC,YLE_NP,YLE_NUL,YLE_NE,YLE_Q )
+
+

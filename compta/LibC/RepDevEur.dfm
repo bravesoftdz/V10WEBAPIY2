@@ -1,0 +1,518 @@
+object FRepareMontant: TFRepareMontant
+  Left = 260
+  Top = 197
+  Width = 411
+  Height = 352
+  Caption = 'V'#233'rification des montants sur les pi'#232'ces en devise'
+  Color = clBtnFace
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -11
+  Font.Name = 'MS Sans Serif'
+  Font.Style = []
+  OldCreateOrder = True
+  Position = poScreenCenter
+  OnClose = FormClose
+  OnCreate = FormCreate
+  PixelsPerInch = 96
+  TextHeight = 13
+  object Dock: TDock97
+    Left = 0
+    Top = 291
+    Width = 403
+    Height = 34
+    AllowDrag = False
+    Position = dpBottom
+    object HPB: TToolWindow97
+      Left = 0
+      Top = 0
+      ClientHeight = 30
+      ClientWidth = 685
+      Caption = 'Actions'
+      ClientAreaHeight = 30
+      ClientAreaWidth = 685
+      DockPos = 0
+      ParentShowHint = False
+      ShowHint = False
+      TabOrder = 0
+      object BAide: TToolbarButton97
+        Left = 370
+        Top = 2
+        Width = 28
+        Height = 27
+        Hint = 'Aide'
+        DisplayMode = dmGlyphOnly
+        Caption = 'Aide'
+        Flat = False
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clBlack
+        Font.Height = -11
+        Font.Name = 'MS Sans Serif'
+        Font.Style = [fsBold]
+        Margin = 2
+        ParentFont = False
+        ParentShowHint = False
+        ShowHint = True
+        Spacing = -1
+        GlobalIndexImage = 'Z1117_S16G1'
+        IsControl = True
+      end
+      object BValider: TToolbarButton97
+        Left = 308
+        Top = 2
+        Width = 28
+        Height = 27
+        Hint = 'Lancer la modification'
+        Default = True
+        DisplayMode = dmGlyphOnly
+        Caption = 'Modifier'
+        Flat = False
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clBlack
+        Font.Height = -11
+        Font.Name = 'MS Sans Serif'
+        Font.Style = [fsBold]
+        Glyph.Data = {
+          BE060000424DBE06000000000000360400002800000024000000120000000100
+          0800000000008802000000000000000000000001000000010000000000000000
+          80000080000000808000800000008000800080800000C0C0C000C0DCC000F0C8
+          A400000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          0000000000000000000000000000000000000000000000000000000000000000
+          000000000000000000000000000000000000F0FBFF00A4A0A000808080000000
+          FF0000FF000000FFFF00FF000000FF00FF00FFFF0000FFFFFF00030303030303
+          0303030303030303030303030303030303030303030303030303030303030303
+          03030303030303030303030303030303030303030303FF030303030303030303
+          03030303030303040403030303030303030303030303030303F8F8FF03030303
+          03030303030303030303040202040303030303030303030303030303F80303F8
+          FF030303030303030303030303040202020204030303030303030303030303F8
+          03030303F8FF0303030303030303030304020202020202040303030303030303
+          0303F8030303030303F8FF030303030303030304020202FA0202020204030303
+          0303030303F8FF0303F8FF030303F8FF03030303030303020202FA03FA020202
+          040303030303030303F8FF03F803F8FF0303F8FF03030303030303FA02FA0303
+          03FA0202020403030303030303F8FFF8030303F8FF0303F8FF03030303030303
+          FA0303030303FA0202020403030303030303F80303030303F8FF0303F8FF0303
+          0303030303030303030303FA0202020403030303030303030303030303F8FF03
+          03F8FF03030303030303030303030303FA020202040303030303030303030303
+          0303F8FF0303F8FF03030303030303030303030303FA02020204030303030303
+          03030303030303F8FF0303F8FF03030303030303030303030303FA0202020403
+          030303030303030303030303F8FF0303F8FF03030303030303030303030303FA
+          0202040303030303030303030303030303F8FF03F8FF03030303030303030303
+          03030303FA0202030303030303030303030303030303F8FFF803030303030303
+          030303030303030303FA0303030303030303030303030303030303F803030303
+          0303030303030303030303030303030303030303030303030303030303030303
+          0303}
+        GlyphMask.Data = {00000000}
+        Margin = 2
+        NumGlyphs = 2
+        ParentFont = False
+        ParentShowHint = False
+        ShowHint = True
+        Spacing = -1
+        OnClick = BValiderClick
+        IsControl = True
+      end
+      object BFerme: TToolbarButton97
+        Left = 339
+        Top = 2
+        Width = 28
+        Height = 27
+        Hint = 'Fermer'
+        Cancel = True
+        DisplayMode = dmGlyphOnly
+        Caption = 'Fermer'
+        Flat = False
+        Glyph.Data = {
+          CE070000424DCE07000000000000360000002800000024000000120000000100
+          1800000000009807000000000000000000000000000000000000008284008284
+          0082840082840082840082840082840082840082840082840082840082840082
+          8400828400828400828400828400828400828400828400828400828400828400
+          8284008284008284008284008284008284008284008284008284008284008284
+          0082840082840082840082840082840082848482848482840082840082840082
+          8400828400828400828400828400828400828400828400828400828400828400
+          8284008284008284008284FFFFFF008284008284008284008284008284008284
+          0082840082840082840082840082840082840082840082840082840000FF0000
+          840000848482840082840082840082840082840082840000FF84828400828400
+          8284008284008284008284008284008284008284848284848284FFFFFF008284
+          008284008284008284008284008284FFFFFF0082840082840082840082840082
+          840082840082840000FF00008400008400008484828400828400828400828400
+          00FF000084000084848284008284008284008284008284008284008284848284
+          FFFFFF008284848284FFFFFF008284008284008284FFFFFF848284848284FFFF
+          FF0082840082840082840082840082840082840000FF00008400008400008400
+          00848482840082840000FF000084000084000084000084848284008284008284
+          008284008284008284848284FFFFFF008284008284848284FFFFFF008284FFFF
+          FF848284008284008284848284FFFFFF00828400828400828400828400828400
+          82840000FF000084000084000084000084848284000084000084000084000084
+          000084848284008284008284008284008284008284848284FFFFFF0082840082
+          84008284848284FFFFFF848284008284008284008284008284848284FFFFFF00
+          82840082840082840082840082840082840000FF000084000084000084000084
+          0000840000840000840000848482840082840082840082840082840082840082
+          84008284848284FFFFFF00828400828400828484828400828400828400828400
+          8284FFFFFF848284008284008284008284008284008284008284008284008284
+          0000FF0000840000840000840000840000840000848482840082840082840082
+          84008284008284008284008284008284008284848284FFFFFF00828400828400
+          8284008284008284008284FFFFFF848284008284008284008284008284008284
+          0082840082840082840082840082840000840000840000840000840000848482
+          8400828400828400828400828400828400828400828400828400828400828400
+          8284848284FFFFFF008284008284008284008284008284848284008284008284
+          0082840082840082840082840082840082840082840082840082840000FF0000
+          8400008400008400008484828400828400828400828400828400828400828400
+          8284008284008284008284008284008284848284FFFFFF008284008284008284
+          8482840082840082840082840082840082840082840082840082840082840082
+          840082840000FF00008400008400008400008400008484828400828400828400
+          8284008284008284008284008284008284008284008284008284008284848284
+          008284008284008284008284848284FFFFFF0082840082840082840082840082
+          840082840082840082840082840000FF00008400008400008484828400008400
+          0084000084848284008284008284008284008284008284008284008284008284
+          008284008284848284008284008284008284008284008284848284FFFFFF0082
+          840082840082840082840082840082840082840082840000FF00008400008400
+          00848482840082840000FF000084000084000084848284008284008284008284
+          008284008284008284008284008284848284008284008284008284848284FFFF
+          FF008284008284848284FFFFFF00828400828400828400828400828400828400
+          82840000FF0000840000848482840082840082840082840000FF000084000084
+          000084848284008284008284008284008284008284008284848284FFFFFF0082
+          84008284848284008284848284FFFFFF008284008284848284FFFFFF00828400
+          82840082840082840082840082840082840000FF000084008284008284008284
+          0082840082840000FF0000840000840000840082840082840082840082840082
+          84008284848284FFFFFFFFFFFF848284008284008284008284848284FFFFFF00
+          8284008284848284FFFFFF008284008284008284008284008284008284008284
+          0082840082840082840082840082840082840082840000FF0000840000FF0082
+          8400828400828400828400828400828400828484828484828400828400828400
+          8284008284008284848284FFFFFFFFFFFFFFFFFF848284008284008284008284
+          0082840082840082840082840082840082840082840082840082840082840082
+          8400828400828400828400828400828400828400828400828400828400828400
+          8284008284008284008284008284008284008284008284848284848284848284
+          0082840082840082840082840082840082840082840082840082840082840082
+          8400828400828400828400828400828400828400828400828400828400828400
+          8284008284008284008284008284008284008284008284008284008284008284
+          008284008284008284008284008284008284}
+        GlyphMask.Data = {00000000}
+        ModalResult = 2
+        NumGlyphs = 2
+        ParentShowHint = False
+        ShowHint = True
+      end
+      object BChancelOut: TToolbarButton97
+        Left = 4
+        Top = 2
+        Width = 28
+        Height = 27
+        Hint = 'Chancellerie sur l'#39'Euro'
+        Flat = False
+        ParentShowHint = False
+        ShowHint = True
+        OnClick = BChancelOutClick
+        GlobalIndexImage = 'Z0590_S16G1'
+      end
+    end
+  end
+  object Panel1: TPanel
+    Left = 0
+    Top = 0
+    Width = 403
+    Height = 291
+    Align = alClient
+    TabOrder = 1
+    object TFJal: THLabel
+      Left = 9
+      Top = 12
+      Width = 88
+      Height = 13
+      Caption = 'Codes j&ournaux de'
+    end
+    object TFaJ: TLabel
+      Left = 251
+      Top = 10
+      Width = 6
+      Height = 13
+      Caption = #224
+    end
+    object TFExercice: THLabel
+      Left = 9
+      Top = 44
+      Width = 88
+      Height = 13
+      AutoSize = False
+      Caption = 'E&xercice'
+      FocusControl = FExercice
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clBlack
+      Font.Height = -12
+      Font.Name = 'MS Sans Serif'
+      Font.Style = []
+      ParentFont = False
+    end
+    object TFDateCpta1: THLabel
+      Left = 9
+      Top = 75
+      Width = 124
+      Height = 13
+      AutoSize = False
+      Caption = '&Date comptable du'
+      FocusControl = FDateCpta1
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clBlack
+      Font.Height = -12
+      Font.Name = 'MS Sans Serif'
+      Font.Style = []
+      ParentFont = False
+    end
+    object TFDateCpta2: TLabel
+      Left = 251
+      Top = 75
+      Width = 15
+      Height = 13
+      AutoSize = False
+      Caption = 'au'
+      FocusControl = FDateCpta2
+    end
+    object TFEtab: THLabel
+      Left = 9
+      Top = 107
+      Width = 88
+      Height = 13
+      AutoSize = False
+      Caption = '&Etablissement'
+      FocusControl = FEtab
+    end
+    object TFTypeEcriture: THLabel
+      Left = 9
+      Top = 138
+      Width = 88
+      Height = 13
+      AutoSize = False
+      Caption = '&Type d'#39#233'critures'
+      FocusControl = FTypeEcriture
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clBlack
+      Font.Height = -12
+      Font.Name = 'MS Sans Serif'
+      Font.Style = []
+      ParentFont = False
+    end
+    object TFNumPiece1: THLabel
+      Left = 9
+      Top = 170
+      Width = 92
+      Height = 13
+      AutoSize = False
+      Caption = '&N'#176' de pi'#232'ces de'
+      FocusControl = FNumPiece1
+    end
+    object TFNumPiece2: TLabel
+      Left = 255
+      Top = 170
+      Width = 15
+      Height = 13
+      AutoSize = False
+      Caption = #224
+      FocusControl = FNumPiece2
+    end
+    object TE_DEVISE: THLabel
+      Left = 9
+      Top = 202
+      Width = 33
+      Height = 13
+      Caption = '&Devise'
+      FocusControl = FDevise
+    end
+    object FExercice: THValComboBox
+      Left = 136
+      Top = 40
+      Width = 245
+      Height = 21
+      Style = csDropDownList
+      Ctl3D = True
+      ItemHeight = 13
+      ParentCtl3D = False
+      TabOrder = 0
+      OnChange = FExerciceChange
+      TagDispatch = 0
+      DataType = 'TTEXERCICE'
+    end
+    object FDateCpta1: TMaskEdit
+      Left = 136
+      Top = 71
+      Width = 81
+      Height = 21
+      Ctl3D = True
+      EditMask = '!99/99/0000;1;_'
+      MaxLength = 10
+      ParentCtl3D = False
+      TabOrder = 1
+      Text = '01/01/1900'
+    end
+    object FDateCpta2: TMaskEdit
+      Left = 294
+      Top = 71
+      Width = 86
+      Height = 21
+      Ctl3D = True
+      EditMask = '!99/99/0000;1;_'
+      MaxLength = 10
+      ParentCtl3D = False
+      TabOrder = 2
+      Text = '31/12/2099'
+    end
+    object FEtab: THValComboBox
+      Left = 136
+      Top = 103
+      Width = 245
+      Height = 21
+      Style = csDropDownList
+      Ctl3D = True
+      ItemHeight = 13
+      ParentCtl3D = False
+      TabOrder = 3
+      TagDispatch = 0
+      Vide = True
+      DataType = 'TTETABLISSEMENT'
+    end
+    object FTypeEcriture: THValComboBox
+      Left = 136
+      Top = 134
+      Width = 245
+      Height = 21
+      Style = csDropDownList
+      Ctl3D = True
+      ItemHeight = 13
+      ParentCtl3D = False
+      TabOrder = 4
+      TagDispatch = 0
+      Vide = True
+      DataType = 'TTQUALPIECE'
+    end
+    object FNumPiece1: TMaskEdit
+      Left = 136
+      Top = 166
+      Width = 81
+      Height = 21
+      Ctl3D = True
+      MaxLength = 9
+      ParentCtl3D = False
+      TabOrder = 5
+    end
+    object FNumPiece2: TMaskEdit
+      Left = 294
+      Top = 166
+      Width = 86
+      Height = 21
+      Ctl3D = True
+      MaxLength = 9
+      ParentCtl3D = False
+      TabOrder = 7
+    end
+    object FDevise: THValComboBox
+      Left = 136
+      Top = 198
+      Width = 245
+      Height = 21
+      Style = csDropDownList
+      Ctl3D = True
+      ItemHeight = 13
+      ParentCtl3D = False
+      TabOrder = 9
+      TagDispatch = 0
+      Vide = True
+      DataType = 'TTDEVISE'
+    end
+    object FOkRepare: TCheckBox
+      Left = 8
+      Top = 232
+      Width = 140
+      Height = 17
+      Alignment = taLeftJustify
+      Caption = '&R'#233'paration'
+      TabOrder = 6
+    end
+    object FChancell: TCheckBox
+      Left = 8
+      Top = 264
+      Width = 261
+      Height = 17
+      Alignment = taLeftJustify
+      Caption = 'Utiliser la table de chancellerie pour les devises out'
+      TabOrder = 8
+    end
+    object FJal1: THCpteEdit
+      Left = 136
+      Top = 6
+      Width = 81
+      Height = 21
+      CharCase = ecUpperCase
+      TabOrder = 10
+      ZoomTable = tzJournal
+      Vide = False
+      Bourre = False
+      okLocate = False
+      SynJoker = False
+    end
+    object FJal2: THCpteEdit
+      Left = 294
+      Top = 6
+      Width = 86
+      Height = 21
+      CharCase = ecUpperCase
+      MaxLength = 3
+      TabOrder = 11
+      ZoomTable = tzJournal
+      Vide = False
+      Bourre = False
+      okLocate = False
+      SynJoker = False
+    end
+  end
+  object HMTrad: THSystemMenu
+    Caption = '&Personnalisation'
+    Separator = True
+    Traduction = True
+    Left = 372
+    Top = 256
+  end
+  object HM: THMsgBox
+    Police.Charset = DEFAULT_CHARSET
+    Police.Color = clWindowText
+    Police.Height = -11
+    Police.Name = 'MS Sans Serif'
+    Police.Style = []
+    Mess.Strings = (
+      
+        '0;Contr'#244'le des montants sur les pi'#232'ces en devise;Confirmez-vous ' +
+        'le traitement de contr'#244'le?;Q;YN;N;N;'
+      
+        '1;R'#233'paration des montants sur les pi'#232'ces en devise;Confirmez-vou' +
+        's le traitement de r'#233'paration?;Q;YN;N;N;'
+      
+        '2;R'#233'paration des montants sur les pi'#232'ces en devise; Attention : ' +
+        'la date de d'#233'but de s'#233'lection est ant'#233'rieure '#224' la date d'#39'entr'#233'e ' +
+        'en vigueur de l'#39'Euro;E;O;O;O;')
+    Left = 336
+    Top = 227
+  end
+end

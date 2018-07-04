@@ -1,0 +1,254 @@
+{***********UNITE*************************************************
+Auteur  ...... : PAIE - MF
+Créé le ...... : 30/06/2004
+Modifié le ... :   /  /
+Description .. : Source TOF de la FICHE : GENEREMAINT_MUL ()
+Mots clefs ... : TOF;GENEREMAINT_MUL
+*****************************************************************}
+{
+PT1 15/14/2004 V6_00  PH FQ 11769 Ergonomie
+}
+Unit GENEREMAINT_MUL_TOF ;
+
+Interface
+
+Uses
+     AGLInit,
+     StdCtrls,
+     Controls,
+     Classes,
+{$IFNDEF EAGLCLIENT}
+     db, 
+     dbtables,
+     Fe_Main,
+     HDB,
+     mul,
+{$else}
+     eMul,
+     Maineagl,
+     uTob,
+{$ENDIF}
+     EntPaie,
+     forms, 
+     sysutils, 
+     ComCtrls,
+     HCtrls,
+     HEnt1,
+     HMsgBox,
+     HQry,
+     HTB97,
+     PgOutils,
+     UTOF ; 
+
+Type
+  TOF_GENEREMAINT_MUL = Class (TOF)
+  private
+    Date1, Date2                        : THEdit;
+    DebExer, FinExer                    : TDateTime;
+    WW                                  : THEdit;
+    Q_Mul                               : THQuery;
+
+    procedure ActiveWhere(Okok : boolean);
+    procedure DateDebutExit(Sender: TObject);
+    procedure DateFinExit(Sender: TObject);
+    procedure LanceGenerMaintien (Sender: TObject);
+
+  public
+    procedure OnNew                    ; override ;
+    procedure OnDelete                 ; override ;
+    procedure OnUpdate                 ; override ;
+    procedure OnLoad                   ; override ;
+    procedure OnArgument (S : String ) ; override ;
+    procedure OnDisplay                ; override ;
+    procedure OnClose                  ; override ;
+    procedure OnCancel                 ; override ;
+  end ;
+var
+// Definition de la grille
+{$IFNDEF EAGLCLIENT}
+       Grille : THDBGrid;
+{$ELSE}
+       Grille : THGrid;
+{$ENDIF}
+
+Implementation
+
+procedure TOF_GENEREMAINT_MUL.OnNew ;
+begin
+  Inherited ;
+end ;
+
+procedure TOF_GENEREMAINT_MUL.OnDelete ;
+begin
+  Inherited ;
+end ;
+
+procedure TOF_GENEREMAINT_MUL.OnUpdate ;
+begin
+  Inherited ;
+end ;
+
+procedure TOF_GENEREMAINT_MUL.OnLoad ;
+begin
+  Inherited ;
+  ActiveWhere(TRUE);
+end ;
+
+procedure TOF_GENEREMAINT_MUL.OnArgument (S : String ) ;
+var
+  MoisE, AnneeE, ComboExer      : string;
+  Zdate                         : TDateTime;
+  BtnValidMul                   : TToolbarButton97;
+begin
+  Inherited ;
+  WW:=THEdit (GetControl ('XX_WHERE'));
+
+  BtnValidMul:=TToolbarButton97 (GetControl ('BOuvrir'));
+  if BtnValidMul <> NIL then
+   BtnValidMul.OnClick := LanceGenerMaintien;
+
+  // Alimentation par défaut des dates de session
+
+  Date1 := THEdit(GetControl('DATEDEBUT'));
+  if Date1 <> nil then Date1.OnClick := DateDebutExit;
+  Date2 := THEdit(GetControl('DATEFIN'));
+  if Date2 <> nil then Date2.OnClick := DateFinExit;
+
+  RendExerSocialEnCours(MoisE, AnneeE, ComboExer, DebExer, FinExer);
+
+  //  Date de la preparation auto en fonction des paramsoc
+  if VH_Paie.PgDatePrepAuto = 'MOI' then
+  begin
+    if StrToDate(Date2.Text) > FinExer then
+    begin
+      Date2.Text := DateToStr(FinExer);
+      Date1.Text := DateToSTr(DEBUTDEMOIS(FinExer));
+    end;
+  end
+  else
+  begin
+  //Recuperation de la periode en cours de la saisie par rubrique
+  // Dates preparation en paie décalée
+    if not VH_Paie.PGDecalage then
+      ZDate := EncodeDate(StrToInt(AnneeE), StrToInt(MoisE), 01)
+    else
+    begin
+    // Dates preparation en paie décalée
+      if MoisE = '12' then
+        ZDate := EncodeDate(StrToInt(AnneeE) - 1, StrToInt(MoisE), 01)
+      else ZDate := EncodeDate(StrToInt(AnneeE), StrToInt(MoisE), 01);
+    end;
+
+    Date1.Text := DateToSTr(Zdate);
+    Date2.Text := DateToSTr(FINDEMOIS(Zdate));
+  end;
+
+end ;
+
+procedure TOF_GENEREMAINT_MUL.OnClose ;
+begin
+  Inherited ;
+end ;
+
+procedure TOF_GENEREMAINT_MUL.OnDisplay () ;
+begin
+  Inherited ;
+end ;
+
+procedure TOF_GENEREMAINT_MUL.OnCancel () ;
+begin
+  Inherited ;
+end ;
+
+procedure TOF_GENEREMAINT_MUL.ActiveWhere(Okok : Boolean);
+var
+   St : string;
+
+begin
+  WW.Text := '';
+  st := '';
+  st := 'PCN_SALARIE  in (select PCN_SALARIE FROM ABSENCESALARIE WHERE ';
+  st := st + 'PCN_GESTIONIJSS = "X" AND '+
+             'PCN_DATEVALIDITE <= "' + usdatetime(StrToDate(Date2.Text))+'"' +
+             ' AND PCN_DATEPAIEMENT <= "' + usdatetime(10)+'")';
+  if St <> '' then WW.Text := st;
+
+  if Q_Mul <> NIL then
+  begin
+    Q_Mul.Liste  := 'PGMULABSIJSS';
+  end;
+end;
+procedure TOF_GENEREMAINT_MUL.DateDebutExit(Sender: TObject);
+var
+  DD, DF: THEdit;
+  DateDeb, DateFin: TDateTime;
+begin
+  DD := THEdit(GetControl('DATEDEBUT'));
+  DF := THEdit(GetControl('DATEFIN'));
+  if (DD <> nil) and (DF <> nil) then
+  begin
+    DateDeb := StrToDate(DD.Text);
+    DateFin := StrToDate(DF.Text);
+    if DateFin < DateDeb then
+    begin
+      PGIBox('Attention, la date de début est supérieure à la date de fin', 'Préparation automatique');
+      SetFocusControl('DATEDEBUT');
+    end;
+    if StrToDate(DD.Text) < DebExer then
+    begin
+      PGIBox('Attention, la date de début est inférieure à la date de début d''exercice', 'Préparation automatique');
+      SetFocusControl('DATEFIN');
+    end;
+  end;
+end;
+
+procedure TOF_GENEREMAINT_MUL.DateFinExit(Sender: TObject);
+var
+  DD, DF: THEdit;
+  DateDeb, DateFin: TDateTime;
+begin
+  DD := THEdit(GetControl('DATEDEBUT'));
+  DF := THEdit(GetControl('DATEFIN'));
+  if (DD <> nil) and (DF <> nil) then
+  begin
+    DateDeb := StrToDate(DD.Text);
+    DateFin := StrToDate(DF.Text);
+    if DateFin < DateDeb then
+    begin
+      PGIBox('Attention, la date de fin est inférieure à la date de début', 'Préparation automatique');
+      SetFocusControl('DATEDEBUT');
+    end;
+    if StrToDate(DF.Text) > FinExer then
+    begin // PT1
+      PGIBox('Attention, la date de fin est supérieure à la date de fin d''exercice', 'Préparation automatique');
+      SetFocusControl('DATEFIN');
+    end;
+  end;
+end;
+procedure TOF_GENEREMAINT_MUL.LanceGenerMaintien (Sender: TObject);
+var
+  st :string;
+begin
+{$IFDEF EAGLCLIENT}
+  TheMulQ := TOB(Ecran.FindComponent('Q'));
+  Grille:=THGrid(GetControl('FLISTE'));
+{$ELSE}
+  TheMulQ := THQuery(Ecran.FindComponent('Q'));
+  Grille:=THDBGrid(GetControl('FLISTE'));
+{$ENDIF}
+  st := GetControlText ('DATEDEBUT')+';'+GetControlText ('DATEFIN');
+
+  if Grille <> NIL then
+    if (Grille.NbSelected=0) and (not Grille.AllSelected) then
+    begin
+      PgiBox('Aucun élément sélectionné',Ecran.Caption); // PT16-2
+      exit;
+    end
+    else
+      AglLanceFiche ('PAY','GENERMAINTIEN', '', '' , st);
+      SetControlProperty('BSELECTALL','Down',False);
+end;
+
+Initialization
+  registerclasses ( [ TOF_GENEREMAINT_MUL ] ) ;
+end.

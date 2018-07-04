@@ -1,0 +1,36 @@
+#------------------------------------------------------------------------------
+VERSION = BWS.01
+#------------------------------------------------------------------------------
+!ifndef ROOT
+ROOT = $(MAKEDIR)\..
+!endif
+#------------------------------------------------------------------------------
+MAKE = $(ROOT)\bin\make.exe -$(MAKEFLAGS) -f$**
+DCC = $(ROOT)\bin\dcc32.exe $**
+BRCC = $(ROOT)\bin\brcc32.exe $**
+#------------------------------------------------------------------------------
+PROJECTS = ImportExportCegid.exe BuildNewCptx.exe UtilsBTP.exe MajVerBTP.exe \
+  CBTPS3.exe CBTPS5.exe
+#------------------------------------------------------------------------------
+default: $(PROJECTS)
+#------------------------------------------------------------------------------
+
+MajVerBTP.exe: MajVerBTP.dpr
+  $(DCC)
+
+CBTPS3.exe: CBTPS3.dpr
+  $(DCC)
+
+CBTPS5.exe: CBTPS5.dpr
+  $(DCC)
+
+ImportExportCegid.exe: ImportExportCegid.dpr
+  $(DCC)
+
+UtilsBTP.exe: UtilsBTP.dpr
+  $(DCC)
+
+BuildNewCptx.exe: ..\..\BuildCPTX\Syn\BuildNewCptx.dpr
+  $(DCC)
+
+

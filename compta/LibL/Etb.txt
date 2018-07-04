@@ -1,0 +1,81 @@
+%%% Sérialisation
+	???
+
+%%% Séparateurs
+	En réception, si le fichier ne contient pas les séparateurs (\r, \n) la fonction les ajoutera.
+	En émission, si le fichier contient des séparateurs (\r, \n) la fonction les supprimera.
+
+%%% Fichiers nécessaires pour la compilation
+	ETBLIB.DCU
+	ETBUSER.DCU
+	ETBUSER.DFM
+
+%%% Fichiers nécessaires à l'exécution
+	W32L341.DLL
+	W32L341DBG.DLL
+
+%%% Fonction à appeler dans l'applicatif
+function z_Teletransmission(NomFichier, RepDest, Modele, CodeBanque: PChar; bVerbose: integer):integer;
+
+NomFichier	// Nom physique du fichier : (Ex : BANK.DAT)
+RepDest         // Répertoire de destination : (Ex : C:\CEGID\GR1\)
+Modele		// Modele de transaction : (Ex : R000)
+                // Rem: En passant nil, l'utilisateur peut choisir son modèle
+CodeBanque	// Code du destinataire : (Ex : CCF )
+                // Rem: En passant nil, l'utilisateur peut choisir son destinataire
+bVerbose	// 1=Affiche le message d'erreur
+                // 0=Rien ne n'affiche
+
+%%% Valeur de retour
+	0 	OK
+
+	# Erreur avant la communication
+	1000	Fichier Log introuvable
+	1001	DLL (W32L341.DLL) introuvable
+	1002	Fonction de la DLL introuvable
+	1003    Annulation par l'utilisateur
+	1004    Carte d'appel incorrecte
+
+	# Erreur en phase de numérotation
+	2580	Appel non abouti
+	2582	Communication non établie
+	2599	Arrêt utilisateur
+
+	# Erreur en phase d'identification	
+	2601	Echec identification
+	2602	Identification refusée cause XXXX
+	2682	Communication interrompue
+	2691	Delai identification épuisé
+	2698	Arrêt par délai réseau écoulé
+	2699 	Arrêt utilisateur
+
+	# Erreur en phase de réception
+	2701	Erreur réception données
+	2702	Fin de données erronée
+	2782	Communication interrompue
+	2798	Arrêt par délai réseau écoulé
+	2799 	Arrêt utilisateur
+
+	# Erreur en phase d'ouverture du fichier
+	2801	Fichier vide
+	2882	Communication interrompue
+	2898	Arrêt par délai réseau écoulé
+	2899 	Arrêt utilisateur
+
+	# Erreur en phase de réception du fichier
+	2901	Erreur émision données
+	2982	Communication interrompue
+	2991	Delai fin transmission épuisé
+	2998	Arrêt par délai réseau écoulé
+	2999 	Arrêt utilisateur
+
+%%% PFU : Exemple d'appel à la DLL
+
+procedure TForm1.Button1Click(Sender: TObject) ;
+var v_ret: integer ;
+begin
+Button1.Enabled:=FALSE ;
+v_ret:=z_Teletransmission('BANK.DAT', 'C:\HALLEY\DEMO', 'R000', nil, 1) ;
+Button1.Enabled:=TRUE ;
+end ;
+

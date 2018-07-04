@@ -1,0 +1,38 @@
+$/Compta PGI - DEV/LIBC/impFicU.pas
+
+*****************  Version 6  *****************
+Utilisateur: Ayel            Date: 22/07/02  Heure:  11:26
+Archivé dans $/Compta PGI - DEV/LIBC
+Commentaire:
+  Mise à jour des champs confidentiel
+
+*****************  Version 5  *****************
+Utilisateur: Ayel            Date: 18/07/02  Heure:  18:02
+Archivé dans $/Compta PGI - DEV/LIBC
+Commentaire:
+  Récupération des libellés des codes statistiques
+
+*****************  Version 4  *****************
+Utilisateur: Ayel            Date: 16/07/02  Heure:  15:30
+Archivé dans $/Compta PGI - DEV/LIBC
+Commentaire:
+  Arrêt d'urgence
+
+*****************  Version 3  *****************
+Utilisateur: Ayel            Date: 16/07/02  Heure:  11:15
+Archivé dans $/Compta PGI - DEV/LIBC
+Commentaire:
+  Récupération des codes statistiques
+
+*****************  Version 2  *****************
+Utilisateur: Ayel            Date:  5/06/02  Heure:  17:38
+Archivé dans $/Compta PGI - DEV/LIBC
+Commentaire:
+  Modifs GP
+
+*****************  Version 1  *****************
+Utilisateur: Ayel            Date: 22/05/02  Heure:   8:25
+impFicU.pas Créé
+Commentaire:
+  
+

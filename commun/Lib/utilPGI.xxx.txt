@@ -1,0 +1,2848 @@
+unit utilPGI;
+
+interface
+
+uses hent1,sysutils,UTOB,ParamSoc,Stdctrls,classes,
+{$IFNDEF EAGLSERVER}
+graphics,extctrls,Forms,windows,
+{$ENDIF}
+{$IFDEF EAGLCLIENT}
+     eFichList,
+{$ELSE}
+     db,
+     {$IFNDEF DBXPRESS}dbtables{$ELSE}uDbxDataSet{$ENDIF},
+     {$IFNDEF EAGLSERVER}
+     UBob,
+     FichList,
+     {$ENDIF}
+{$ENDIF}
+     {$IFNDEF EAGLSERVER}
+     AglMail,MailOl,M3FP,
+     {$ENDIF}
+{$IFDEF GRC}
+     EntRT,
+{$ENDIF}
+{$IFDEF GIGI}
+     LicUtil,
+{$ENDIF}
+{$IFDEF VER150}
+     variants,
+{$ENDIF}
+{$IFNDEF NOVH}
+EntGC, // pour R_CleDoc  supprimé car entgc contient des VH^.
+{$ENDIF}
+HCtrls,Ent1, Jpeg, comctrls,shellapi, HMsgBox,
+
+  HRichOle ;
+
+
+{$IFNDEF NOVH}
+{Intégration GC <--> CPTA}
+function  EncodeRefCPGescom ( TOBPiece : TOB ) : String ;
+function  DecodeRefCPGescom ( RefG : String ) : R_CleDoc ;
+procedure DecodeRefPiece(St: string; var CleDoc: R_CleDoc);
+procedure AGLDecodeRefPiece(Parms : Array of Variant; nb: integer);
+function EncodeRefGCCpta(TobEcr : TOB) : string;
+
+{ Manipulation TClesDocs }
+procedure AddCleDocInTClesDocs(const CleDoc: R_CleDoc; var ClesDocs: TClesDocs); overload;
+procedure AddCleDocInTClesDocs(const RefPiece: String; var ClesDocs: TClesDocs); overload;
+function ExistCleDocInTClesDocs(const CleDoc: R_CleDoc; ClesDocs: TClesDocs; const TestNumOrdre: Boolean): Boolean; overload;
+function ExistCleDocInTClesDocs(const RefPiece: String; ClesDocs: TClesDocs; const TestNumOrdre: Boolean): Boolean; overload;
+{$ENDIF !NOVH}
+
+function CanCloseExoFromGC(Exercice : string) : boolean ;
+{$IFNDEF NOVH}
+function MajRefCptaOnValidPce(TobE : TOB) : boolean;
+{$ENDIF !NOVH}
+
+
+Function  Evaluedate ( St : String ) : TDateTime ;
+{Divers}
+Function  ExisteCarInter ( St : String ) : boolean ;
+Function ErreurDansIban(Rib : String) : boolean;
+Function VerifRib(Banque,Guichet,Compte : String ; ISOPays : String = CodeISOFR) : String ; //XMG 14/07/03
+Function  VerifSiret (Siret : string) : boolean ;
+procedure PGIEnvoiMail(SUJET: string; AQUI, CopieA: string; Corps: TStrings; FICHIERS: string; EnvoiAuto: boolean = TRUE; Importance: Integer = 1; CATEGORIE: string = ''; COMPANIE: string = ''; SansAlerte: boolean = FALSE);
+{RIB}
+function  EncodeRIB ( Etab,Guichet,Numero,Cle,Dom : String ; ISOPays : String = CodeISOFR ) : String ; //XMG 14/07/03
+Procedure DecodeRIB ( Var Etab,Guichet,Numero,Cle,Dom : String ; RIB : String ; ISOPays : String = CodeISOFR ) ; //XMG 14/07/03
+function  EncodeRIBIban ( Etab,Guichet,Numero,Cle,Dom,Iban : String ; ISOPays : String = CodeISOFR ) : String ; //XMG 14/07/03
+procedure DecodeRIBIban ( Var Etab,Guichet,Numero,Cle,Dom,Iban : String ; RIB : String ) ; // XVI 24/02/2005
+function  EncodeIban(pszIban : String) : String;
+function  DecodeIban(pszIban : String) : String;
+function  CodeIsoDuPays(Pays : string) : String ;
+function  CodePaysDeIso(codeISO : string) : String  ;
+Function  FormatZonesRIB(szPays,szQueZone : String ) : String ; //XMG 14/07/03
+Function  IBANtoRIB(vstIBAN : String ; var vstRIB, vstPays , vstCleIBAN : String ) : Boolean ;
+function  ExisteRibSurCpt( vStCpt, vStRib : String ) : Boolean ;
+
+{Divers}
+function  CheckToString ( B : Boolean ) : String ;
+function  StringToCheck ( St : String ) : boolean ;
+procedure AddChampTableLibreToSQL (lequel: string; var MesChamps : string);
+{$IFNDEF EAGLSERVER}
+procedure LoadBitMapFromChamp(DS : TDataSet; Champ : string; Image : TImage; IsJpeg : boolean = False; Zoom : integer =0) ;
+procedure SetJPEGOptions(Image1: TImage; Zoom : integer = 0);
+procedure BlobToFile (VarName:string;Value:Variant) ;
+{$ENDIF}
+Procedure ControleUsers ;
+function  Resolution ( Decim : byte ) : Double ;
+Procedure AjouteTOBMontant ( TOBSource,TOBDest : TOB ; NomChamp : String ) ;
+function  NullToVide(Valeur : variant) : string;
+function StrToAlias (st : string) : string;
+function MultiComboInSQL(st: string): string;
+function JaiLeDroitNatureGCModif(Nature : string) : boolean;
+function JaiLeDroitNatureGCCreat(Nature : string) : boolean;
+{Fonctions de conversion}
+FUNCTION  PIVOTTOEURO ( X : Double ) : Double ;
+FUNCTION  PIVOTTOEURONA ( X : Double ) : Double ;
+FUNCTION  EUROTOPIVOT ( X : Double ) : Double ;
+FUNCTION  EUROTOPIVOTNA ( X : Double ) : Double ;
+FUNCTION  PIVOTTODEVISE(X,Taux,Quotite : Double ; Decim : byte ) : Double ;
+FUNCTION  PIVOTTODEVISENA(X,Taux,Quotite : Double ) : Double ;
+FUNCTION  DEVISETOPIVOT(X,Taux,Quotite : Double) : Double ;
+FUNCTION  DEVISETOPIVOTNA(X,Taux,Quotite : Double) : Double ;
+FUNCTION  DEVISETOEURO ( X,Taux,Quotite : Double ) : Double ;
+FUNCTION  DEVISETOEURONA ( X,Taux,Quotite : Double ) : Double ;
+FUNCTION  EUROTODEVISE ( X,Taux,Quotite : Double ; Decim : integer ) : Double ;
+FUNCTION  EUROTODEVISENA ( X,Taux,Quotite : Double ) : Double ;
+FUNCTION  DEVISETOFRANC(X,Taux,Quotite : Double) : Double ;
+FUNCTION  DEVISETOFRANCNA(X,Taux,Quotite : Double) : Double ;
+FUNCTION  FRANCTOEURO ( X : Double ) : Double ;
+FUNCTION  FRANCTOEURONA ( X : Double ) : Double ;
+FUNCTION  EUROTOFRANC ( X : Double ) : Double ;
+FUNCTION  EUROTOFRANCNA ( X : Double ) : Double ;
+FUNCTION  DEVISETODEVISE(X,Taux,Quotite,NewTaux,NewQuotite : Double ; Decim : byte ) : Double ;
+Procedure AttribCotation ( TOBP : TOB ) ;
+function  VarToDouble (V : Variant) : double ;
+Function  FabricWhereToken ( sToken,Champ : String ) : String ;
+{Créations à la volée}
+Function CreerSectionVolee ( CodeSect,Libelle : String ; NumA : integer ) : boolean ;
+{Limitation paramsoc}
+Procedure BrancheParamSocAffiche (Var stVirerBranche, stAfficherBranche : string);
+{Blocage réseau}
+function _Bloqueur( Niveau : String ; Bloc : boolean  ; QueCloture : Boolean = FALSE) : boolean ;
+Function _EstBloque( Niveau : String ; SaufMoi : boolean ) : boolean ;
+Function _EstMultiBloque( Niveau : Array of String ; SaufMoi : boolean ) : boolean ;
+Function _ExistBlocage : boolean ;
+Function  _BlocageMonoPoste ( Totale : boolean ; TypeBlocage : String = 'NRTOUTSEUL' ; Shunte : Boolean = FALSE) : boolean ;
+procedure _DeblocageMonoPoste ( Totale : boolean ; TypeBlocage : String = 'NRTOUTSEUL' ; Shunte : Boolean = FALSE) ;
+function  _BlocCarFiche : boolean ;
+function _Blocage ( Niveau : Array of String ; SaufMoi : boolean ; Quoi : String  ; QueCloture : Boolean = FALSE) : boolean ;
+{Fin Blocage réseau}
+
+function PGI_IMPORT_BOB(CodeProduit:string): Integer;
+
+function CleTelephone (strTelephone:string; bFixedLen:boolean=TRUE):string;
+
+// $$$JP 18/07/05 - pour l'instant, uniquement pour BUREAU PGI pour le CTI
+{$IFDEF BUREAU} //{$IFNDEF ERADIO}
+function MajCleTelephone (const strChampCle, strChampTel, strTable:string):boolean;
+{$ENDIF}
+function  fbToCumulType    ( vFB : TFichierBase ) : String ;
+function  fbToTable        ( vFB : TFichierBase ) : String ;
+
+// Gestion MULTISOC
+Function  EstMultiSoc : Boolean ;
+Function  GetTableDossier  ( vDossier, vNomTable : String ) : String ;
+Function  EstTablePartagee ( vNomTable : String ) : Boolean ;
+Function  GetBasesMS (CodeRegroupement : string = ''; BaseSql : boolean = True) : String ;
+Function  PresenceMS ( vFichier : String ; vChamp : String ; vValeur : String ) : Boolean ;
+Function  PresenceComplexeMS ( vFichier : String ; vChamps : Array of String ; vComps : Array of String ; vValeurs : Array of String ; vTypes : Array of String ) : Boolean ;
+function  GetDossier    ( vSchemaName : String ; CodeRegroupement : String = '' ) : string ;
+function  GetSchemaName ( vDossier    : String ; CodeRegroupement : String = '' ) : string ;
+Function  OpenSelect ( vSQL : String ; vDossier : String = '' ; vRO : Boolean = True ; vStack : String = '' ) : TQuery ;
+Function  InsertTobMS( vTob : TOB ; vDossier : String = '' ) : Boolean ;
+Function  DeleteTobMS( vTob : TOB ; vDossier : String = '' ) : Boolean ;
+Function  UpdateTobMS( vTob : TOB ; vDossier : String = '' ) : Boolean ;
+Function  RecupInfosSocietes( vStListeParamSoc : String ; vStCodeRegroupement : string = '' ) : TOB ;
+{$IFNDEF AGL590}
+Function  GetParamsocDossierSecur  ( vNomParam : String ; vDefaut : Variant ; vDossier : String = '' ) : Variant ;
+{$ENDIF AGL590}
+Function  SetParamSocDossier  ( vNomParam : String ; vValeur : Variant  ; vDossier : String = '' ) : Boolean ;
+
+{ DBR : Multi soc }
+function EstBaseMultiSoc : boolean;
+function TablePartagee (LaTable : string) : boolean;
+function RechDomZoneLibre (sValue : string; bAbrege : boolean; sPlus : string = ''; bLibre : boolean = false) : string;
+
+{JS1 : Driver SGBD}
+function isMssql: boolean; //js1 04052006
+function isOracle: boolean;
+function isDB2: boolean;
+
+// CA - 11/10/2005 - Gestion base allégée PCL
+function EstBasePclAllegee : Boolean;
+function EstBasePclOptimisee : Boolean;
+
+// ME  09/02/2006 Fiche 10327
+Function ModePaiementParDefaut (var ModRegle: string) : string;
+
+{$IFDEF MAJPCL}
+procedure InitPGIpourDossierPCL;
+{$ENDIF}
+{ Gestion des chaines PARAM1=VALEUR1;PARAM2=VALEUR2 }
+function GetArgumentValue(Argument: string; Const MyArg : String; const WithUpperCase: Boolean = True): String;
+function AGLGetArgumentValue(Parms : array of variant; nb : integer): Variant;
+function GetArgumentString(Argument: string; Const MyArg : String; WithUpperCase: Boolean = True): String;
+function GetArgumentInteger(Argument: string; Const MyArg : String): Integer;
+function GetArgumentDouble(Argument: string; Const MyArg : String): Double;
+function GetArgumentDateTime(Argument: string; Const MyArg : String): tDateTime;
+function GetArgumentBoolean(Argument: string; Const MyArg : String): Boolean;
+function GetArgumentTob(Argument: string; Const MyArg : String): Tob;
+
+
+CONST
+  MS_CODEREGROUPEMENT : String = '##MULTISOC' ;  // Code du regroupement multi-société
+
+
+// SBO 19/11/2005 : Centralisation gestion du multi-axe analytique
+{b FP}
+type
+  TSQLAnaCroise = class
+  private
+    FAxes: array[1..MaxAxe] of Boolean; // Axes ventilables ?
+    FPremierAxe: Integer;
+
+    procedure LoadInfo;
+    function  GetPremierAxe: String;
+    function  AxeToSousPlan(NatureCpt: String): Integer;  {A partir de l'axe, retourne le numéro du sous plan}
+  public
+    constructor Create;
+    destructor  Destroy; override;
+
+    function GetConditionAxe(NatureCpt: String): String;
+    function GetChampSection(NatureCpt: String): String;
+
+    class function  ConditionAxe(NatureCpt: String): String;
+    class function  ChampSection(NatureCpt: String): String;
+
+    class procedure TraduireRequete( NatureCpt: String ; var vStReq : String ) ;
+
+  end;
+{e FP}
+
+
+implementation
+
+{$IFDEF AFFAIRE}
+uses
+  affaireUtil;
+{$ENDIF AFFAIRE}
+
+Function Evaluedate ( St : String ) : TDateTime ;
+Var dd,mm,yy : Word ;
+BEGIN
+Result:=0 ; if St='' then Exit ;
+dd:=StrToInt(Copy(St,1,2)) ; mm:=StrToInt(Copy(St,3,2)) ; yy:=StrToInt(Copy(St,5,4)) ;
+Result:=Encodedate(yy,mm,dd) ;
+END ;
+
+
+{$IFNDEF NOVH}
+{***********A.G.L.***********************************************
+Auteur  ...... : Jean-Louis DECOSSE
+Créé le ...... : 27/03/2000
+Modifié le ... : 27/03/2000
+Description .. : Encodage d'un identifiant de pièce Gescom dans l'écriture Comptable
+Mots clefs ... : LIAISON;COMPTABILITE;PONT;PASSATION;
+*****************************************************************}
+Function EncodeRefCPGescom ( TOBPiece : TOB ) : String ;
+BEGIN
+Result:='' ; if TOBPiece=Nil then Exit ;
+Result:=TOBPiece.GetValue('GP_NATUREPIECEG')+';'+TOBPiece.GetValue('GP_SOUCHE')+';'
+       +FormatDateTime('ddmmyyyy',TOBPiece.GetValue('GP_DATEPIECE'))+';'
+       +IntToStr(TOBPiece.GetValue('GP_NUMERO'))+';'+IntToStr(TOBPiece.GetValue('GP_INDICEG'))+';' ;
+END ;
+
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Jean-Louis DECOSSE
+Créé le ...... : 27/03/2000
+Modifié le ... : 27/03/2000
+Description .. : Décodage d'un identifiant de pièce Gescom en Compta vers un identifiant Gescom
+Mots clefs ... : LIAISON;COMPTABILITE;PONT;PASSATION;
+*****************************************************************}
+Function DecodeRefCPGescom ( RefG : String ) : R_CleDoc ;
+Var CD : R_CleDoc ;
+    StC  : String ;
+BEGIN
+FillChar(CD,Sizeof(CD),#0) ;
+StC:=ReadTokenSt(RefG) ; CD.NaturePiece:=Trim(StC) ;
+StC:=ReadTokenSt(RefG) ; CD.Souche:=Trim(StC) ;
+StC:=ReadTokenSt(RefG) ; CD.DatePiece:=EvalueDate(StC) ;
+StC:=ReadTokenSt(RefG) ; CD.NumeroPiece:=StrToInt(StC) ;
+StC:=ReadTokenSt(RefG) ; CD.Indice:=StrToInt(StC) ;
+Result:=CD ;
+END ;
+
+{***********A.G.L.Privé.*****************************************
+Auteur  ...... : Thierry Petetin
+Créé le ...... : 14/09/2005
+Description .. : Charge un R_CleDoc à partir d'une chaine du type :
+
+  (Mix de l'ancien DecodeRefPiece et de StringToCleDoc)
+
+  [DATEPIECE1;]NATURE;SOUCHE;NUMERO;INDICEG;[NUMLIGNE]; (Ancien GL_PIECEPRECEDENTE)
+  ou
+  NATURE;[DATEPIECE2];SOUCHE;NUMERO;INDICEG;[NUMLIGNE];
+
+  Format de DATEPIECE1 : jjmmaaaa (ecrite par l'ancien EncodeRefPiece)
+  Format de DATEPIECE2 : Date au format 'normale'
+
+*****************************************************************}
+procedure DecodeRefPiece(St: string; var CleDoc: R_CleDoc);
+var
+  StC, StL: string;
+begin
+  FillChar(CleDoc, Sizeof(CleDoc), #0);
+  if St <> '' then
+  begin
+    StC := St;
+    { Date pièce en première position }
+    if Stc[1] in ['0','1','2','3','4','5','6','7','8','9'] then
+      CleDoc.DatePiece := EvalueDate(ReadTokenSt(StC));    { Decode jjmmaaaa }
+
+    { Nature de la pièce en première ou deuxième position }
+    CleDoc.NaturePiece := Trim(ReadTokenSt(StC));
+
+    { Date pièce en deuxième position }
+    // mcd 07/12/2005 if Stc[1] in ['0','1','2','3','4','5','6','7','8','9'] then
+    // DBR pour expliquer :
+    // ne pas considérer que c'est une date si souche numérique.
+    // cette structure n'est possible que sur un AppelPiece (a changer la clé d'AppelPiece)
+    // c'est une date si / en 3ème possition ou
+    // le premier, le troisième et le quatrième caractère après la nature sont numériques.
+    if (Stc<>'') and
+       (Stc[3] = '/') or
+       ((Stc[1] in ['0','1','2','3','4','5','6','7','8','9']) and
+        (Stc[3] in ['0','1','2','3','4','5','6','7','8','9']) and
+        (Stc[4] in ['0','1','2','3','4','5','6','7','8','9'])) then
+      CleDoc.DatePiece := StrToDate(ReadTokenST(StC));
+
+    { Souche }
+    CleDoc.Souche := Trim(ReadTokenSt(StC));
+
+    { Numéro de pièce }
+    CleDoc.NumeroPiece := StrToInt(ReadTokenSt(StC));
+
+    { Indice }
+    CleDoc.Indice := StrToInt(ReadTokenSt(StC));
+
+    { Numéro de ligne ou d'ordre }
+    StL := ReadTokenSt(StC);
+    if StL <> '' then
+    begin
+      CleDoc.NumLigne := StrToInt(StL);
+      CleDoc.NumOrdre := StrToInt(StL);
+    end;
+  end;
+end;
+
+procedure AGLDecodeRefPiece(Parms : Array of Variant; nb: integer);
+var
+  s: String;
+  CleDoc: R_CleDoc;
+begin
+  s := Parms[0]; { La chaine à décoder }
+  DecodeRefPiece(s, CleDoc);
+  Tob(LongInt(Parms[1])).AddChampSupValeur('NATUREPIECEG', CleDoc.NaturePiece);
+  Tob(LongInt(Parms[1])).AddChampSupValeur('SOUCHE', Cledoc.Souche);
+  Tob(LongInt(Parms[1])).AddChampSupValeur('NUMERO', Cledoc.NumeroPiece);
+  Tob(LongInt(Parms[1])).AddChampSupValeur('INDICEG', Cledoc.Indice);
+  Tob(LongInt(Parms[1])).AddChampSupValeur('NUMORDRE', Cledoc.NumOrdre); { C'est la même chose cf DecodeRefPiece }
+  Tob(LongInt(Parms[1])).AddChampSupValeur('NUMLIGNE', Cledoc.NumLigne); { C'est la même chose cf DecodeRefPiece }
+  Tob(LongInt(Parms[1])).AddChampSupValeur('NOPERSP', Cledoc.NoPersp);
+end;
+
+function EncodeRefGCCpta(TobEcr : TOB) : string;
+begin
+  Result := '' ;
+  if not assigned(TobEcr) then exit;
+  Result := TobEcr.GetString('E_JOURNAL')+';'+FormatDateTime('ddmmyyyy',TobEcr.GetDateTime('E_DATECOMPTABLE'))+';'
+           +IntToStr(TobEcr.GetInteger('E_NUMEROPIECE'))+';'+TobEcr.GetString('E_QUALIFPIECE')+';'
+           +TobEcr.GetString('E_NATUREPIECE')+';' ;
+end;
+
+{ Fonctions de manipulation d'un TClesDocs }
+{ Ajout }
+procedure AddCleDocInTClesDocs(const CleDoc: R_CleDoc; var ClesDocs: TClesDocs);
+begin
+  SetLength(ClesDocs, Length(ClesDocs) + 1);
+  ClesDocs[Pred(Length(ClesDocs))] := CleDoc
+end;
+
+procedure AddCleDocInTClesDocs(const RefPiece: String; var ClesDocs: TClesDocs);
+var
+  CleDoc: R_CleDoc;
+begin
+  DecodeRefPiece(RefPiece, CleDoc);
+  AddCleDocInTClesDocs(CleDoc, ClesDocs)
+end;
+
+{ Test d'existence }
+function ExistCleDocInTClesDocs(const CleDoc: R_CleDoc; ClesDocs: TClesDocs; const TestNumOrdre: Boolean): Boolean;
+var
+  i: Integer;
+begin
+  Result := False;
+  i := Low(ClesDocs);
+  while not Result and (i <= High(ClesDocs)) do
+  begin
+    Result := (CleDoc.NaturePiece = ClesDocs[i].NaturePiece) and
+              (CleDoc.NumeroPiece = ClesDocs[i].NumeroPiece) and
+              (CleDoc.Souche      = ClesDocs[i].Souche     ) and
+              (CleDoc.Indice      = ClesDocs[i].Indice     ) and
+              (not TestNumOrdre or (CleDoc.NumOrdre = ClesDocs[i].NumOrdre));
+    Inc(i)
+  end
+end;
+
+function ExistCleDocInTClesDocs(const RefPiece: String; ClesDocs: TClesDocs; const TestNumOrdre: Boolean): Boolean;
+var
+  CleDoc: R_CleDoc;
+begin
+  DecodeRefPiece(RefPiece, CleDoc);
+  Result := ExistCleDocInTClesDocs(CleDoc, ClesDocs, TestNumOrdre)
+end;
+{$ENDIF !NOVH}
+
+function CanCloseExoFromGC(Exercice : string) : boolean ;
+var Nb : integer;
+    Qry : TQuery;
+    DteDeb, DteFin : TDateTime;
+begin
+  Result := False;
+  if Exercice = '' then exit;
+  Qry := OpenSQL('SELECT EX_DATEDEBUT, EX_DATEFIN FROM EXERCICE WHERE EX_EXERCICE = "' + Exercice + '"', True);
+  if not Qry.Eof then
+  begin
+    DteDeb := Qry.Fields[0].AsDateTime;
+    DteFin := Qry.Fields[1].AsDateTime;
+    Ferme(Qry);
+  end else
+  begin
+    Ferme(Qry);
+    exit;
+  end;
+  // Recherche dans COMPTADIFFEREE
+  Qry := OpenSQL('SELECT COUNT(GCD_DATEPIECE)'
+               + ' FROM COMPTADIFFEREE'
+               + ' WHERE GCD_DATEPIECE >= "' + UsDateTime(DteDeb) + '"'
+               + ' AND GCD_DATEPIECE <= "' + UsDateTime(DteFin) + '"'  , True);
+  if not Qry.EOF then
+    Nb := Qry.Fields[0].AsInteger
+    else
+    Nb := 0;
+  Ferme(Qry);
+  if Nb > 0 then
+    exit;
+  // Recherche les pièces
+  Qry := OpenSQL('SELECT COUNT(GP_DATEPIECE)'
+               + ' FROM PIECE'
+               + ' JOIN PARPIECE ON GPP_TYPEECRCPTA <> "RIE" AND GPP_TYPEECRCPTA <> "" AND GPP_NATUREPIECEG = GP_NATUREPIECEG'
+               + ' WHERE GP_VIVANTE = "X"'
+               + ' AND GP_DATEPIECE >= "' + UsDateTime(DteDeb) + '"'
+               + ' AND GP_DATEPIECE <= "' + UsDateTime(DteFin) + '"', true);
+  if not Qry.EOF then
+    Nb := Qry.Fields[0].AsInteger
+    else
+    Nb := 0;
+  Ferme(Qry);
+  if Nb > 0 then
+    exit;
+  Result := True;
+end;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : JTR
+Créé le ...... : 12/05/2006
+Modifié le ... :
+Description .. : Mise à jour de GP_REFCOMPTABLE en validation de pièce
+Suite ........ : (passage de Cpta simulation vers Cpta normale)
+Mots clefs ... : LIAISON;COMPTABILITE;PONT;PASSATION;
+*****************************************************************}
+{$IFNDEF NOVH}
+function MajRefCptaOnValidPce(TobE : TOB) : boolean;
+var Natures, RefGC, RefCP : string;
+    CleDoc : R_CleDoc;
+begin
+  Result := true;
+  if not assigned(TobE) then exit;
+  { Doit être une écriture de type Normale }
+  if TobE.GetString('E_QUALIFPIECE') <> 'N' then exit;
+  { Doit être une facture ou un avoir }
+  Natures := 'FC;AC;FF;AF;';
+  if pos(TobE.GetString('E_NATUREPIECE') + ';', Natures) = 0 then exit;
+  { Doit avoir une référence Gescom }
+  RefGC := TobE.GetString('E_REFGESCOM');
+  if RefGC = '' then exit;
+  CleDoc := DecodeRefCPGescom(RefGC);
+  RefCP := EncodeRefGCCpta(TobE);
+  { Doit mettre à jour une seule pièce }
+  Result := (ExecuteSql('UPDATE PIECE SET GP_REFCOMPTABLE = "'+ RefCP +'" WHERE '
+                      + ' GP_NATUREPIECEG="' + CleDoc.NaturePiece + '"'
+                      + ' AND GP_SOUCHE="' + CleDoc.Souche + '"'
+                      + ' AND GP_NUMERO=' + IntToStr(CleDoc.NumeroPiece)
+                      + ' AND GP_INDICEG=' + IntToStr(CleDoc.Indice)) = 1);
+end;
+{$ENDIF !NOVH}
+{===================== Début Blocage Reseau ==========================}
+function _Bloqueur( Niveau : String ; Bloc : boolean  ; QueCloture : Boolean = FALSE) : boolean ;
+BEGIN
+//{$IFDEF GCGC}
+//if GetParamSoc('SO_IFDEFCEGID') then
+// CA - 09/09/2005 - Pas de SO_IFDEFCEGID dans les bases PCL
+if GetParamSocSecur('SO_IFDEFCEGID',False) then
+   if QueCloture and (Not Bloc) then Niveau:='nrCloture' ;
+//{$ENDIF}
+Result:=Bloqueur(Niveau,Bloc) ;
+END ;
+
+Function _EstBloque( Niveau : String ; SaufMoi : boolean ) : boolean ;
+BEGIN
+Result:=EstBloque( Niveau,SaufMoi) ;
+END ;
+
+Function _EstMultiBloque( Niveau : Array of String ; SaufMoi : boolean ) : boolean ;
+BEGIN
+Result:=EstMultiBloque( Niveau,SaufMoi) ;
+END ;
+
+Function _ExistBlocage : boolean ;
+BEGIN
+Result:=ExistBlocage ;
+END ;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : ?
+Créé le ...... : 06/04/2005
+Modifié le ... :   /  /    
+Description .. : - LG - 06/04/2005 - suppression du VH^
+Mots clefs ... : 
+*****************************************************************}
+Function  _BlocageMonoPoste ( Totale : boolean ; TypeBlocage : String = 'NRTOUTSEUL' ; Shunte : Boolean = FALSE) : boolean ;
+BEGIN
+If TypeBlocage='' Then TypeBlocage:='NRTOUTSEUL' ;
+//{$IFDEF GCGC}
+//if GetParamSoc('SO_IFDEFCEGID') then
+// CA - 09/09/2005 - Pas de SO_IFDEFCEGID dans les bases PCL
+if GetParamSocSecur('SO_IFDEFCEGID',False) then
+   if Shunte then BEGIN Result:=TRUE ; Exit ; END ;
+//{$ENDIF}   
+Result:=BlocageMonoPoste (Totale) ;
+END ;
+
+procedure _DeblocageMonoPoste ( Totale : boolean ; TypeBlocage : String = 'NRTOUTSEUL' ; Shunte : Boolean = FALSE) ;
+BEGIN
+If TypeBlocage='' Then TypeBlocage:='NRTOUTSEUL' ;
+//{$IFDEF GCGC}
+//if GetParamSoc('SO_IFDEFCEGID') then
+// CA - 09/09/2005 - Pas de SO_IFDEFCEGID dans les bases PCL
+if GetParamSocSecur('SO_IFDEFCEGID',False) then
+   if Shunte then Exit ;
+//{$ENDIF}   
+DeblocageMonoPoste (Totale) ;
+END ;
+
+function  _BlocCarFiche : boolean ;
+BEGIN
+//{$IFDEF GCGC}
+//if GetParamSoc('SO_IFDEFCEGID') then
+// CA - 09/09/2005 - Pas de SO_IFDEFCEGID dans les bases PCL
+if GetParamSocSecur('SO_IFDEFCEGID',False) then
+  Result:=_EstMultiBloque(['nrCloture'],True)
+else
+//{$ENDIF}
+  Result:=_EstMultiBloque(['nrCloture','nrBatch','nrSaisieCreat','nrSaisieModif','nrLettrage'],True) ;
+END ;
+
+Function NiveauAPrendre(Niveau : String) : Boolean ;
+BEGIN
+Result:=FALSE ;
+if (Niveau<>'nrEnca') and (Niveau<>'nrDeca') and (Niveau<>'nrLettrage') and (Niveau<>'nrBatch') and (Niveau<>'nrSaisieModif') And
+   (Niveau<>'nrPointage') and (Niveau<>'nrSaisieCreat') and (Niveau<>'nrRelance') Then Result:=TRUE ;
+END ;
+
+function _Blocage ( Niveau : Array of String ; SaufMoi : boolean ; Quoi : String ; QueCloture : Boolean = FALSE) : boolean ;
+VAr N :  Array of String ;
+    i,j,k : Integer ;
+    NrAEnlever : Boolean ;
+BEGIN
+//{$IFDEF GCGC}
+//if GetParamSoc('SO_IFDEFCEGID') then
+// CA - 09/09/2005 - Pas de SO_IFDEFCEGID dans les bases PCL
+if GetParamSocSecur('SO_IFDEFCEGID',False) then
+begin
+  if QueCloture then
+    BEGIN
+    SetLength(N,1) ;
+    N[0]:='nrCloture' ;
+    Result:=Blocage( N,SaufMoi,Quoi) ; Exit ;
+    END Else
+    BEGIN
+    i:=0 ; NrAEnlever:=FALSE ;
+    for j:=0 to High(Niveau) do if NiveauAPrendre(Niveau[j]) then Inc(i) else nrAEnlever:=TRUE ;
+    If NrAEnlever Then
+      BEGIN
+      SetLength(N,i) ; k:=0 ;
+      for j:=0 to High(Niveau) do if NiveauAPrendre(Niveau[j]) then
+        BEGIN
+        N[k]:=Niveau[j] ;
+        Inc(k) ;
+        END ;
+      Result:=Blocage( N,SaufMoi,Quoi) ; Exit ;
+      END ;
+    END ;
+end;
+//{$ENDIF}
+Result:=Blocage( Niveau,SaufMoi,Quoi) ;
+END ;
+(************ FIN BLOCAGE RESEAU **********************)
+
+Function  ExisteCarInter ( St : String ) : boolean ;
+BEGIN
+Result:=True ;
+if Pos('"',St)>0 then Exit ; if Pos('*',St)>0 then Exit ;
+if Pos('%',St)>0 then Exit ; if Pos('_',St)>0 then Exit ;
+if Pos('?',St)>0 then Exit ; if Pos('''',St)>0 then Exit ;
+Result:=False ;
+END ;
+
+function  Resolution ( Decim : byte ) : Double ;
+Var i : integer ;
+    X : double ;
+BEGIN
+X:=1.0 ; for i:=1 to Decim do X:=X/10.0 ; Resolution:=X ;
+END ;
+
+Procedure AjouteTOBMontant ( TOBSource,TOBDest : TOB ; NomChamp : String ) ;
+Var im : integer ;
+    X : Double ;
+BEGIN
+if ((TOBSource=Nil) or (TOBDest=Nil)) then Exit ;
+im:=TOBSource.GetNumChamp(NomChamp) ; if im<0 then Exit ;
+X:=TOBSource.GetValeur(im)+TOBDest.GetValeur(im) ; TOBDest.PutValeur(im,X) ;
+END ;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Olivier TARCY
+Créé le ...... : 31/10/2002
+Modifié le ... : 25/11/2002
+Description .. : Formatage d'une chaine quelconque en une chaine
+Suite ........ : valide pour les alias des requêtes SQL ;
+Suite ........ : carctères valides : lettres ; '_' et chiffres si pas en 1ère
+Suite ........ : posistion
+Mots clefs ... : ALIAS;
+*****************************************************************}
+function StrToAlias (st : string) : string;
+var i,j : integer;
+    maj, stAlias : string;
+begin
+  j := 1 ;
+  stAlias := '' ;
+  maj := trim (uppercase (st));
+  // si le 1er caractère est un chiffre on le précède par un '_'
+  if maj [1] in ['0'..'9','_'] then
+  begin
+    stAlias := stAlias + 'X' + maj [1] ;
+    j := 2 ;
+  end ;
+  for i := j to length (st) do
+  begin
+    if maj[i] in ['A'..'Z','_','0'..'9'] then stAlias := stAlias + st[i]
+    // remplacement du caractère incorrect par un _ si le carctère précédent n'en pas '_'
+    else if maj [i-1] <> '_' then stAlias := stAlias + '_';
+  end;
+  result := stAlias ;
+end;
+
+function MultiComboInSQL(st: string): string;
+var Liste, Code: string;
+begin
+  Liste := '';
+  while st <> '' do
+  begin
+    Code := ReadTokenSt(st);
+    if Liste <> '' then Liste := Liste + ',';
+    Liste := Liste + '"' + Code + '"';
+  end;
+  Result := Liste;
+end;
+
+function NullToVide(Valeur : variant) : string;
+begin
+  if VarIsNull(Valeur) then Result:='' else Result:=Valeur;
+end;
+
+function CheckToString ( B : Boolean ) : String ;
+begin
+  Result := BoolToStr(B);
+end;
+
+function StringToCheck ( St : String ) : boolean ;
+begin
+  Result := StrToBool(St)
+end;
+
+
+{***********A.G.L.***********************************************
+Auteur  ...... : EPZ-PL
+Créé le ...... : 07/06/2005
+Modifié le ... :   /  /
+Description .. : Procédure qui ajoute une champ de table à la liste MesChamps si ce champ est activé
+Suite ........ : dans les paramètres (<> '.-') (champs tables libres)
+Suite ........ : Sert à remplir des requêtes avec seulement les champs des tables libres activés
+Mots clefs ... : SQL; GIGA
+*****************************************************************}
+procedure AddChampTableLibreToSQL (lequel: string; var MesChamps : string);
+var titre : string;
+begin
+  titre := ChampToLibelle(lequel);
+  if (Trim(titre) <> '') and (Length(titre) = 2) and (titre = '.-') then exit;
+  MesChamps := MesChamps + ',' + lequel;
+end;
+
+
+{***********A.G.L.***********************************************
+Auteur  ...... : RRO
+Créé le ...... : 29/01/2003
+Modifié le ... :   /  /
+Description .. : Fonction qui retourne le code ISO d'un code pays passé en
+Suite ........ : paramètre
+Mots clefs ... : PAYS;ISO
+*****************************************************************}
+function CodeIsoDuPays(Pays : string) : String  ;
+var Q : TQuery ;
+  SQL : String ;
+  codeISO : string ;
+begin
+  result := '';
+  SQL := 'SELECT PY_CODEISO2 FROM PAYS WHERE PY_PAYS="' + Pays + '"' ;
+  Q := OpenSQL(SQL,True);
+  if not Q.EOF then CodeISO := UpperCase(Q.Fields[0].AsString); // FQ 13197
+  ferme(Q);
+  if codeISO>'' then
+    result := codeISO
+  else
+  result:=CodeISOFR; //Par défaut on retourne le code ISO de la France //XMG 14/07/03
+end;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : RRO
+Créé le ...... : 29/01/2003
+Modifié le ... :   /  /
+Description .. : retourne le code pays par rapport à un code ISO
+Mots clefs ... : PAYS;ISO
+*****************************************************************}
+function CodePaysDeIso(codeISO : string) : String  ;
+var Q : TQuery ;
+  SQL : String ;
+  Pays : string ;
+begin
+  if trim(CodeISO)='' then
+     CodeISO:=CodeISOFR ; //XMG 14/07/03
+  result := '';
+  SQL := 'SELECT PY_PAYS FROM PAYS WHERE PY_CODEISO2="' + codeISO + '"' ;
+  Q := OpenSQL(SQL,True);
+  if not Q.EOF then Pays := Q.Fields[0].AsString;
+  ferme(Q);
+  if Pays>'' then
+    result := Pays
+  else
+    result:='FRA'; //Par défaut on retourne le code pays de la France
+end;
+
+function EncodeRIB ( Etab,Guichet,Numero,Cle,Dom : String ; ISOPays : String = CodeISOFR ) : String ; //XMG 14/07/03
+Var St : String ;
+BEGIN
+   if IsoPays=CodeISOES then //RIB au Format Espagnol
+      St:=Format_String(Etab,4)+'/'+Format_String(Guichet,4)+'/'+Format_String(Cle,2)+'/'+Format_String(Numero,10)+'/'+Format_String(Dom,24)
+   else //La reste (y compris la France)
+      St:=Format_String(Etab,5)+'/'+Format_String(Guichet,5)+'/'+Format_String(Numero,11)
+         +'/'+Format_String(Cle,2)+'/'+Format_String(Dom,24) ; // XVI 24/02/2005
+   if ((Trim(Etab)='') or (Trim(Guichet)='') or (Trim(Numero)='') or (Trim(Cle)='')) then St:=Format_String('',Length(St)) ;
+   Result:=St ;
+END ;
+
+Procedure DecodeRIB ( Var Etab,Guichet,Numero,Cle,Dom : String ; RIB : String ; ISOPays : String = CodeISOFR ) ; //XMG 14/07/03
+BEGIN
+   if ISOPays=CodeISOES then
+   Begin //RIB au format Espagnol
+      Etab:=Copy(RIB,1,4) ; Guichet:=Copy(RIB,6,4) ; Cle:=Copy(RIB,11,2) ;
+      Numero:=Copy(RIB,14,10) ;
+      Dom:=Copy(RIB,26,24)   ;
+   End else
+   Begin //La reste (Y compris la France)
+      Etab:=Copy(RIB,1,5) ; Guichet:=Copy(RIB,7,5) ; Numero:=Copy(RIB,13,11) ;
+      Cle:=Copy(RIB,25,2) ; Dom:=Copy(RIB,28,24)   ;
+   End ; // XVI 24/02/2005
+END ;
+
+function  EncodeRIBIban ( Etab,Guichet,Numero,Cle,Dom,Iban : String ; ISOPays : String = CodeISOFR ) : String ; //XMG 14/07/03
+Var St : String ;
+begin
+  St:=EncodeRIB(Etab,Guichet,Numero,Cle,Dom,ISOPays)+'/'
+     +EncodeIban(Iban); // XVI 24/02/2005
+  if ((Trim(Etab)='') or (Trim(Guichet)='') or (Trim(Numero)='') or (Trim(Cle)='')) then St:=Format_String('',Length(St)) ;
+  Result:=St ;
+end;
+
+procedure DecodeRIBIban ( Var Etab,Guichet,Numero,Cle,Dom,Iban : String ; RIB : String ) ;
+var ii, IbanPos : integer ;
+    ISOPays     : String ;
+begin
+  IBANpos:=0 ;
+  repeat
+    ii:=pos('/',copy(RIB,IBANpos+1,length(RIB))) ;
+    if ii>0 then IBANPos:=IBANpos+ii ;
+  until ii<=0 ;
+  iban:='' ;
+  if IBANPos>0 then
+  begin
+     Iban:=DecodeIban(Copy(RIB,IBANPos+1,length(RIB)));
+     ISOPays:=copy(Iban,1,2) ;
+     DecodeRib(Etab,Guichet,Numero,Cle,Dom,Rib,ISOPays) ;
+  End ; // XVI 24/02/2005
+end;
+
+function EncodeIban(pszIban : String) : String;
+var
+  St : String ;
+  i,L : Integer;
+begin
+  if not IsNumeric(Copy(pszIban,3,length(pszIban))) then begin Result := pszIban; Exit; End;
+  L := length(pszIban);
+  St := Copy(pszIban,1,2);
+  for i := 3 to L do begin
+    // Code chaque paire de chiffre
+    if (i mod 2 <> 0) then
+      St := St + Chr(StrToInt(Copy(pszIban,i,2))+33);
+  end;
+  // Si nombre impaire : Récupère le dernier chiffre
+  if (L mod 2 <> 0) then
+    St := '0' + St + Copy(pszIban,L,1)
+  else
+    St := '1' + St + Copy(pszIban,L,1);
+  Result := St;
+end;
+
+function DecodeIban(pszIban : String) : String;
+var
+  St,St2 : String ;
+  i,L : Integer;
+  bPair : boolean;
+begin
+  if (Copy(pszIban,1,1)<>'0') and (Copy(pszIban,1,1)<>'1') then begin Result := pszIban; Exit; End;
+  L := length(pszIban);
+  St := Copy(pszIban,2,2);
+  bPair := (Copy(pszIban,1,1) = '1');
+  for i := 4 to L do begin
+    if bPair and (i=L) then begin Result := St; exit; end;
+    St2 := IntToStr( Ord(pszIban[i])-33);
+    If (length(St2) = 1) then St2 := '0'+St2;
+    St := St + St2
+  end;
+  Delete(St,length(St)-3,4);
+  St := St + Copy(pszIban,L,1);
+  Result := St;
+end;
+
+Function ErreurDansIban(Rib : String) : boolean;
+var
+  St2, St4, cleIBAN, cleIBAN2, ret, strInter : String ;
+	ii : Byte ;
+	cleL, i : integer ;
+begin
+	Result:=True;
+  CleIban2 := Copy(Rib,3,2);
+	St2 := Copy(RIB,5,length(Rib)-4) + Copy(RIB,1,2) + '00' ;
+	if Length(St2)<10 then exit ;
+	St2:=UpperCase(St2) ;
+	//Transforme les lettres en chiffres selon le NEE 5.3
+	i:=1 ;
+	while i<Length(St2) do
+	begin
+		if St2[i] in ['A'..'Z'] then
+		BEGIN
+			ii:=Ord(St2[i])-65 ;
+			st4:= copy(st2,1,i-1) + inttostr(10+ii) + copy(st2,i+1, length(st2));
+			st2:=st4 ;
+		END ;
+		inc(i);
+	end ;
+
+	ret := '' ;
+	cleL := 0 ;
+	st4:='';
+	//On découpe par tranche de 9
+	//On calcul la clé via mod 97 puis on fait clé + reste du rib
+	for i:=1 to (length(st2) div 9)+1 do
+	begin
+		st4 := copy(st2,1,9) ;
+		delete(st2,1,9);
+		strInter := inttostr(cleL)+st4 ;
+		cleL := strtoint64(strinter) mod 97 ;
+	end ;
+	//une fois fini, on calcul 98-clé
+	cleIBAN := inttostr(98-(cleL  mod 97));
+	if length(cleIBAN)=1 then  cleIBAN := '0' + cleIBAN ;
+	Result := Not (CleIBAN = CleIban2);
+end;
+
+//XMG 14/07/03 début
+{***********A.G.L.***********************************************
+Auteur  ...... : XMG
+Créé le ...... : 14/07/2003
+Modifié le ... :
+Description .. : Renvoie le format pout Editmask des zones concernants au
+Suite ........ : RIB, par rapport au Pays du RIB....
+Mots clefs ... : RIB;ZONES;FORMAT;
+*****************************************************************}
+Function FormatZonesRIB(szPays,szQueZone : String ) : String ;
+//szQueZone= 'BQ'.- Banque
+//           'GU'.- Guichet
+//           'CP'.- Numéro Compte
+//           'DC'.- Dogot de controle
+Begin
+Result:='' ;
+if szPays=CodeISOFR then
+   begin
+   if szQuezone='BQ' then Result:=stringofchar('9',5)  else
+   if szQuezone='GU' then Result:=stringofchar('9',5)  else
+   if szQuezone='CP' then Result:=stringofchar('a',11) else
+   if szQuezone='DC' then Result:=stringofchar('9',2)  else
+      ;
+   end else
+if szPays=CodeISOES then
+   begin
+   if szQuezone='BQ' then Result:=stringofchar('9',4)  else
+   if szQuezone='GU' then Result:=stringofchar('9',4)  else
+   if szQuezone='CP' then Result:=stringofchar('9',10) else
+   if szQuezone='DC' then Result:=stringofchar('9',2)  else
+      ;
+   end ;
+if Result<>'' then Result:=Result+';0;_' else
+if (V_PGI.VersionDev) then PGIBox('Pays et/ou Zone inconnues (Pays='+szPays+'/Zone='+szQueZone+').','Erreur Developpeur') ;
+End ;
+{***********A.G.L.***********************************************
+Auteur  ...... : X.Maluenda
+Créé le ...... : 05/05/2004
+Modifié le ... :   /  /
+Description .. : Formate la partie RIB d'un IBAN (par rapport au pays)
+Mots clefs ... : RIB;IBAN;FORMAT;PAYS
+*****************************************************************}
+Function RIBIBANtoRIB ( vstRibIban, vStCodePaysISO : String ) : String ;
+Begin
+ Result:='' ;
+ if vstCodePaysISO=CodeISOES then
+//Format Espagnol
+//    123456789*123456789*123
+//    |   |   | |
+//    123/123/1/123456789/
+    Result:=Copy(vStRibIBAN,1,4)+'/'
+           +Copy(vStRibIBAN,5,4)+'/'
+           +Copy(vStRibIBAN,9,2)+'/'
+           +Copy(vStRibIBAN,11,10)
+ else
+//    123456789*123456789*123
+//    |    |    |          |
+//    1234/1234/1234567890/1/
+    Result:=Copy(vStRibIBAN,1,5)+'/'
+           +Copy(vStRibIBAN,6,5)+'/'
+           +Copy(vStRibIBAN,11,11)+'/'
+           +Copy(vStRibIBAN,22,2) ;
+End ;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : X.Maluenda
+Créé le ...... : 05/05/2004
+Modifié le ... :
+Description .. : Depuis un IBAN renvoie:
+Suite ........ : - Le RIB (Formaté par rapport au Pays)
+Suite ........ : - Le Pays (Code ISO)
+Suite ........ : - La clé de l'IBAN
+Mots clefs ... : RIB;IBAN;
+*****************************************************************}
+Function  IBANtoRIB(vstIBAN : String ; var vstRIB, vstPays , vstCleIBAN : String ) : Boolean ;
+Begin
+  vStRIB:='' ;
+  vStPays:='' ;
+  vStCleIBAN:='' ;
+  if copy(vstIBAN,1,1)='*' then
+     Delete(vstIBAN,1,1) ;
+  Result:=not ErreurDansIBAN(vStIBAN) ;
+  if result then
+     begin
+     vstPays:=Copy(vStIBAN,1,2) ;
+     vStCleIBAN:=Copy(vStIBAN,3,2) ;
+     vStRIB:=RibIBANtoRIB(Copy(vStIBAN,5,length(vStIBAN)),vStPays) ;
+     End ;
+End ;
+
+{***********A.G.L.***********************************************
+Auteur  ...... :
+
+Créé le ...... : 17/01/2000
+
+Modifié le ... :   /  /
+
+Description .. : Calcul clé RIB
+
+Mots clefs ... : CLE;RIB
+
+*****************************************************************}
+//XMG 14/07/03 début
+Function VerifRibFRA(Banque,Guichet,Compte : String) : String ;
+Var St2,St3,Rib : String ;
+    ii : Byte ;
+    i : Integer ;
+
+BEGIN
+Result:='' ; St2:=Trim(Banque)+Trim(Guichet)+Trim(Compte)+'00' ; if Length(St2)<10 then exit ;
+St2:=UpperCase(St2) ;
+For i:=1 to Length(St2) do if St2[i] in ['A'..'Z'] then
+    BEGIN
+    if St2[i]>='S' then St2[i]:=Succ(St2[i]) ;
+    ii:=(((Ord(St2[i])-64)-1) mod 9)+1 ; St2[i]:=Chr(48+ii) ;
+    END ;
+Repeat
+  St3:=Copy(St2,1,2) ;
+  if StrToInt(St3)>=97 then BEGIN Delete(St2,1,2) ; St2:=IntToStr(StrToInt(St3) mod 97)+St2 ; END
+                       else BEGIN St3:=Copy(St2,1,3) ; Delete(St2,1,3) ; St2:=IntToStr(StrToInt(St3) mod 97)+St2 ; END ;
+Until Length(St2)<=2 ;
+Rib:=IntToStr(97-StrToInt(St2)) ; if Length(Rib)<2 then Rib:='0'+Rib ;
+Result:=Rib ;
+END ;
+//////////////////////////////////////////////////////////////////////////////////
+   Function CalculeDCESP ( szPartie : String) : String ;
+   const ValXPos : Array[1..10] of byte = (1,2,4,8,5,10,9,7,3,6) ;
+   Var ii,RR : integer ;
+   Begin
+   Result:='' ;
+   RR:=0 ;
+   For ii:=Length(szPartie) downto 1 do
+      RR:=RR+Valeuri(Copy(szpartie,ii,1))*ValXPos[ii] ;
+   RR:=RR mod 11 ;
+   RR:=11 - RR ;
+   if RR>10 then RR:=0 else
+   if RR>9  then RR:=1 ;
+   Result:=inttostr(RR) ;
+   End ;
+   //////////////////////////////////////////////////////////////////////////////////
+Function VerifRibESP(Banque,Guichet,Compte : String) : String ;
+BEGIN
+Result:='' ;
+Banque:=stringofchar('0',4)+Banque ;
+Guichet:=stringofchar('0',4)+Guichet ;
+Result:=CalculeDCESP('00'+Copy(Banque,length(Banque)-3,4)+Copy(Guichet,length(Guichet)-3,4)) ;
+Compte:=stringofchar('0',10)+Compte;
+Result:=Result+CalculeDCESP(Copy(Compte,length(Compte)-9,10)) ;
+END ;
+//////////////////////////////////////////////////////////////////////////////////
+Function VerifRib(Banque,Guichet,Compte : String ; ISOPays : String = CodeISOFR) : String ;
+Begin
+if ISOPays=CodeISOFR then Result:=VerifRibFRA(Banque,Guichet,Compte) else
+if ISOPays=CodeISOES then Result:=VerifRibESP(Banque,Guichet,Compte) else
+   ;
+End ;
+//XMG 14/07/03 fin
+
+
+{***********A.G.L.***********************************************
+Auteur  ...... :
+
+Créé le ...... : 17/01/2000
+
+Modifié le ... :   /  /
+
+Description .. : Calcul clé RIB
+
+Mots clefs ... : CLE;RIB
+
+*****************************************************************}
+
+{Function VerifRib(Banque,Guichet,Compte : String ; ISOPays : String = CodeISOFR) : String ; //XMG 14/07/03
+Var St2,St3,Rib : String ;
+    ii : Byte ;
+    i : Integer ;
+
+BEGIN
+Result:='' ; St2:=Trim(Banque)+Trim(Guichet)+Trim(Compte)+'00' ; if Length(St2)<10 then exit ;
+St2:=UpperCase(St2) ;
+For i:=1 to Length(St2) do if St2[i] in ['A'..'Z'] then
+    BEGIN
+    if St2[i]>='S' then St2[i]:=Succ(St2[i]) ;
+    ii:=(((Ord(St2[i])-64)-1) mod 9)+1 ; St2[i]:=Chr(48+ii) ;
+    END ;
+Repeat
+  St3:=Copy(St2,1,2) ;
+  if StrToInt(St3)>=97 then BEGIN Delete(St2,1,2) ; St2:=IntToStr(StrToInt(St3) mod 97)+St2 ; END
+                       else BEGIN St3:=Copy(St2,1,3) ; Delete(St2,1,3) ; St2:=IntToStr(StrToInt(St3) mod 97)+St2 ; END ;
+Until Length(St2)<=2 ;
+Rib:=IntToStr(97-StrToInt(St2)) ; if Length(Rib)<2 then Rib:='0'+Rib ;
+Result:=Rib ;
+END ;
+}
+
+// Verif code Siret
+{Description	 Cette fonction permet de contrôler la validité du numéro
+				 SIRET (ou SIREN) selon la table qui suit :
+
+				 N° SIRET (14 chiffres)		N° SIREN (9 chiffres)
+
+				 On multiplie le chiffre du n° SIRET ou SIREN, en commençant
+				 par la fin par 1, 2, 1, 2, ...
+				 Le total des produits de ces multiplications doit toujours
+				 être un nombre de dizaines se terminant par 0.
+				 Dans le cas contraire, le N° SIRET ou SIREN est faux.
+}
+
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Paul Chapuis
+Créé le ...... : 29/11/2000
+Modifié le ... :   /  /
+Description .. : Verification du numéro de Siet ou Siren
+Mots clefs ... : SIREN;SIRET
+*****************************************************************}
+Function VerifSiret (Siret : string) : boolean ;
+var i,x,y,z : integer;
+    stY : string ;
+begin
+z:=0; x:=0;
+result:=false;
+If Siret='' then exit;
+If (length(Siret)<>9) and (length(Siret)<>14) then Exit ;
+for i:=1 to length(Siret) do begin if not (Siret[i] in ['0'..'9']) then exit; end;
+
+for i:=length(Siret) downto 1 do
+    begin
+    if (x<>1) then x:=1 else x:=2;
+    y:=strToInt(Siret[I])* x ;
+    if y>9 then begin stY:=inttostr(y); y:=strToInt(stY[1])+strToInt(stY[2]); end;
+    z:=z+y;
+    end;
+result:= ((z mod 10)=0);
+end;
+
+{***********A.G.L.***********************************************
+Auteur  ...... :
+
+Créé le ...... : 17/01/2000
+
+Modifié le ... :   /  /
+
+Description .. : converti un string ACTION=xxxxx en TActionFiche
+
+Mots clefs ... : TACTIONFICHE;CONVERSION
+
+*****************************************************************}
+{$IFNDEF EAGLSERVER}
+procedure SetJPEGOptions(Image1: TImage; Zoom : integer = 0);
+var
+  Temp: Boolean;
+begin
+  Temp := Image1.Picture.Graphic is TJPEGImage;
+  if Temp then
+    with TJPEGImage(Image1.Picture.Graphic) do
+    begin
+      PixelFormat := TJPEGPixelFormat(0);
+      Scale := TJPEGScale(Zoom);
+      Grayscale := False;
+      Performance := TJPEGPerformance(0);
+      ProgressiveDisplay := false;
+    end;
+
+end ;
+{$ENDIF}
+
+{
+***********A.G.L.***********************************************
+Auteur  ...... : Paul Chapuis
+
+Créé le ...... : 17/01/2000
+
+Modifié le ... :   /  /
+
+Description .. : Charge une image Bitmap à partir d'un champ DB dans un controle TImage
+
+Mots clefs ... : IMAGE;BITMAP;TIMAGE
+
+*****************************************************************}
+{$IFNDEF EAGLSERVER}
+procedure LoadBitMapFromChamp(DS : TDataSet; Champ : string; Image : TImage; IsJpeg : boolean = False; Zoom : integer =0) ;
+var TJ : TJpegImage ;
+{$IFDEF EAGLCLIENT}
+    s: TStringStream ;
+{$ELSE}
+    FField : TField ;
+    s      : TmemoryStream ;
+{$ENDIF}
+begin
+
+if Champ='' then exit;
+{$IFDEF EAGLCLIENT}
+s:=TStringStream.Create(DS.FindField(Champ).AsString) ;
+      try
+{$ELSE}
+FField:=DS.FindField(Champ) ;
+if FField=nil then exit ;
+s:=TmemoryStream.Create ;
+Image.Picture:=Nil ;
+if (FField is TBlobField) And (Not TBlobField(FField).IsNull) then
+   begin
+      try
+      TBlobField(FField).SaveToStream(s) ;
+{$ENDIF}
+      s.Seek(0,0) ;
+      if IsJpeg then
+         begin
+             TJ:=TJpegImage.create ;
+             TJ.LoadFromStream(s) ;
+//             Image.Picture.Bitmap.assign(TJ) ;
+             Image.Picture.assign(TJ) ;
+             TJ.free ;
+         end else
+            Image.Picture.Bitmap.LoadFromStream(s) ;
+      SetJPEGOptions (Image, zoom) ;
+      finally end ;
+{$IFNDEF EAGLCLIENT}
+   end ;
+{$ENDIF}
+{$IFNDEF EAGLCLIENT}
+if (FField is TStringField) and (Trim(FField.AsString)<> '') AND ( FileExists(FField.AsString)) then
+   begin
+      try
+      Image.Picture.LoadFromFile(FField.AsString) ;
+      SetJPEGOptions (Image );
+      finally end ;
+   end;
+{$ENDIF}
+s.Free ;
+end;
+{$ENDIF}
+
+{$IFNDEF EAGLSERVER}
+procedure BlobToFile (VarName:string;Value:Variant) ;
+var ThePanel:TPanel;
+	RichDest: TRichEdit;
+    NomFichier:string;
+begin
+      ThePanel := TPanel.Create( nil );
+      ThePanel.Visible := False;
+      ThePanel.ParentWindow := GetDesktopWindow;
+
+    NomFichier:=VarName+'.RTF';
+    SysUtils.DeleteFile(NomFichier) ;
+    RichDest := TRichEdit.Create( ThePanel );
+    RichDest.Parent:=ThePanel;
+    StringTorich(RichDest,Value);
+    RichDest.Lines.SaveToFile( NomFichier);
+    ThePanel.Free;
+end;
+{$ENDIF}
+
+Procedure ControleUsers ;
+Var Q : TQuery ;
+    NbUss : Integer ;
+BEGIN
+NbUss:=0 ;
+Q:=OpenSQL('SELECT COUNT(*) FROM UTILISAT WHERE US_SUPERVISEUR="X"',True) ;
+if Not Q.EOF then NbUss:=Q.Fields[0].AsInteger ;
+Ferme(Q) ;
+if NbUss>0 then Exit ;
+Q:=OpenSQL('SELECT * FROM UTILISAT',False) ;
+if Not Q.EOF then
+   BEGIN
+   Q.Edit ;
+   Q.FindField('US_SUPERVISEUR').AsString:='X' ;
+   Q.Post ;
+   END ;
+Ferme(Q) ;
+END ;
+
+{=========================== Fonctions de conversion ==========================}
+FUNCTION PIVOTTOEURO ( X : Double ) : Double ;
+Var XX : Double ;
+begin
+Result:=0 ; if X=0 then Exit ;
+XX:=X/V_PGI.TauxEuro ;
+if GetParamSoc('SO_TENUEEURO') then Result:=Arrondi(XX,V_PGI.OkDecV) else Result:=Arrondi(XX,V_PGI.OkDecE) ;
+end ;
+
+FUNCTION PIVOTTOEURONA ( X : Double ) : Double ;
+Var XX : Double ;
+begin
+Result:=0 ; if X=0 then Exit ;
+XX:=X/V_PGI.TauxEuro ; Result:=Arrondi(XX,6) ;
+end ;
+
+FUNCTION EUROTOPIVOT ( X : Double ) : Double ;
+Var XX : Double ;
+begin
+Result:=0 ; if X=0 then Exit ;
+XX:=X*V_PGI.TauxEuro ;
+if GetParamSoc('SO_TENUEEURO') then Result:=Arrondi(XX,V_PGI.OkDecE) else Result:=Arrondi(XX,V_PGI.OkDecV) ;
+end ;
+
+FUNCTION EUROTOPIVOTNA ( X : Double ) : Double ;
+Var XX : Double ;
+begin
+Result:=0 ; if X=0 then Exit ;
+XX:=X*V_PGI.TauxEuro ; Result:=Arrondi(XX,6) ;
+end ;
+
+FUNCTION PIVOTTODEVISE(X,Taux,Quotite : Double ; Decim : byte ) : Double ;
+begin
+Result:=0 ; if X=0 then Exit ;
+If Taux=0 Then Taux:=1 ; if Quotite=0 then Quotite:=1 ;
+Result:=Arrondi(X*Quotite/Taux,Decim) ;
+end ;
+
+FUNCTION PIVOTTODEVISENA(X,Taux,Quotite : Double) : Double ;
+begin
+Result:=0 ; if X=0 then Exit ;
+If Taux=0 Then Taux:=1 ; if Quotite=0 then Quotite:=1 ;
+Result:=Arrondi(X*Quotite/Taux,6) ;
+end ;
+
+FUNCTION DEVISETOPIVOT(X,Taux,Quotite : Double) : Double ;
+Var XX : Double ;
+begin
+Result:=0 ; if X=0 then Exit ;
+if Quotite=0 then Quotite:=1 ; XX:=X*Taux/Quotite ;
+if GetParamSoc('SO_TENUEEURO') then Result:=Arrondi(XX,V_PGI.OkDecE) else Result:=Arrondi(XX,V_PGI.OkDecV) ;
+end ;
+
+FUNCTION DEVISETOPIVOTNA(X,Taux,Quotite : Double) : Double ;
+Var XX : Double ;
+begin
+Result:=0 ; if X=0 then Exit ;
+if Quotite=0 then Quotite:=1 ; XX:=X*Taux/Quotite ;
+if GetParamSoc('SO_TENUEEURO') then Result:=Arrondi(XX,6) else Result:=Arrondi(XX,6) ;
+end ;
+
+FUNCTION DEVISETOEURO ( X,Taux,Quotite : Double ) : Double ;
+Var XX : Double ;
+begin
+Result:=0 ; if X=0 then Exit ;
+if Quotite=0 then Quotite:=1 ; XX:=X*Taux/Quotite/V_PGI.TauxEuro ;
+if GetParamSoc('SO_TENUEEURO') then Result:=Arrondi(XX,V_PGI.OkDecV) else Result:=Arrondi(XX,V_PGI.OkDecE) ;
+end ;
+
+FUNCTION DEVISETOEURONA ( X,Taux,Quotite : Double ) : Double ;
+Var XX : Double ;
+begin
+Result:=0 ; if X=0 then Exit ;
+if Quotite=0 then Quotite:=1 ; XX:=X*Taux/Quotite/V_PGI.TauxEuro ;
+Result:=Arrondi(XX,6) ;
+end ;
+
+FUNCTION EUROTODEVISE ( X,Taux,Quotite : Double ; Decim : integer ) : Double ;
+begin
+Result:=0 ; if X=0 then Exit ;
+if Quotite=0 then Quotite:=1 ;
+Result:=Arrondi(X*V_PGI.TauxEuro*Quotite/Taux,Decim) ;
+end ;
+
+FUNCTION EUROTODEVISENA ( X,Taux,Quotite : Double ) : Double ;
+begin
+Result:=0 ; if X=0 then Exit ;
+if Quotite=0 then Quotite:=1 ;
+Result:=Arrondi(X*V_PGI.TauxEuro*Quotite/Taux,6) ;
+end ;
+
+FUNCTION DEVISETOFRANC(X,Taux,Quotite : Double) : Double ;
+BEGIN Result:=DeviseToPivot(X,Taux,Quotite) ; END ;
+
+FUNCTION DEVISETOFRANCNA(X,Taux,Quotite : Double) : Double ;
+BEGIN Result:=DeviseToPivotNA(X,Taux,Quotite) ; END ;
+
+FUNCTION FRANCTOEURO ( X : Double ) : Double ;
+BEGIN Result:=PivotToEuro(X) ; END ;
+
+FUNCTION FRANCTOEURONA ( X : Double ) : Double ;
+BEGIN Result:=PivotToEuroNA(X) ; END ;
+
+FUNCTION EUROTOFRANC ( X : Double ) : Double ;
+BEGIN Result:=EuroToPivot(X) ; END ;
+
+FUNCTION EUROTOFRANCNA ( X : Double ) : Double ;
+BEGIN Result:=EuroToPivotNA(X) ; END ;
+
+Function CreerSectionVolee ( CodeSect,Libelle : String ; NumA : integer ) : boolean ;
+Var TOBS : TOB ;
+    Ax : String ;
+BEGIN
+Result:=False ;
+if NumA<=0 then Exit ;
+if CodeSect='' then Exit ;
+Ax:='A'+IntToStr(NumA) ;
+if ExisteSQL('SELECT S_SECTION FROM SECTION WHERE S_SECTION="'+CodeSect+'" AND S_AXE="'+Ax+'"') then Exit ;
+CodeSect:=BourreLaDonc(CodeSect,TFichierBase(Ord(fbAxe1)+NumA-1)) ;
+TOBS:=TOB.Create('SECTION',Nil,-1) ;
+TOBS.PutValue('S_SECTION',CodeSect) ;
+TOBS.PutValue('S_LIBELLE',Copy(Libelle,1,35)) ;
+TOBS.PutValue('S_ABREGE',Copy(Libelle,1,17)) ;
+TOBS.PutValue('S_SENS','M') ;
+TOBS.PutValue('S_AXE',Ax) ;
+TOBS.PutValue('S_CREERPAR','AFF') ;
+TOBS.PutValue('S_SOLDEPROGRESSIF','X') ;
+TOBS.PutValue('S_CODEIMPORT',CodeSect) ;
+Result:=TOBS.InsertDB(Nil) ;
+TOBS.Free ;
+END ;
+
+Procedure AttribCotation ( TOBP : TOB ) ;
+Var Cote,Taux : Double ;
+    Dev       : String3 ;
+    Pref      : String ;
+    i,iCote   : integer ;
+BEGIN
+iCote:=0;
+if TOBP.NomTable='PIECE' then Pref:='GP' else
+   if TOBP.NomTable='PIEDBASE' then Pref:='GPB' else
+      if TOBP.NomTable='PIEDECHE' then Pref:='GPE' else Exit ;
+if TOBP.FieldExists(Pref+'_TAUXDEV') then Taux:=TOBP.GetValue(Pref+'_TAUXDEV') else Exit ;
+if TOBP.FieldExists(Pref+'_DEVISE') then Dev:=TOBP.GetValue(Pref+'_DEVISE') else Exit ;
+if ((Dev=V_PGI.DevisePivot) or (Dev=V_PGI.DeviseFongible)) then Cote:=1.0 else
+   if V_PGI.TauxEuro<>0 then Cote:=Taux/V_PGI.TauxEuro else Cote:=1 ;
+if TOBP.FieldExists(Pref+'_COTATION') then
+   BEGIN
+   TOBP.PutValue(Pref+'_COTATION',Cote) ;
+   if TOBP.NomTable='PIECE' then
+      BEGIN
+      for i:=0 to TOBP.Detail.Count-1 do
+          BEGIN
+          if i=0 then iCote:=TOBP.Detail[i].GetNumChamp('GL_COTATION') ;
+          TOBP.Detail[i].PutValeur(iCote,Cote) ;
+          END ;
+      END ;
+   END ;
+END ;
+
+Procedure BrancheParamSocAffiche (Var stVirerBranche, stAfficherBranche : string);
+Var stAffiche :String;
+BEGIN
+stVirerBranche:='' ; stAfficherBranche:='' ;
+// Branches affichées
+stAfficherBranche := 'SCO_COORDONNEES;SCO_COMPTABLES'; // Base comptable nécessaire
+stAffiche:=StAfficherBranche;   //mcd08/03/02 pour stocker avant GEscom
+if ctxGescom in V_PGI.PGIContexte then
+   BEGIN
+   // Paramétres gestion commerciale
+   //stAfficherBranche:=stAfficherBranche+';SCO_DATESDIVERS;SCO_GESTIONCOMMERCIALE' ;
+   { mng 13-10-05 pas de stock en BSuite stAfficherBranche:=stAfficherBranche+';SCO_DATESDIVERS;SCO_GCSTOCK' ;}
+   stAfficherBranche:=stAfficherBranche+';SCO_DATESDIVERS' ;
+   {$IFDEF GCGC}
+   if VH_GC.GCAchatStockSeria then
+     stAfficherBranche:=stAfficherBranche+';SCO_GCSTOCK;SCO_GCSTOCK1;SCO_GCSTOCK2';
+   {$ENDIF GCGC}
+
+   stAfficherBranche:=stAfficherBranche+';SCO_PARAMSDEFAUT;SCO_PARAMSARTICLES' ;
+   stAfficherBranche:=stAfficherBranche+';SCO_PREFGC;SCO_GCPONTCOMPTABLE;SCO_CLIENTS' ;
+   stAfficherBranche:=stAfficherBranche+';SCO_GCCOMPTECOMPTABLE;SCO_GCMODELESEDITION' ;
+   stAfficherBranche:=stAfficherBranche+';SCO_FORMZONECLIENT;SCO_GCTOX;SCO_PARAMDEPOT_ETAB' ;
+   stAfficherBranche:=stAfficherBranche+';SCO_PREFLOGISTIQUE';
+   {$IFDEF QUALITE}
+     stAfficherBranche:=stAfficherBranche+';SCO_QUALITE' ;
+   {$ENDIF QUALITE}
+   {$IFNDEF GPAO}
+    {$IFDEF GCGC}
+   if (VH_GC.OASeria) and (GetParamSocSecur('SO_ASSEMBLAGE', false)) then
+    {$ENDIF GCGC}
+     stAfficherBranche:=stAfficherBranche+';SCO_ASSEMBLAGE';
+   {$ENDIF !GPAO}
+   {$IFDEF ACCESCBN}
+     stAfficherBranche:=stAfficherBranche+';SCO_CBN';
+   {$ENDIF ACCESCBN}
+   {$IFDEF ACCESSCM}
+   if VH_GC.SCMSeria then
+   begin
+     stAfficherBranche:=stAfficherBranche+';SCO_SYNAPTIQUE';
+     { Paramètres Import/Export GPAO }
+     if stVirerBranche = '' then
+       stVirerBranche := stVirerBranche + 'SCO_QIMPORTEXPORTPRODUFLEX'
+     else
+       stVirerBranche := stVirerBranche + ';SCO_QIMPORTEXPORTPRODUFLEX';
+     { Paramètres Import }
+     stVirerBranche := stVirerBranche + ';SCO_QIMPORTEXPORTGENERAL';
+     { Paramètres Import/Export Dialogue HOST}
+     stVirerBranche := stVirerBranche + ';SCO_QIMPEXPDIALOGUEHOST';
+     { Paramètres Profil groupage}
+     stVirerBranche := stVirerBranche + ';SCO_QPROFILGROUPAGE';
+     { Paramètres Infos à afficher dans objectifs/prévisions}
+     stVirerBranche := stVirerBranche + ';SCO_PREVISION';
+     { Paramètres Calcul prévision}
+     stVirerBranche := stVirerBranche + ';SCO_QBPPREVISION';
+   end;
+   {$ENDIF ACCESSCM}
+   {$IFDEF BPPGIENT}
+   if VH_GC.OBJSeria then
+     stAfficherBranche:=stAfficherBranche+';SCO_OBJECTIFS';
+   {$ENDIF BPPGIENT}
+   stAfficherBranche:=stAfficherBranche+';SCO_PARAMPIECES';
+   stAfficherBranche:=stAfficherBranche+';SCO_TARIFS';
+   stAfficherBranche:=stAfficherBranche+';SCO_GCALERTES';
+   END ;
+if ctxMode in V_PGI.PGIContexte then
+   BEGIN
+   // Paramétres Mode
+   stAfficherBranche:=stAfficherBranche+';SCO_DATESDIVERS;SCO_EURO;SCO_DIVERS' ;
+   stAfficherBranche:=stAfficherBranche+';SCO_PARAMSDEFAUT;SCO_PARAMSARTICLES;SCO_GCPRESTATION' ;
+   stAfficherBranche:=stAfficherBranche+';SCO_GCDIMENSION' ;
+   stAfficherBranche:=stAfficherBranche+';SCO_PREFGC;SCO_GCPONTCOMPTABLE;SCO_CLIENTS' ;
+   stAfficherBranche:=stAfficherBranche+';SCO_FORMZONECLIENT;SCO_ECOMMERCE;SCO_GCTOX' ;
+   stAfficherBranche:=stAfficherBranche+';SCO_GCFO;SCO_GCCONNEXIONS;SCO_GCORLI' ;
+   stAfficherBranche:=stAfficherBranche+';SCO_PARAMDEPOT_ETAB;SCO_GCMODELESEDITION' ;
+   // pas le cti stAfficherBranche:=stAfficherBranche+';SCO_PROSPECTS' ;
+   stAfficherBranche:=stAfficherBranche+';SCO_GRCPREF;SCO_RTDOCUMENTS;SCO_RTPREFERENCES;SCO_RTPROJETS' ;
+   stAfficherBranche:=stAfficherBranche+';SCO_RTPROCHQMPSLIBRES;SCO_RTACTIONS;SCO_RTOPERATIONS;SCO_SUSPECT;SCO_CHAINAGE' ;
+   stAfficherBranche:=stAfficherBranche+';SCO_CONTACTS';   
+//   stAfficherBranche:=stAfficherBranche+';SCO_RTDOCUMENTS' ;           A conditionner suivant si GRC O/N
+   exit;
+   END;
+{$IFNDEF CCS3}
+   stAfficherBranche:=stAfficherBranche+';SCO_ECOMMERCE;SCO_GCPRESTATION;' ;
+    // pour GA dans GC
+   stAfficherBranche:=stAfficherBranche+';SCO_AFFPREFERENCES;SCO_RESSOURCE;SCO_AFFACTIVITE;SCO_COMPORTACTIVITE';
+   stAfficherBranche:=stAfficherBranche+';SCO_AFEDITION;SCO_AFPREFERENCE;SCO_AFDATES';
+   stAfficherBranche:=stAfficherBranche+';SCO_AFEACTIVITE;SCO_AFBUDGET;SCO_AFCUTOFF';
+   stAfficherBranche:=stAfficherBranche+';SCO_AFFAIREREGROUPE;SCO_FRAISCOMPTA';
+{$ENDIF}
+
+{$IFDEF GCGC}
+   if VH_GC.GAPlanningSeria or VH_GC.GAPlanChargeSeria then
+     stAfficherBranche:=stAfficherBranche+';SCO_AFPLANNING;SCO_PLANNINGGENE;SCO_AFCOMMUNPLAN;SCO_AFPLANCHARGE'; //mcd 07/03/2005 ajout commun +gene
+ 
+  // C.B 24/03/2006
+ {$IFDEF BUSINESSPLACE}
+ // pas de révision en SUITE
+  if ctxGCAff in V_PGI.PGIContexte then
+     stAfficherBranche:=stAfficherBranche+';SCO_REVISIONPRIX';
+ {$ENDIF}
+
+if (ctxAffaire in V_PGI.PGIContexte) {or (VH_GC.GASeria)} then       // PCS pour GA + GC
+   BEGIN
+        // mcd 08/03/02 tout revu pour passer en mode autorisation seulement
+   stAfficherBranche:=stAffiche+';SCO_DATESDIVERS'; // fin paramètre compta
+   stAfficherBranche:=stAffiche+';SCO_GCALERTES'; //Alerte de la GC  mcd 30/03/2006
+        // paramètres gescom ATTENTION, si GC + GA, voir si il n'y pas des
+        // des branches à remettre ???? (dans le cas GA, on efface toute la branche
+        // gescom pour la refaire avec les seules options voulues
+   stAfficherBranche:=stAfficherBranche+';SCO_PARAMSDEFAUT;SCO_PARAMSARTICLES;';
+   stAfficherBranche:=stAfficherBranche+';SCO_GCPRESTATION;SCO_PREFGC;SCO_GCCOMPTECOMPTABLE';
+   stAfficherBranche:=stAfficherBranche+';SCO_GCPONTCOMPTABLE;SCO_CLIENTS;SCO_FORMZONECLIENT';
+   stAfficherBranche:=stAfficherBranche+';SCO_TARIFS;SCO_GCMODELESEDITION';
+   stAfficherBranche:=stAfficherBranche+';SCO_FRAISCOMPTA'; // PL le 18/02/04 : saisie des frais en compta
+        // Paramétres affaires
+   stAfficherBranche:=stAfficherBranche+';SCO_AFFPREFERENCES;SCO_RESSOURCE;SCO_AFFACTIVITE;SCO_COMPORTACTIVITE';
+   stAfficherBranche:=stAfficherBranche+';SCO_AFEDITION;SCO_AFPREFERENCE;SCO_AFDATES';
+   // mcd 29/01/03 pas de budget en GA stAfficherBranche:=stAfficherBranche+';SCO_AFEACTIVITE;SCO_AFBUDGET;SCO_AFCUTOFF';
+//   {$IFNDEF CCS3}
+   stAfficherBranche:=stAfficherBranche+';SCO_AFEACTIVITE;SCO_AFCUTOFF';
+   if not(CtxScot in V_PGI.PGICOntexte) then
+   {$IFDEF BUSINESSPLACE}
+        stAfficherBranche:=stAfficherBranche+';SCO_AFBUDGET;SCO_REVISIONPRIX';
+   {$ELSE}  // pas de révision en SUITE
+        stAfficherBranche:=stAfficherBranche+';SCO_AFBUDGET';
+   {$ENDIF}
+//   {$ENDIF}
+
+   if CtxScot in V_PGI.PGICOntexte then
+    stAfficherBranche:=stAfficherBranche+';SCO_APPREC;SCO_FACTUREECLATEE;SCO_AFFAIREREGROUPE'
+   else
+   begin
+    stAfficherBranche:=stAfficherBranche+';SCO_AFFAIREREGROUPE;SCO_PARAMPIECES'; //AB-200510-Param Pièces
+   end;
+      //mcd 07/03/2005 nouvelle brnaches.. tout revu
+   if VH_GC.GAPlanningSeria or VH_GC.GAPlanChargeSeria then stAfficherBranche:=stAfficherBranche+';SCO_AFCOMMUNPLAN';
+   if VH_GC.GAPlanChargeSeria then  stAfficherBranche:=stAfficherBranche+';SCO_AFPLANCHARGE';
+   if VH_GC.GAPlanningSeria   then  stAfficherBranche:=stAfficherBranche+';SCO_PLANNINGGENE;SCO_AFPLANNING';
+   {$IFDEF BPPGIENT}
+   if VH_GC.OBJSeria          then  stAfficherBranche:=stAfficherBranche+';SCO_OBJECTIFS';
+   {$ENDIF BPPGIENT}
+   END;
+
+if ctxGRC in V_PGI.PGIContexte then
+   BEGIN
+   // Paramétres gestion de la relation clients
+{$IFDEF CCS3}
+   stAfficherBranche:=stAfficherBranche+';SCO_GRCPREF;SCO_RTDOCUMENTS;SCO_RTPROCHQMPSLIBRES' ;
+   stAfficherBranche:=stAfficherBranche+';SCO_RTACTIONS;SCO_RTOPERATIONS;SCO_CHAINAGE' ;
+   stAfficherBranche:=stAfficherBranche+';SCO_CONTACTS;SCO_RTMODELEFICHEACTION';
+{$ELSE}
+   //stAfficherBranche:=stAfficherBranche+';SCO_PROSPECTS' ;
+   stAfficherBranche:=stAfficherBranche+';SCO_GRCPREF;SCO_RTDOCUMENTS;SCO_RTPREFERENCES;SCO_RTPROJETS' ;
+   stAfficherBranche:=stAfficherBranche+';SCO_RTPROCHQMPSLIBRES;SCO_RTACTIONS;SCO_RTOPERATIONS;SCO_SUSPECT;SCO_CHAINAGE' ;
+ {$ifdef GIGI}
+    stAfficherBranche:=stAfficherBranche+';SCO_CONTACTS;SCO_RTMODELEFICHEACTION';   //mcd 11/07/05 pas de ged en GI
+ {$ELSE}
+   stAfficherBranche:=stAfficherBranche+';SCO_CONTACTS;SCO_RTMODELEFICHEACTION;SCO_GEDGRC';
+ {$ENDIF GIGI}
+{$IFDEF CTI}
+   if VH_RT.CTISeria = true then stAfficherBranche:=stAfficherBranche+';SCO_CTI' ;
+{$ENDIF}
+{$ENDIF}
+   END ;
+{$IFNDEF CCS3}
+if VH_GC.GRFSeria = true then stAfficherBranche:=stAfficherBranche+';SCO_GRF' ;
+{$ENDIF} // CCS3
+{$ENDIF} // GCGC
+
+{$IFDEF GPAO}
+if ctxGPAO in V_PGI.PGIContexte then
+begin
+   // Paramétres GP
+   stAfficherBranche:=stAfficherBranche+';SCO_GPAO';
+
+   { Branche MES }
+   stAfficherBranche:=stAfficherBranche+';SCO_MES' ;
+end;
+{$ENDIF}
+{$IFDEF SAV}
+   {$IFDEF BUSINESSPLACE}
+   if VH_GC.SAVSeria then
+     stAfficherBranche:=stAfficherBranche+';SCO_SAV';
+   {$ENDIF}
+{$ENDIF}
+{$ifdef GIGI}
+    // pour la GI, si que GRC, on ne voit pas tout dans les paramsoc
+if  (V_PGI.PassWord <> CryptageSt(DayPass(Date)))
+    and not (VH_GC.GASeria)
+    and (VH_GC.GRCSeria) then
+     begin
+     stAfficherBranche:='SCO_COORDONNEES;SCO_CLIENTS;SCO_FORMZONECLIENT;SCO_GCMODELESEDITION'; // GC
+      //+option GRC
+     stAfficherBranche:=stAfficherBranche+';SCO_GRCPREF;SCO_RTDOCUMENTS;SCO_RTPREFERENCES;SCO_RTPROJETS' ;
+     stAfficherBranche:=stAfficherBranche+';SCO_RTPROCHQMPSLIBRES;SCO_RTACTIONS;SCO_RTOPERATIONS;SCO_SUSPECT;SCO_CHAINAGE' ;
+     stAfficherBranche:=stAfficherBranche+';SCO_CONTACTS;SCO_RTMODELEFICHEACTION';
+     end;
+{$endif}
+
+{$IFDEF GCGC}
+  stAfficherBranche:=stAfficherBranche+';SCO_PDR';
+{$ENDIF GCGC}
+END;
+
+
+function VarToDouble (V : Variant) : double ;
+Var St : String ;
+BEGIN
+Case VarType(v) of
+  varSmallint,varInteger,varSingle,varDouble,varCurrency : result:=VarAsType(V,VarDouble) ;
+  varEmpty,VarNull : Result:=0 ;
+  varString : BEGIN St:=VarAstype(v,VarString) ; if IsNumeric(St) then result:=Valeur(St) else result:=0 ; END ;
+  else Result:=0 ;
+  END ;
+END ;
+
+Function FabricWhereToken ( sToken,Champ : String ) : String ;
+Var sWhere,sSub : String ;
+BEGIN
+Result:='' ; sWhere:='' ;
+if ((sToken='') or (Champ='')) then Exit ;
+Repeat
+ sSub:=ReadTokenSt(sToken) ;
+ if sSub<>'' then sWhere:=sWhere+Champ+'="'+sSub+'" OR ' ;
+Until ((sSub='') or (sToken='')) ;
+if sWhere<>'' then BEGIN Delete(sWhere,Length(sWhere)-3,4) ; sWhere:='('+sWhere+')' ; END ;
+Result:=sWhere ;
+END ;
+
+
+FUNCTION DEVISETODEVISE(X,Taux,Quotite,NewTaux,NewQuotite : Double ; Decim : byte ) : Double ;
+var XL : Double;
+begin
+Result:=0 ; if X=0 then Exit ;
+XL := DEVISETOEURONA (X,Taux,Quotite);
+Result := EUROTODEVISE (XL,NewTaux,NewQuotite,Decim);
+end ;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Joël TRIFILIEFF
+Créé le ...... : 19/03/2003
+Modifié le ... :
+Description .. : Test autorisation de modif d'une pièce lors d'un accès
+Suite ........ : autre que les menus
+Mots clefs ... : CONFIDENTIALITE;MODIFICATION
+*****************************************************************}
+function JaiLeDroitNatureGCModif(Nature : string) : boolean;
+
+  function AffecteTag(Devis, Prof, Cde, CdeEch, PrepLiv, Liv, LivEch, FactProv, Ticket, AchCde, AchLiv : integer) : boolean;
+  begin
+    //VENTE
+    if Nature = 'DE' then Result := JaiLeDroitTag(Devis) //Devis
+    else if Nature = 'PRO' then Result := JaiLeDroitTag(Prof) //Facture proforma
+    else if Nature = 'CC' then Result := JaiLeDroitTag(Cde) //Commande
+    else if Nature = 'CCE' then Result := JaiLeDroitTag(CdeEch) //Commande échantillon
+    else if Nature = 'PRE' then Result := JaiLeDroitTag(PrepLiv) //Préparation livraison
+    else if Nature = 'BLC' then Result := JaiLeDroitTag(Liv) //Livraison
+    else if Nature = 'LCE' then Result := JaiLeDroitTag(LivEch) //Livraison échantillon
+    else if Nature = 'FPR' then Result := JaiLeDroitTag(FactProv) //Facture provisoire
+    else if Nature = 'FFO' then Result := JaiLeDroitTag(Ticket) //Ticket
+    //ACHAT
+    else if Nature = 'CF' then Result := JaiLeDroitTag(AchCde) //Commande
+    else if Nature = 'BLF' then Result := JaiLeDroitTag(AchLiv) //Livraison
+    //TRANSFERTS DE STOCK
+    {$IFNDEF MODE}
+      else if (Nature = 'TEM') and (GetParamSoc('SO_GCTRV')) then Result := False //Transfert Emis
+      else if (Nature = 'TRV') and (GetParamSoc('SO_GCTRV')) then Result := False //Transfert à valider
+      else if (Nature = 'TRE') and (GetParamSoc('SO_GCTRV')) then Result := False //Transfert Reçu
+    {$ENDIF MODE}
+    else Result := true;
+  end;
+
+begin
+    Result := True;
+{$IFDEF GESCOM}
+    if ctxGescom in V_PGI.PGIContexte then Result := AffecteTag(30221,30222,30223,30226,30229,30224,30227,30225,36101,31211,21212);
+{$ENDIF}
+    if (ctxMode in V_PGI.PGIContexte) or (ctxAffaire in V_PGI.PGIContexte) then Result := True;
+end;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Joël TRIFILIEFF
+Créé le ...... : 19/03/2003
+Modifié le ... :
+Description .. : Test autorisation de création d'une pièce lors d'un accès
+Suite ........ : autre que les menus
+Mots clefs ... : CONFIDENTIALITE;CREATION
+*****************************************************************}
+function JaiLeDroitNatureGCCreat(Nature : string) : boolean;
+
+  function AffecteTag(Devis, Prof, Cde, CdeEch, PrepLiv, Liv, LivEch, FactProv, Facture, AvCli, AvStk, AvProv, Ticket, AchCde, AchLiv, AchFact,
+                      AvAch, AvAchStock, AvAchStockPrix,RetourFournisseur : integer) : boolean;
+  begin
+    //VENTE
+    if Nature = 'DE'  then Result := JaiLeDroitTag(Devis) //Devis
+    else if Nature = 'PRO' then Result := JaiLeDroitTag(Prof) //Facture proforma
+    else if Nature = 'CC' then Result := JaiLeDroitTag(Cde) //Commande
+    else if Nature = 'CCE' then Result := JaiLeDroitTag(CdeEch) //Commande échantillon
+    else if Nature = 'PRE' then Result := JaiLeDroitTag(PrepLiv) //Préparation livraison
+    else if Nature = 'BLC' then Result := JaiLeDroitTag(Liv) //Livraison
+    else if Nature = 'LCE' then Result := JaiLeDroitTag(LivEch) //Livraison échantillon
+    else if Nature = 'FPR' then Result := JaiLeDroitTag(FactProv) //Facture provisoire
+    else if Nature = 'FAC' then Result := JaiLeDroitTag(Facture) //Facture
+    else if Nature = 'AVC' then Result := JaiLeDroitTag(AvCli) //Avoir client
+    else if Nature = 'AVS' then Result := JaiLeDroitTag(AvStk) //Avoir sur stock
+    else if Nature = 'APR' then Result := JaiLeDroitTag(AvProv) //Avoir provisoire
+    else if Nature = 'FFO' then Result := JaiLeDroitTag(Ticket) //Ticket
+    //ACHAT
+    else if Nature = 'CF' then Result := JaiLeDroitTag(AchCde) //Commande
+    else if Nature = 'BLF' then Result := JaiLeDroitTag(AchLiv) //Livraison
+    else if Nature = 'AF' then Result := JaiLeDroitTag(AvAch) //avoir fournisseur financier
+    else if Nature = 'AFP' then Result := JaiLeDroitTag(AvAchStock) //avoir fournisseur valorisé
+    else if Nature = 'AFS' then Result := JaiLeDroitTag(AvAchStockPrix) //avoir fournisseur sur stock
+    else if Nature = 'BFA' then Result := JaiLeDroitTag(RetourFournisseur) // Retour fournisseur
+    else if Nature = 'FF' then Result := JaiLeDroitTag(AchFact) //Facture
+    else Result := true;
+  end;
+
+begin
+    Result := True;
+{$IFDEF GESCOM}
+    if ctxGescom in V_PGI.PGIContexte then
+      Result := AffecteTag (30201,30202,30241,30242,30209,30251,30252,30210,30205,30261,30262,30263,36101,31201,
+                            31202,31203,31231,31232,31233,31234);
+{$ENDIF}
+    if (ctxMode in V_PGI.PGIContexte) or (ctxAffaire in V_PGI.PGIContexte) then Result := True;
+end;
+
+{**************************************************************************************
+Calcul de la clé téléphone: les 9 derniers caractères numériques d'un n° de téléphone
+***************************************************************************************}
+function CleTelephone (strTelephone:string; bFixedLen:boolean=TRUE):string;
+var
+   car   :string;
+   i     :integer;
+begin
+     Result := '';
+     strTelephone := Trim (strTelephone);
+     for i := 1 to length (strTelephone) do
+     begin
+          car := copy (strTelephone, i, 1);
+          if (IsNumeric (car)) and (car <>'.') and (car<>',') and (car<>'-') and (car<>' ') then
+             Result := Result + car;
+     end;
+
+     // Si clé véritable (donc toujours 9 car.), on construit une chaine de 9 caractères. Sinon, on laisse telle quelle
+     if bFixedLen = TRUE then
+     begin
+          i := Length (Result);
+          if i > 9 then
+              Result := Copy (Result, i-8, 9)
+          else
+              if i < 9 then
+                 Result := StringOfChar ('0', 9-i) + Result;
+     end;
+end;
+
+// $$$ JP 18/07/05 - que pour le bureau pour l'instant
+//{$IFNDEF ERADIO}
+{$IFDEF BUREAU}
+{**************************************************************************************
+Màj de tous les enregistrements contenant un champ clé téléphone
+***************************************************************************************}
+function MajCleTelephone (const strChampCle, strChampTel, strTable:string):boolean;
+var
+   TOBTel        :TOB;
+   i             :integer;
+   strValeurTel  :string;
+begin
+     //$$$ JP 06/12/05 - warning delphi -> Result := FALSE;
+     TOBTel := TOB.Create ('les tels', nil, -1);
+     try
+        TOBTel.LoadDetailFromSQL ('SELECT DISTINCT ' + strChampTel + ' FROM ' + strTable);
+        for i := 0 to TOBTel.Detail.Count-1 do
+        begin
+             strValeurTel := TOBTel.Detail [i].GetString (strChampTel);
+             ExecuteSQL ('UPDATE ' + strTable + ' SET ' + strChampCle + '="' + CleTelephone (strValeurTel) + '" WHERE ' + strChampTel + '="' + strValeurTel + '"');
+        end;
+        Result := TRUE;
+     finally
+            TOBTel.Free;
+     end;
+end;
+{$ENDIF}
+//{$ENDIF !ERADIO}
+
+{***********A.G.L.Privé.*****************************************
+Version PGI de PCL_IMPORT_BOB sans contrainte sur V_PGI_ENV
+*****************************************************************}
+function PGI_IMPORT_BOB(CodeProduit:string): Integer;
+{$IFNDEF EAGLCLIENT}
+{$IFNDEF ERADIO}
+var sFileBOB                :string;
+    Chemin                  :string;
+    SearchRec               :TSearchRec;
+    NumVersion              :integer;
+    ret                     :integer;
+{$ENDIF !ERADIO}
+{$ENDIF !EAGLCLIENT}
+BEGIN
+  // LE NOM DES BOB SE COMPOSE DE
+  // - Code Produit   XXXX
+  // - Num version base 9999
+  // - type de BOB (F:fiche,M:Menu,D:data);
+  // - Num version 999
+  // - extension .BOB
+  // - exemple CCS50582F0001.BOB
+  //
+  // CODE RETOUR DE LA FONCTION
+  Result := 0;
+{$IFNDEF EAGLCLIENT}
+{$IFNDEF EAGLSERVER}
+  Chemin := ExtractFileDrive(Application.ExeName) + '\PGI00\BOB\'+ CodeProduit +'\';
+  ret := FindFirst(Chemin+CodeProduit+'*.BOB', faAnyFile, SearchRec);
+  NumVersion := 0;
+  while ret = 0 do
+  begin
+       //RECUPERE NOM DU BOB
+       sFileBOB := SearchRec.Name;
+       //RECUPERE NUM VERSION
+       try
+{$IFDEF GPAO}
+          NumVersion := ValeurI(Copy(sFileBOB,6,4));
+{$ELSE}
+          NumVersion := ValeurI(Copy(sFileBOB,5,4));
+{$ENDIF}
+       except
+          Result := -6;
+          exit;
+       end;
+
+       if NumVersion > V_PGI.NumVersionBase then
+       begin
+            case AGLIntegreBob(Chemin + sFileBOB,FALSE,TRUE) of
+//            case TestAGLIntegreBob(Chemin + sFileBOB) of
+            0  :// OK
+                begin
+                     if V_PGI.SAV then Pgiinfo('Intégration de : '+sFileBOB, TitreHalley);//Resultif not LIA_JOURNAL_EVENEMENT(sTempo) then Result := -1;
+                     if copy(sFileBob,9,1) = 'M' then Result := 1; //SI BOB AVEC MENU, ON REND 1 POUR SORTIR DE L'APPLICATION
+                end;
+            1  : if V_PGI.SAV then Pgiinfo('Intégration déjà effectuée :'+sFileBOB, TitreHalley);// Intégration déjà effectuée
+           -1  :// Erreur d'écriture dans la table YMYBOBS
+                begin
+                     if V_PGI.SAV then PGIInfo('Erreur d''écriture dans la table YMYBOBS :'+Chemin + sFileBOB,'PCL_IMPORT_BOB');
+                end;
+           -2  :// Erreur d'intégration dans la fonction AglImportBob
+                begin
+                     if V_PGI.SAV then PGIInfo('Erreur d''intégration dans la fonction AglImportBob :'+Chemin + sFileBOB,'PCL_IMPORT_BOB');
+                end;
+           -3  ://Erreur de lecture du fichier BOB.
+                begin
+                     if V_PGI.SAV then PGIInfo('Erreur de lecture du fichier BOB :'+Chemin + sFileBOB,'PCL_IMPORT_BOB');
+                end;
+           -4  :// Erreur inconnue.
+                begin
+                     if V_PGI.SAV then PGIInfo('Erreur inconnue :'+Chemin + sFileBOB,'PCL_IMPORT_BOB');
+                end;
+            end;
+
+       end;
+       ret := FindNext(SearchRec);
+   end;
+   sysutils.FindClose(SearchRec);
+{$ENDIF}
+{$ENDIF}
+END;
+
+procedure PGIEnvoiMail(SUJET: string; AQUI, CopieA: string; Corps: TStrings; FICHIERS: string; EnvoiAuto: boolean = TRUE; Importance: Integer = 1; CATEGORIE: string = ''; COMPANIE: string = ''; SansAlerte: boolean = FALSE);
+{$IFNDEF EAGLSERVER}
+var ResultMailForm : TResultMailForm;
+    Liste :TStringList;
+{$ENDIF !EAGLSERVER}
+begin
+  {$IFNDEF EAGLSERVER}
+  if not EnvoiAuto and ( not v_pgi.ficheoutlook or (V_PGI.MailMethod = mmNotes) ) then
+  begin
+      Liste:=TStringList.Create ;
+      try
+        if Corps = Nil then
+        begin
+          Liste.Add('');
+        end
+        else
+        begin
+          Liste.Text := Corps.text;
+        end;
+        ResultMailForm := AglMailForm(Sujet, Aqui, CopieA, Liste, FICHIERS);
+        EnvoiAUto:=True;
+        if ResultMailForm = rmfOkButNotSend then SendMail( SUJET, AQUI, CopieA, Liste, FICHIERS, EnvoiAuto, Importance, CATEGORIE,COMPANIE, SansAlerte );
+      finally
+        Liste.free;
+      end;
+  end
+  else SendMail( SUJET, AQUI, CopieA, Corps, FICHIERS, EnvoiAuto, Importance, CATEGORIE,COMPANIE, SansAlerte );
+  {$ENDIF !EAGLSERVER}
+End;
+
+procedure AGLPGIEnvoiMail( parms: array of variant; nb: integer ) ;
+Var T : TStringList ;
+begin
+  T:=TStringList.Create ;
+  T.Text:=string(parms[3]) ;
+  PGIEnvoiMail(parms[0],parms[1],parms[2],T,parms[4],parms[5]) ;
+  T.Free ;
+end;
+
+
+{***********A.G.L.***********************************************
+Auteur  ...... : SBO
+Créé le ...... : 26/05/2005
+Modifié le ... :   /  /    
+Description .. : Utilisé dans les sources pour isoler les implémentations
+Suite ........ : spécifiques au multisociété
+Mots clefs ... : MULTISOC
+*****************************************************************}
+Function EstMultiSoc : Boolean ;
+begin
+{$IFDEF EAGLSERVER}
+ result := false ;
+{$ELSE EAGLSERVER}
+  Result := not (ctxPCL in V_PGI.PGIContexte) and ( high(V_PGI.DEShares) > 0 ) ;
+{$ENDIF !EAGLSERVER} 
+end ;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : SBO
+Créé le ...... : 26/05/2005
+Modifié le ... : 26/05/2005
+Description .. : Retourne vrai si la table vNomTable fait partie d'un
+Suite ........ : partage MULTISOC
+Suite ........ : (Part du principe que DESHARE est renseigné dans toutes
+Suite ........ : les bases du regroupement multisocété )
+Mots clefs ... : MULTISOC
+*****************************************************************}
+Function EstTablePartagee( vNomTable : String ) : Boolean ;
+begin
+  if EstMultiSoc
+    then Result := TableToBaseNum( vNomTable ) > 0
+    else Result := False ;
+end ;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : SBO
+Créé le ...... : 26/05/2005
+Modifié le ... : 26/05/2005
+Description .. : Retourne la valeur utilisée dans la table cumuls pour 
+Suite ........ : identifiée le type d'entité auquel il se rapporte :
+Suite ........ : champ CU_TYPE
+Mots clefs ... : MULTISOC
+*****************************************************************}
+function fbToCumulType( vFB : TFichierBase ) : String ;
+begin
+  case vFB of
+   fbGene : result := 'MSG' ;
+   fbAux  : result := 'MST' ;
+   fbSect : result := 'MSS' ;
+   fbJal  : result := 'MSJ' ;
+   else result := '' ;
+   end ;
+
+end ;
+
+
+{***********A.G.L.***********************************************
+Auteur  ...... : SBO
+Créé le ...... : 30/05/2005
+Modifié le ... :   /  /
+Description .. : Retourne le nom de la table correspondant au TfichierBase
+Mots clefs ... : 
+*****************************************************************}
+function  fbToTable        ( vFB : TFichierBase ) : String ;
+begin
+  case vFB of
+   fbGene : result := 'GENERAUX' ;
+   fbAux  : result := 'TIERS' ;
+   fbSect : result := 'SECTION' ;
+   fbAxe1..fbAxe5 : result := 'SECTION' ;
+   fbJal  : result := 'JOURNAL' ;
+   else result := '' ;
+   end ;
+
+end ;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : SBO
+Créé le ...... : 30/05/2005
+Modifié le ... : 19/07/2005
+Description .. : Retourne la nom de la table préfixée par le nom du dossier
+Suite ........ : si la table n'est pas partagée.
+Mots clefs ... : MULTISOC
+*****************************************************************}
+Function  GetTableDossier( vDossier, vNomTable : String ) : String ;
+begin
+  result := vNomTable ;
+
+  if (Trim(vDossier)='') or (vDossier=V_PGI.SchemaName) then Exit ;
+
+  // Si la table est partagée, on laisse la main à l'AGL...
+  if EstTablePartagee( vNomTable ) then Exit ;
+
+{$IFDEF EAGLSERVER}
+  if (V_PGI.Driver = dbMSSQL) or (V_PGI.Driver=dbMSSQL2005)
+{$ELSE}
+  if isMssql // de wCommuns non compatible eAglServer pour le moment
+{$ENDIF EAGLSERVER}
+    then result := vDossier + '.DBO.' + vNomTable
+    else result := vDossier + '.' + vNomTable ;
+
+end ;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : SBO
+Créé le ...... : 19/07/2005
+Modifié le ... : 19/07/2005
+Description .. : Retourne la liste des bases du regroupement utilisé pour le 
+Suite ........ : paramétrage du mutlisociété, sous la forme d'une chaîne 
+Suite ........ : séparée par des ';'
+Suite ........ : 
+Suite ........ : Code du regroupement MultiSoc stocké dans la constante
+Suite ........ : MS_CODEREGROUPEMENT
+Mots clefs ... :
+*****************************************************************}
+Function GetBasesMS (CodeRegroupement : string = ''; BaseSql : boolean = True) : String ;
+var lQMD     : TQuery ;
+    lTSData  : TStringList ;
+    lStVal   : String ;
+    lStBase  : String ;
+begin
+
+  result := '' ;
+
+  if CodeRegroupement = '' then CodeRegroupement := MS_CODEREGROUPEMENT;
+
+  // récupération paramétrage du regroupement
+  lStVal := '' ;
+  lQMD   := OpenSQL('SELECT * FROM YMULTIDOSSIER WHERE YMD_CODE = "' + CodeRegroupement + '"', True ) ;
+  if not lQMD.Eof then
+    lStVal := lQMD.FindField('YMD_DETAILS').AsString ;
+  Ferme( lQMD ) ;
+  if lStVal = '' then Exit ;
+
+  // Récupération 1ère ligne
+  lTSData      := TStringList.Create ;
+  lTSData.Text := lStVal ;
+  lStVal       := lTSData.Strings[0] ;
+
+  // On ne garde que le nom des bases
+  while lStVal<>'' do
+    begin
+    lStBase := ReadTokenSt( lStVal ) ;
+    if BaseSql then
+    begin
+      ReadTokenPipe( lStBase , '|' );
+      result := result + lStBase + ';';
+    end else
+      result  := result + ReadTokenPipe( lStBase , '|' ) + ';' ;
+    end ;
+
+  FreeAndNil( lTSData ) ;
+
+end ;
+
+Function  PresenceMS ( vFichier : String ; vChamp : String ; vValeur : String ) : Boolean ;
+var lStBases   : String ;
+    lStDossier : String ;
+begin
+  result := False ;
+  if not EstMultiSoc then Exit ;
+
+  // Si la table est partagée, appel de la fonction standard, on laisse faire l'AGL...
+  if EstTablePartagee( vFichier ) then
+    begin
+    result := Presence( vFichier, vChamp, vValeur ) ;
+    end
+  // Sinon on parcours les bases du regroupement
+  else
+    begin
+    lStBases   := GetBasesMS ;
+    lStDossier := ReadTokenSt( lStBases ) ;
+    While lStDossier <> '' do
+      begin
+      result := ExisteSQL( 'SELECT ' + vChamp + ' FROM ' + GetTableDossier( lStDossier,  vFichier ) +
+                           ' WHERE ' + vChamp + ' = "' + vValeur + '"' ) ;
+      {JP 17/05/06 : Presence semble enlever le DBO !!
+      result := Presence( GetTableDossier( lStDossier, vFichier ), vChamp, vValeur ) ;}
+      if result then Exit ;
+      lStDossier := ReadTokenSt( lStBases ) ;
+      end ;
+    end ;
+
+end ;
+
+Function  PresenceComplexeMS ( vFichier : String ; vChamps : Array of String ; vComps : Array of String ; vValeurs : Array of String ; vTypes : Array of String ) : Boolean ;
+var lStBases : String ;
+    lStDossier : String ;
+begin
+  result := False ;
+  if not EstMultiSoc then Exit ;
+
+  // Si la table est partagée, appel de la fonction standard, on laisse faire l'AGL...
+  if EstTablePartagee( vFichier ) then
+    begin
+    result := PresenceComplexe( vFichier, vChamps, vComps, vValeurs, vTypes ) ;
+    end
+  else
+  // Sinon on boucle sur les bases du regroupement
+    begin
+    lStBases   := GetBasesMS ;
+    lStDossier := ReadTokenSt( lStBases ) ;
+    While lStDossier <> '' do
+      begin
+//      result := ExisteSQL( 'SELECT ' + vChamp + ' FROM ' + GetTableDossier( vFichier ) + ' WHERE ' + vChamp + '="' + vValeur + '"' ) ;
+      result := PresenceComplexe( GetTableDossier( lStDossier, vFichier ) , vChamps, vComps, vValeurs, vTypes ) ;
+      if result then Exit ;
+      lStDossier := ReadTokenSt( lStBases ) ;
+      end ;
+    end ;
+end ;
+
+function EstBaseMultiSoc : boolean;
+begin
+  Result := ExisteSql ('SELECT 1 FROM YMULTIDOSSIER WHERE YMD_CODE="' + MS_CODEREGROUPEMENT + '"');
+end;
+
+function TablePartagee (LaTable : string) : boolean;
+begin
+  Result := EstTablePartagee (LaTable);
+end;
+
+function RechDomZoneLibre (sValue : string; bAbrege : boolean; sPlus : string = ''; bLibre : boolean = false) : string;
+begin
+  if pos (Copy (sValue, 1, 2), 'AM;AT;AD;AC;AB;AS') > 0 then
+    Result := rechdom ('GCZONELIBREART', sValue, bAbrege, sPlus, bLibre)
+  else if pos (Copy (sValue, 1, 2), 'WM;WT;WD;WC;WB') > 0 then
+    Result := rechdom ('GCZONELIBRESAV', sValue, bAbrege, sPlus, bLibre)
+  else if pos (Copy (sValue, 1, 2), 'CM;CT;CD;CC;CB;CR;FD;FM;FT') > 0 then   //mcd 16/08/05 oubli CR
+    Result := rechdom ('GCZONELIBRETIE', sValue, bAbrege, sPlus, bLibre)
+  else if pos (Copy (sValue, 1, 2), 'BT;BC;BD;BB;BM') > 0 then
+    Result := rechdom ('GCZONELIBRECON', sValue, bAbrege, sPlus, bLibre)
+  else
+    Result := RechDom ('GCZONELIBRE', sValue, bAbrege, sPlus, bLibre);
+end;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Christophe Ayel
+Créé le ...... : 11/10/2005
+Modifié le ... :   /  /    
+Description .. : Indique si la base courante est une base PCL allégée
+Mots clefs ... : 
+*****************************************************************}
+function EstBasePclAllegee : Boolean;
+begin
+  Result := False;
+  try
+    Result := Not ExisteSQL('SELECT 1 FROM DECHAMPS WHERE DH_PREFIXE="AFF"');
+  except
+  end;
+end;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Christophe Ayel
+Créé le ...... : 22/03/2006
+Modifié le ... :   /  /
+Description .. : Indique si la base courante est une base PCL optimisée
+Mots clefs ... :
+*****************************************************************}
+function EstBasePclOptimisee : Boolean;
+begin
+  Result := False;
+  try
+    Result := Not ExisteSQL('SELECT 1 FROM DETABLES WHERE DT_PREFIXE="AFF"');
+  except
+  end;
+end;
+
+{$IFDEF MAJPCL}
+procedure InitPGIpourDossierPCL;
+begin
+    V_PGI.PCLDomainesExclus :='"A","0","B","E","G","H","O","Q","R","U","W","X"';
+    // CA - 01/09/2005
+    V_PGI.PclDomainesVuesExclus :='"A","0","B","E","G","H","O","Q","R","U","W","X"';
+    // Fin CA
+    V_PGI.PCLModulesInclus := '2,4,6,17,18,24,25,26,27,37,38,39,41,42,43,44,45,46,47,48,49,52,53,54,55,56,61,64,66,69,81,96,155,156,157,158,159,171,173,175,176,177,303';
+    V_PGI.PCLParamSocInclus := '(SOC_TREE LIKE "001;000%") OR (SOC_TREE LIKE "001;001%") OR (SOC_TREE LIKE "001;002%") OR (SOC_TREE LIKE "001;005%") OR (SOC_TREE LIKE "001;018%") OR (SOC_TREE LIKE "001;026%") OR (SOC_TREE LIKE "001;027%")';
+end;
+{$ENDIF}
+
+{ TSQLAnaCroise }
+
+function TSQLAnaCroise.AxeToSousPlan(NatureCpt: String): Integer;
+var
+  i: Integer;
+begin
+  Result := 0;
+  for i := 1 to MaxAxe do begin
+//    if FAxes[i] then
+      Inc(Result);
+    if NatureCpt = 'A'+IntToStr(i) then
+      break;
+  end;
+end;
+
+constructor TSQLAnaCroise.Create;
+begin
+  LoadInfo;
+end;
+
+destructor TSQLAnaCroise.Destroy;
+begin
+  inherited;
+end;
+
+function TSQLAnaCroise.GetConditionAxe(NatureCpt: String): String;
+begin
+  if (not GetParamSocSecur('SO_CROISAXE', false) ) or (NatureCpt = GetPremierAxe) then
+    Result := 'Y_AXE = "'+NatureCpt+'"'
+  else
+    Result := 'Y_AXE = "'+GetPremierAxe+'" AND '+GetChampSection(NatureCpt)+' <> ""';
+end;
+
+function TSQLAnaCroise.GetChampSection(NatureCpt: String): String;
+begin
+  if (not GetParamSocSecur('SO_CROISAXE', false) ) or (NatureCpt = GetPremierAxe) then
+    Result := 'Y_SECTION'
+  else
+    Result := 'Y_SOUSPLAN'+IntToStr(AxeToSousPlan(NatureCpt));
+end;
+
+function TSQLAnaCroise.GetPremierAxe: String;
+begin
+  Result := 'A' + IntToStr(FPremierAxe);
+end;
+
+procedure TSQLAnaCroise.LoadInfo;
+var
+  i: Integer;
+begin
+  FPremierAxe := 0;
+
+  for i := 1 to MaxAxe do begin
+    FAxes[i] := GetParamSoc('SO_VENTILA' + IntToStr(i));
+    if FAxes[i] then begin
+      if (FPremierAxe = 0) then FPremierAxe := i;
+    end;
+  end;
+end;
+
+class function TSQLAnaCroise.ChampSection(NatureCpt: String): String;
+var
+  Ana: TSQLAnaCroise;
+begin
+  Ana := TSQLAnaCroise.Create;
+  try
+    Result := Ana.GetChampSection(NatureCpt);
+  finally
+    Ana.Free;
+  end;
+end;
+
+class function TSQLAnaCroise.ConditionAxe(NatureCpt: String): String;
+var
+  Ana: TSQLAnaCroise;
+begin
+  Ana := TSQLAnaCroise.Create;
+  try
+    Result := Ana.GetConditionAxe(NatureCpt);
+  finally
+    Ana.Free;
+  end;
+end;
+
+class procedure TSQLAnaCroise.TraduireRequete( NatureCpt : String ; var vStReq : String ) ;
+var Ana    : TSQLAnaCroise;
+    lStChp : String ;
+begin
+  Ana := TSQLAnaCroise.Create;
+  try
+    lStChp := Ana.GetChampSection( NatureCpt );
+    if lStChp <> 'Y_SECTION' then
+      vstReq := FindEtReplace( vstReq, 'Y_SECTION', lStChp, True ) ;
+  finally
+    Ana.Free;
+  end;
+end;
+
+
+{***********A.G.L.***********************************************
+Auteur  ...... : SBO
+Créé le ...... : 23/11/2005
+Modifié le ... :   /  /
+Description .. : teste l'existence du rib ou de l'iban dans la liste des rib du
+Suite ........ : tiers ou du tic / tid
+Mots clefs ... :
+*****************************************************************}
+function  ExisteRibSurCpt( vStCpt, vStRib : String ) : Boolean ;
+var lStEtab,
+    lStGuichet,
+    lStNumero,
+    lStCle,
+    lStDom : String ;
+    lStLoc : String ;
+begin
+
+  lStLoc := GetParamSocSecur('SO_PAYSLOCALISATION', CodeISOFR) ;
+
+  DecodeRIB( lStEtab, lStGuichet, lStNumero, lStCle, lStDom, vStRIB, lStLoc ) ;
+
+  result := ExisteSQL( 'SELECT R_AUXILIAIRE FROM RIB WHERE R_AUXILIAIRE = "'     + vStCpt
+                                         + '" AND ( R_CODEIBAN="'                + vStRib
+                                         + '" OR ( R_ETABBQ = "'                 + lStEtab
+                                                    + '" AND R_GUICHET = "'      + lStGuichet
+                                                    + '" AND R_NUMEROCOMPTE = "' + lStNumero
+                                                    + '" AND R_CLERIB = "'       + lStCle
+                                                    + '" ) ) ' ) ;
+end ;
+
+
+// ================================================================================
+// == Fonction OpenSelect
+// ==   Retourne un TQuery sur le dossier cible ( local par défaut)
+// ================================================================================
+Function  OpenSelect( vSQL : String ; vDossier : String = '' ; vRO : Boolean = True ; vStack : String = '' ) : TQuery ;
+begin
+
+ if //EstMultiSoc and                                                  // Multisociété actif ?
+    ( Trim( vDossier ) <> '' )  and ( vDossier <> V_PGI.SchemaName ) // Dossier cible non local
+   // Open sur le / les dossiers
+   then result := OpenSQL( vSQL, vRO , -1, vStack, False, vDossier )
+   // Open classique
+   else result := OpenSQL( vSQL, vRO,  -1, vStack ) ;
+
+end ;
+
+// ================================================================================
+// == Fonction GetDossier
+// ==   Retourne le nom Décla correspondant au nom physique de la base
+// ================================================================================
+function  GetDossier    ( vSchemaName : String ; CodeRegroupement : String = '' ) : string ;
+var lQMD     : TQuery ;
+    lTSData  : TStringList ;
+    lStVal   : String ;
+    lStBase  : String ;
+    lStCode  : String ;
+begin
+
+  result := '' ;
+
+  if CodeRegroupement = '' then
+    CodeRegroupement := MS_CODEREGROUPEMENT ;
+
+  // récupération paramétrage du regroupement
+  lStVal := '' ;
+  lQMD := OpenSQL( 'SELECT * FROM YMULTIDOSSIER WHERE YMD_CODE = "' + CodeRegroupement + '"', True, -1, 'GETDOSSIER') ;
+  if not lQMD.Eof then
+    lStVal := lQMD.FindField('YMD_DETAILS').AsString ;
+  Ferme( lQMD ) ;
+  if lStVal = '' then Exit ;
+
+  // Récupération 1ère ligne
+  lTSData      := TStringList.Create ;
+  lTSData.Text := lStVal ;
+  lStVal       := lTSData.Strings[0] ;
+
+  // Parcours des bases du regroupement
+  while lStVal<>'' do
+    begin
+    lStBase    := ReadTokenSt( lStVal ) ;
+    lStCode    := ReadTokenPipe( lStBase , '|' ) ;
+    if lStBase = vSchemaName then
+      begin
+      result := lStCode ;
+      break ;
+      end ;
+    end ;
+
+  FreeAndNil( lTSData ) ;
+
+end;
+
+// ================================================================================
+// == Fonction GetSchemaName
+// ==   Retourne le nom de la base en se basant sur le nom Décla
+// ================================================================================
+function  GetSchemaName ( vDossier    : String ; CodeRegroupement : String = '' ) : string ;
+var lQMD     : TQuery ;
+    lTSData  : TStringList ;
+    lStVal   : String ;
+    lStBase  : String ;
+    lStCode  : String ;
+begin
+
+  result := '' ;
+
+  if CodeRegroupement = '' then
+    CodeRegroupement := MS_CODEREGROUPEMENT ;
+
+  // récupération paramétrage du regroupement
+  lStVal := '' ;
+  lQMD := OpenSQL( 'SELECT * FROM YMULTIDOSSIER WHERE YMD_CODE = "' + CodeRegroupement + '"', True, -1, 'GETDOSSIER') ;
+  if not lQMD.Eof then
+    lStVal := lQMD.FindField('YMD_DETAILS').AsString ;
+  Ferme( lQMD ) ;
+  if lStVal = '' then Exit ;
+
+  // Récupération 1ère ligne
+  lTSData      := TStringList.Create ;
+  lTSData.Text := lStVal ;
+  lStVal       := lTSData.Strings[0] ;
+
+  // Parcours des bases du regroupement
+  while lStVal<>'' do
+    begin
+    lStBase    := ReadTokenSt( lStVal ) ;
+    lStCode    := ReadTokenPipe( lStBase , '|' ) ;
+    if lStCode = vDossier then
+      begin
+      result := lStBase ;
+      break ;
+      end ;
+    end ;
+
+  FreeAndNil( lTSData ) ;
+
+end;
+
+// ================================================================================
+// == Fonction InsertTobMS
+// ==   Enregistre un Tob dans le Dossier spécifié, en local par défaut
+// ==   Retourne True en cas de Réussite, False sinon.
+// ================================================================================
+
+Function  InsertTobMS( vTob : TOB ; vDossier : String = '' ) : Boolean ;
+var lStSQL   : String ;
+    lStTable : String ;
+begin
+
+  result := False ;
+
+  lStTable := vTob.NomTable ;
+  if TableToNum(lStTable) <= 0 then Exit ;
+
+  Try
+
+    // Cas classique
+    if not EstMultiSoc or ( vDossier = '' ) or ( vDossier = V_PGI.SchemaName ) then
+      begin
+      vTob.InsertDB( nil ) ;
+      result := True ;
+      end
+    else
+    // Cas spécifique au dossier !
+      begin
+
+      // Enregistrement de la Tob
+      lStSQL := vTob.MakeInsertSQL ;
+      lStSQL := FindEtReplace( lStSql, lStTable, GetTableDossier( vDossier, lStTable ), False ) ;
+      Result := ExecuteSQL( lStSQL ) = 1 ;
+
+      end ;
+
+  finally
+
+  end ;
+
+end ;
+
+// ================================================================================
+// == Fonction UpdateTobMS
+// ==   MAJ d'une Tob dans le Dossier spécifié, en local par défaut
+// ==   Retourne True en cas de Réussite, False sinon.
+// ================================================================================
+
+Function  UpdateTobMS( vTob : TOB ; vDossier : String = '' ) : Boolean ;
+var lStSQL   : String ;
+    lStTable : String ;
+begin
+
+  result := False ;
+
+  lStTable := vTob.NomTable ;
+  if TableToNum(lStTable) <= 0 then Exit ;
+
+  Try
+
+    // Cas classique
+    if not EstMultiSoc or ( vDossier = '' ) or ( vDossier = V_PGI.SchemaName ) then
+      begin
+      vTob.UpdateDB ;
+      result := True ;
+      end
+    else
+    // Cas spécifique au dossier !
+      begin
+
+      // Enregistrement de la Tob
+      lStSQL := vTob.MakeUpdateSQL ;  
+      lStSQL := FindEtReplace( lStSql, lStTable, GetTableDossier( vDossier, lStTable ), False ) ;
+      lStSQL := lStSQL + ' WHERE ' + vTob.Cle1 ;
+      result := ExecuteSQL( lStSQL ) = 1 ;
+
+      end ;
+
+  finally
+
+  end ;
+
+end ;
+
+// ================================================================================
+// == Fonction UpdateTobMS
+// ==   Suppression d'une Tob dans le Dossier spécifié, en local par défaut
+// ==   Retourne True en cas de Réussite, False sinon.
+// ================================================================================
+
+Function  DeleteTobMS( vTob : TOB ; vDossier : String = '' ) : Boolean ;
+var lStSQL   : String ;
+    lStTable : String ;
+begin
+
+  result := False ;
+
+  lStTable := vTob.NomTable ;
+  if TableToNum(lStTable) <= 0 then Exit ;
+
+  Try
+
+    // Cas classique
+    if not EstMultiSoc or ( vDossier = '' ) or ( vDossier = V_PGI.SchemaName ) then
+      begin
+      vTob.DeleteDB ;
+      result := True ;
+      end
+    else
+    // Cas spécifique au dossier !
+      begin
+
+      // Effacement de la Tob
+      lStSQL := vTob.MakeUpdateSQL ;
+      lStSQL := Copy( lStSql, pos('WHERE', lStSQL), length( lStSQL ) ) ;
+      lStSQL := 'DELETE FROM ' + GetTableDossier( vDossier, lStTable ) + ' ' + lStSQL ;
+      result := ExecuteSQL( lStSQL ) = 1 ;
+
+      end ;
+
+  finally
+
+  end ;
+
+end ;
+
+
+// ================================================================================
+// == Fonction RecupInfosSocietes
+// ==   Retourne une TOB contenant autant de filles que de société du regroupement
+// ==   Chaque fille possède comme champs supplémentaires, la liste des
+// ==    champs demandés en paramètres
+// ================================================================================
+Function  RecupInfosSocietes( vStListeParamSoc : string ; vStCodeRegroupement : string = '' ) : TOB ;
+var lStBases   : string ;
+    lStDossier : string ;
+    lStListePS : string ;
+    lTobSoc    : TOB ;
+    lStParam   : string ;
+    lQParam    : TQuery ;
+    lStData    : string ;
+    lStDesign  : string ;
+    lStType    : Char ;
+begin
+
+  result := TOB.Create('$Result', nil, -1 ) ;
+
+  lStBases := GetBasesMS ( vStCodeRegroupement ) ;
+  if lStBases = '' then Exit ;
+
+  while (lStBases <> '') do
+    begin
+    lStDossier := ReadTokenSt( lStBases ) ;
+    lStListePS := vStListeParamSoc ;
+    lTobSoc    := TOB.Create('$INFOSSOC', result, -1 ) ;
+    lTobSoc.AddChampSupValeur('SCHEMANAME', lStDossier ) ;
+
+    while (lStListePS<>'') do
+      begin
+      lStParam := ReadTokenSt( lStListePS ) ;
+      lQParam  := OpenSelect( 'SELECT SOC_DATA, SOC_DESIGN FROM PARAMSOC WHERE SOC_NOM LIKE "' + lStParam + '%"'
+                             , lStDossier ) ;
+      // Recup valeur
+      if not lQParam.Eof then
+        begin
+        lStDesign := lQParam.FindField('SOC_DESIGN').AsString ;
+        if length( lStDesign ) > 1 then
+          begin
+          lStType   := lStDesign[1] ;
+          lStData   := lQParam.FindField('SOC_DATA').AsString ;
+          lTobSoc.AddChampSupValeur( lStParam, ParamSocDataToVariant( lStParam, lStData, lStType ) ) ;
+          end ;
+        end ;
+
+      Ferme( lQParam ) ;
+
+      end ;
+    end ;
+
+end ;
+
+{$IFNDEF AGL590}
+//sera supprimée dès validation de la méthode AGL
+Function  GetParamsocDossierSecur  ( vNomParam : String ; vDefaut : Variant ; vDossier : String = '' ) : Variant ;
+var lQParam    : TQuery ;
+    lStData    : string ;
+    lStDesign  : string ;
+    lStType    : Char ;
+begin
+
+  if ( vDossier = '' ) or ( vDossier = V_PGI.SchemaName ) then
+    result := GetParamSocSecur( vNomParam, vDefaut )
+  else
+    begin
+    lQParam  := OpenSelect( 'SELECT SOC_DATA, SOC_DESIGN FROM PARAMSOC WHERE SOC_NOM LIKE "' + vNomParam + '%"'
+                           , vDossier ) ;
+    // Recup valeur
+    if not lQParam.Eof then
+      begin
+      lStDesign := lQParam.FindField('SOC_DESIGN').AsString ;
+      if length( lStDesign ) > 1 then
+        begin
+        lStType   := lStDesign[1] ;
+        lStData   := lQParam.FindField('SOC_DATA').AsString ;
+        result := ParamSocDataToVariant( vNomParam, lStData, lStType ) ;
+        end ;
+      end
+    else
+      result := vDefaut ;
+
+    Ferme( lQParam ) ;
+
+    end ;
+
+end ;
+{$ENDIF AGL590}
+
+
+Function  SetParamSocDossier  ( vNomParam : String ; vValeur : Variant  ; vDossier : String = '' ) : Boolean ;
+begin
+  if (vDossier = '') or (vDossier = V_PGI.SchemaName) then
+    result := SetParamSoc( vNomParam, vValeur )
+  else
+    result := ExecuteSQL ( 'UPDATE ' + GetTableDossier( vDossier, 'PARAMSOC')
+                           + ' SET SOC_DATA = "' + VariantToParamSocData( vValeur )
+                           + '" WHERE SOC_NOM = "' + vNomParam + '"' ) > 0 ;
+end ;
+
+// ME  09/02/2006 Fiche 10327
+// Centralisation de la fontion pour importCom,cpgeneraux_tom etc...
+Function ModePaiementParDefaut (var ModRegle: string) : string;
+var
+ModPaie           : string;
+lQMR              : TQuery;
+begin
+        ModRegle := GetParamSocSecur('SO_GCMODEREGLEDEFAUT', '');
+        ModPaie  := 'DIV' ;
+        if ModRegle <> '' then
+        begin
+          lQMR := OpenSQL('SELECT MR_MP1 FROM MODEREGL WHERE MR_MODEREGLE="'+ModRegle+'" ',TRUE) ;
+          if Not lQMR.Eof Then
+            ModPaie := lQMR.FindField('MR_MP1').AsString ;
+          Ferme(lQMR) ;
+        end ;
+        Result := ModPaie;
+end;
+
+function isMssql: boolean; //js1 04052006
+begin
+  Result := V_PGI.Driver in [dbMssql, dbMssql2005]
+end;
+
+function isOracle: boolean;
+begin
+  Result := V_PGI.Driver in [dbORACLE7, dbORACLE8, dbORACLE9, dbORACLE10]
+end;
+
+function isDB2: boolean;
+begin
+  Result := V_PGI.Driver in [dbDB2]
+end;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Thierry Petetin
+Créé le ...... : 13/09/2001
+Modifié le ... : 09/01/2002 (JLS/TS)
+Modifié le ... : 04/02/2003 (TS)
+Description .. : Dans une chaine de type S = 'ACTION=CREATION;PARAMS=ADONF;MAZEL=TOF;'
+Description .. : GetArgumentValue('MAZEL', S) retourne 'TOF'
+Mots clefs ... : ARGUMENTS
+*****************************************************************}
+Function GetArgumentValue(Argument: string; Const MyArg : String; Const WithUpperCase: Boolean = True):String;
+var
+	Critere	: String;
+begin
+	Result := '';
+  while (Argument <> '') and (Result = '') do
+  begin
+    if WithUpperCase then
+     	Critere := UpperCase(ReadTokenSt(Argument))
+    else
+      Critere := ReadTokenSt(Argument);
+   	if (Pos(MyArg, Critere) > 0) and (Pos('=', Critere) <> 0) and (Trim(Copy(Critere, 1, Pos('=', Critere) - 1)) = MyArg) then
+   	  Result := Trim(Copy(Critere, Pos('=', Critere) + 1, Length(Critere)));
+	end;
+end;
+
+function AGLGetArgumentValue(Parms : array of variant; nb : integer): Variant;
+begin
+  Result := GetArgumentValue(Parms[0], Parms[1], True);
+end;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Jean-Luc Sauzet
+Créé le ...... : 14/12/2001
+Modifié le ... :   /  /
+Description .. : Renvoie directement une chaine.
+Suite ........ : test si l'argument existe
+Mots clefs ... :
+*****************************************************************}
+Function GetArgumentString(Argument: string; Const MyArg : String; WithUpperCase: Boolean = True):String;
+begin
+	if Pos(MyArg, Argument) > 0 then
+		Result := VarToStr(GetArgumentValue(Argument, MyArg, WithUpperCase))
+  else
+   	Result := '';
+end;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Jean-Luc Sauzet
+Créé le ...... : 14/12/2001
+Modifié le ... :   /  /
+Description .. : Renvoie directement un entier.
+Suite ........ : test si l'argument existe
+Mots clefs ... :
+*****************************************************************}
+Function GetArgumentInteger(Argument: string; Const MyArg : String):Integer;
+begin
+	if Pos(MyArg, Argument) > 0 then
+		Result := Valeuri(GetArgumentValue(Argument, MyArg))
+  else
+   	Result := 0;
+end;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Jean-Luc Sauzet
+Créé le ...... : 14/12/2001
+Modifié le ... :   /  /
+Description .. : Renvoie directement un Double
+Suite ........ : Test si l'argument n'existe pas
+Mots clefs ... :
+*****************************************************************}
+Function GetArgumentDouble(Argument: string; Const MyArg : String):Double;
+begin
+	if Pos(MyArg, Argument) > 0 then
+		Result := Valeur(GetArgumentValue(Argument, MyArg))
+  else
+   	Result := 0.0;
+end;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Jean-Luc Sauzet
+Créé le ...... : 14/12/2001
+Modifié le ... :   /  /
+Description .. : Renvoie directement un Double
+Suite ........ : Test si l'argument n'existe pas
+Mots clefs ... :
+*****************************************************************}
+function GetArgumentDateTime(Argument: string; Const MyArg : String):tDateTime;
+begin
+	if Pos(MyArg, Argument) > 0 then
+		Result := StrToDateTime(GetArgumentValue(Argument, MyArg))
+  else
+   	Result := iDate1900;
+end;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Thibaut SUBLET
+Créé le ...... : 04/02/2003
+Modifié le ... :   /  /
+Description .. : Renvoie directement un Booléen
+Suite ........ : Test si l'argument n'existe pas
+Mots clefs ... :
+*****************************************************************}
+function GetArgumentBoolean(Argument: string; Const MyArg : String): Boolean;
+begin
+	if Pos(MyArg, Argument) > 0 then
+		Result := String(GetArgumentValue(Argument, MyArg)) = 'X'
+  else
+   	Result := False;
+end;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Thibaut SUBLET
+Créé le ...... : 22/06/2004
+Modifié le ... :   /  /
+Description .. : Renvoie directement unetob
+Mots clefs ... :depuis une chaîne d'arguments
+*****************************************************************}
+function GetArgumentTob(Argument: string; Const MyArg : String): Tob;
+begin
+	if Pos(MyArg, Argument) > 0 then
+		Result := Tob(GetArgumentInteger(Argument, MyArg))
+  else
+   	Result := nil;
+end;
+
+Initialization
+  {$IFNDEF EAGLSERVER}
+    RegisterAglProc( 'PGIEnvoiMail', FALSE , 6, AGLPGIEnvoiMail);
+    {$IFNDEF NOVH}
+      RegisterAglProc( 'AglDecodeRefPiece', False, 2, AglDecodeRefPiece);
+    {$ENDIF !NOVH}
+  {$ENDIF !EAGLSERVER}
+  RegisterAGLFunc('AGLGetArgumentValue', False, 2, AGLGetArgumentValue);
+end.
+
+
+

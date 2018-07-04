@@ -1,0 +1,892 @@
+{**********UNITE*************************************************
+Auteur  ...... : PAIE - MF
+Créé le ...... : 30/06/2004
+Modifié le ... : 19/07/2004                                                    
+Description .. : Source TOF de la FICHE : GENERMAINTIEN ()
+Suite ........ : A partir des absences non encore intégrées à la paie, 
+Suite ........ : création des lignes de maitien (Table MAINTIEN) qui seront 
+Suite ........ : intégrées à la prochaine paie.
+Mots clefs ... : TOF;GENERMAINTIEN; MAINTIEN
+*****************************************************************}
+Unit GENERMAINTIEN_TOF ;
+
+Interface
+
+Uses
+     StdCtrls,
+     Controls, 
+     Classes,
+{$IFNDEF EAGLCLIENT}
+     db, 
+     dbtables, 
+     mul, 
+{$else}
+     eMul, 
+{$ENDIF}
+     Entpaie,
+     ed_tools,
+     forms, 
+     sysutils, 
+     ComCtrls,
+     GenereMaint_Mul_TOF,
+     HCtrls, 
+     HEnt1,
+     HMsgBox,
+     HQry,
+     HTB97,
+     HStatus,
+     P5Util,
+     PgCongesPayes,
+     ShellAPI,
+     uTob,
+//     uTobDebug,                 // pour debug @@@
+     UTOF,
+     Vierge,
+     Windows;
+
+Type
+  TOF_GENERMAINTIEN = Class (TOF)
+  private
+    QMul                                : TQUERY; // Query recuperee du mul
+    Pan                                 : TPageControl;
+    Trace                               : TListBox;
+    BtnLance,Bimprimer                  : TToolbarButton97;
+    datef,dated                         : string;
+    TOB_Etablissement,TOB_MAJMAINTIEN   : TOB;
+
+    procedure CalculMaintien (Sender: TObject);
+    procedure TraitementUnSalarie (const Salarie,DateAnciennete : string; var MtMaintien : string; var MaintienNet : boolean; var Anomalie :integer);
+    procedure NvelleLigneMaintien(const Tob_ReglesMaintien, Tob_etab : TOB; const Wcarence : integer; const Ouvres : double; var Tabsence, tmaintien : TOB; var ACheval : boolean;var WMtMaintien : double; var WNbjMaintien,NbjCalendairesRestant : integer;var MaintienNet : boolean);
+    procedure ImprimeTrace (Sender: TObject);
+
+
+  public
+    procedure OnNew                    ; override ;
+    procedure OnDelete                 ; override ;
+    procedure OnUpdate                 ; override ;
+    procedure OnLoad                   ; override ;
+    procedure OnArgument (S : String ) ; override ;
+    procedure OnDisplay                ; override ;
+    procedure OnClose                  ; override ;
+    procedure OnCancel                 ; override ;
+  end ;
+var
+  FRapport                              : TextFile;
+  NomFic                                : string;
+  ChampCateg                            : string;
+Implementation
+
+procedure TOF_GENERMAINTIEN.OnNew ;
+begin
+  Inherited ;
+end ;
+
+procedure TOF_GENERMAINTIEN.OnDelete ;
+begin
+  Inherited ;
+end ;
+
+procedure TOF_GENERMAINTIEN.OnUpdate ;
+begin
+  Inherited ;
+end ;
+
+procedure TOF_GENERMAINTIEN.OnLoad ;
+begin
+  Inherited ;
+end ;
+
+{***********A.G.L.Privé.*****************************************
+Auteur  ...... : PAIE - MF
+Créé le ...... : 19/07/2004
+Modifié le ... : 19/07/2004
+Description .. : Chargement de la fiche : 
+Mots clefs ... : PAIE; MAINTIEN
+*****************************************************************}
+procedure TOF_GENERMAINTIEN.OnArgument (S : String ) ;
+var
+  F                                         : TFVierge;
+  st                                        : string;
+begin
+  Inherited ;
+  st := Trim(S);
+  dated := ReadTokenSt(st);
+  datef := ReadTokenSt(st);
+
+  SetControlText('PAIEDE',GetControlText('PAIEDE')+ ' ' + dated + ' à '+ datef);
+
+  F := TFVierge(Ecran);
+  if F <> nil then
+{$IFDEF EAGLCLIENT}
+    QMUL := THQuery(F.FMULQ).TQ;
+{$ELSE}
+    QMUL := F.FMULQ;
+{$ENDIF}
+
+  BtnLance := TToolbarButton97(GetControl('BLANCE'));
+  if BtnLance <> nil then
+  BtnLance.OnClick := CalculMaintien;
+
+  BImprimer := TToolbarButton97(GetControl('BIMPRIMER'));
+if BImprimer <> NIL then
+   BImprimer.OnClick := ImprimeTrace;
+end ;  { fin OnArgument }
+
+procedure TOF_GENERMAINTIEN.OnClose ;
+begin
+  Inherited ;
+end ;
+
+procedure TOF_GENERMAINTIEN.OnDisplay () ;
+begin
+  Inherited ;
+end ;
+
+procedure TOF_GENERMAINTIEN.OnCancel () ;
+begin
+  Inherited ;
+end ;
+
+{***********A.G.L.Privé.*****************************************
+Auteur  ...... : PAIE - MF
+Créé le ...... : 19/07/2004
+Modifié le ... : 19/07/2004
+Description .. : Procédure CalculMaintien.
+Suite ........ : Traitement des lignes de la grille sélectionnées et Mise à 
+Suite ........ : jour de la table MAINTIEN
+Mots clefs ... : PAIE ; MAINTIEN
+*****************************************************************}
+procedure TOF_GENERMAINTIEN.CalculMaintien (Sender: TObject);
+var
+  st                            : string;
+  i                             : integer;
+  Q                             : TQuery;
+  MtMaintien                    : string;
+  MaintienNet                   : boolean;
+  reponse                       : integer;
+  Noerreur, Anomalie            : integer;
+
+begin
+  Pan := TPageControl(GetControl('GMAINTIEN'));
+  Pan.ActivePage := TTabSheet(GetControl('TRAITEMENT'));
+  Trace := TListBox(GetControl('TRACE'));
+
+// Création du fichier log qui pourra être imprimé
+// -----------------------------------------------
+{$IFDEF EAGLCLIENT}
+  NomFic := VH_Paie.PGCheminEagl+'\Maintien.log';
+{$ELSE}
+  NomFic := V_PGI.DatPath+'\Maintien.log';    // PT6
+{$ENDIF}
+  if FileExists(NomFic) then
+  begin
+    reponse := PGIAsk ('Voulez-vous réinitialiser le fichier de contrôle '+NomFic+' ?#13#10'+
+                       'Si vous répondez ''NON'', le fichier existant sera complété.',
+                       'Génération du maintien');
+    if reponse = mrYes then
+      DeleteFile(PChar(NomFic));
+  end;
+
+  AssignFile(FRapport, NomFic);
+  if FileExists(NomFic) then
+    Append(FRapport)
+  else
+  begin
+  {$i-}ReWrite(FRapport); {$i+}
+    NoErreur := IoResult;
+    if NoErreur<>0 Then
+      Begin
+       PGIBox ('Le répertoire de stockage n''est pas défini', 'Traitement impossible');
+       Exit ;
+      End;
+    Writeln(FRapport, '');
+    Writeln(FRapport, '*** GENERATION DU MAINTIEN ***');
+    Writeln(FRapport, '------------------------------');
+    Writeln(FRapport, '');
+    Writeln(FRapport,'Session de paie du '+Dated+' au '+Datef);
+  end;
+
+  Writeln(FRapport, '');
+  Writeln(FRapport, '********** Début de traitement : '+DateTimeToStr(Now)+
+                    '  ******************************************');
+  Writeln(FRapport, '');
+
+
+  // récup. du champ catégorie utilisé
+  if  (VH_Paie.PGCritMaintien <> '') then
+  begin
+    Q := OpenSQL('SELECT PAI_PREFIX, PAI_SUFFIX FROM PAIEPARIM WHERE PAI_IDENT = "'+
+               VH_Paie.PGCritMaintien+'"' , TRUE);
+    if not Q.EOF then
+    begin
+      ChampCateg := Q.Fields[0].AsString +'_'+ Q.Fields[1].AsString;
+    end
+    else
+      ChampCateg := '';
+    ferme(Q);
+  end;
+
+  // Création TOB_Etablissement
+  // (utile pour calcul du nbre de jours ouvrés du mois)
+  // ---------------------------------------------------
+  st := 'SELECT ETB_ETABLISSEMENT, ETB_CONGESPAYES, ETB_1ERREPOSH, '+
+        '  ETB_2EMEREPOSH, ETB_STANDCALEND FROM ETABCOMPL';
+  Q:=OpenSql(st, TRUE);
+  if not Q.eof then
+    begin
+    TOB_Etablissement:= Tob.create('les établissements',nil,-1);
+    TOB_Etablissement.LoadDetailDB('ETABCOMPL','','',Q,False);
+    end;
+  Ferme(Q);
+
+  // Traitement des lignes de la Grille du multi critère sélectionnées
+  // =================================================================
+  if (Grille.NbSelected = 0) and (not Grille.AllSelected) then
+  begin
+    PgiBox('Aucun élément sélectionné', Ecran.Caption);
+    exit;
+  end;
+
+
+  Trace.Items.Add('Debut du traitement');
+  Trace.Items.Add('');
+  // Sélection partielle
+  if ((Grille.nbSelected) > 0) and (not Grille.AllSelected) then
+  begin
+    InitMoveProgressForm (nil, 'Début du traitement',
+                          'Veuillez patienter SVP ...', Grille.nbSelected, FALSE,
+                          TRUE);
+
+    InitMove(Grille.NbSelected, '');
+    for i := 0 to Grille.NbSelected - 1 do
+    begin
+      Grille.GotoLeBOOKMARK(i);
+      MoveCur(False);
+{$IFDEF EAGLCLIENT}
+      QMul.Seek(Grille.Row - 1);
+{$ENDIF}
+      Anomalie := 0;
+      TraitementUnSalarie (QMul.findfield('PCN_SALARIE').asString,
+                           DateToStr(QMul.findfield('PSA_DATEANCIENNETE').AsDateTime),
+                           MtMaintien, MaintienNet, Anomalie);
+      if (Anomalie <> 0) then
+      // Anomalie :Salarié non traité
+      begin
+        if (Anomalie = 1) then
+          st :=  'Matricule : '+
+               QMul.findfield('PCN_SALARIE').asString + '     '+
+               QMul.findfield('PSA_LIBELLE').asString +'     '+
+               QMul.findfield('PSA_PRENOM').asString+
+               '      Non Traité! Anomalie : Pas de règle de Maintien';
+      end
+      else
+      // Pas d'anomalie
+      begin
+        if (MaintienNet = False) then
+          st :=  'Matricule : '+
+               QMul.findfield('PCN_SALARIE').asString + '     '+
+               QMul.findfield('PSA_LIBELLE').asString +'     '+
+               QMul.findfield('PSA_PRENOM').asString+ '      Mt du maintien : '+
+               MtMaintien
+        else
+          st :=  'Matricule : '+
+               QMul.findfield('PCN_SALARIE').asString + '     '+
+               QMul.findfield('PSA_LIBELLE').asString +'     '+
+               QMul.findfield('PSA_PRENOM').asString+ '      Maintien du net à '+
+               'payer, lancer le calcul de la paie à l''envers !!';
+      end;
+
+      Writeln(FRapport, st);
+      MoveCurProgressForm(St);
+      Trace.Items.Add(st);
+    end;
+    Grille.ClearSelected;
+    FiniMove;
+    FiniMoveProgressForm;
+
+  end;
+
+  // sélection de toutes les lignes de la grille
+  if (Grille.AllSelected = TRUE)  then
+  begin
+    InitMoveProgressForm (nil, 'Début du traitement',
+                         'Veuillez patienter SVP ...', QMul.RecordCount, FALSE,
+                         TRUE);
+
+    InitMove(QMul.RecordCount, '');
+    QMul.First;
+    while not QMul.EOF do
+    begin
+      MoveCur(False);
+
+      Anomalie := 0;
+      TraitementUnSalarie (QMul.findfield('PCN_SALARIE').asString,
+                           DateToStr(QMul.findfield('PSA_DATEANCIENNETE').AsDateTime),
+                           MtMaintien, MaintienNet, Anomalie);
+
+      if (Anomalie <> 0) then
+      // Anomalie :Salarié non traité
+      begin
+        if (Anomalie = 1) then
+          st :=  'Matricule : '+
+               QMul.findfield('PCN_SALARIE').asString + '     '+
+               QMul.findfield('PSA_LIBELLE').asString +'     '+
+               QMul.findfield('PSA_PRENOM').asString+
+               '      Non Traité! Anomalie : Pas de règle de Maintien';
+      end
+      else
+      // Pas d'anomalie
+      begin
+        if (MaintienNet = False) then
+          st :=  'Matricule : '+
+             QMul.findfield('PCN_SALARIE').asString + '     '+
+             QMul.findfield('PSA_LIBELLE').asString + '     '+
+             QMul.findfield('PSA_PRENOM').asString + '      Mt du maintien : '+
+             MtMaintien
+        else
+          st :=  'Matricule : '+
+               QMul.findfield('PCN_SALARIE').asString + '     '+
+               QMul.findfield('PSA_LIBELLE').asString +'     '+
+               QMul.findfield('PSA_PRENOM').asString+ '      Maintien du net à '+
+               'payer, lancer le calcul de la paie à l''envers !!';
+      end;
+
+      Writeln(FRapport, st);
+      Trace.Items.Add (st);
+      MoveCurProgressForm(St);
+      QMul.Next;
+    end;
+    Grille.AllSelected := False;
+    FiniMove;
+    FiniMoveProgressForm;
+  end;
+//  TobDebug(TOB_MAJMAINTIEN);
+  if (TOB_MAJMAINTIEN <> NIL) then
+  begin
+  // Mise à jour de la table MAINTIEN
+  // ================================
+
+    try
+      BeginTrans;
+      TOB_MAJMAINTIEN.SetAllModifie (TRUE);
+      TOB_MAJMAINTIEN.InsertOrUpdateDB (TRUE);
+      Trace.Items.Add('');
+      Trace.Items.Add('Fin du traitement');
+      CommitTrans;
+    except
+      Rollback;
+      Trace.Items.Add('');
+      PGIBox ('Une erreur est survenue en mise à jour','');
+      Trace.Items.Add('Attention : Une erreur est survenue en mise à jour');
+      Writeln(FRapport, '');
+      Writeln(FRapport,'Attention : Une erreur est survenue en mise à jour');
+    end;
+  end
+  else
+  begin
+    PGIBox ('Aucune ligne de maintien','');
+    Trace.Items.Add('Attention : Aucune ligne de maintien');
+    Writeln(FRapport, '');
+    Writeln(FRapport,'Attention : Aucune ligne de maintien');
+  end;
+  Writeln(FRapport, '');
+  Writeln(FRapport, '********** Traitement terminé : '+DateTimeToStr(Now)+
+                    '  ******************************************');
+  CloseFile(FRapport);
+
+  FreeAndNil(TOB_MAJMAINTIEN);
+  FreeAndNil(Tob_etablissement);
+end;  { fin CalculMaintien }
+
+{***********A.G.L.Privé.*****************************************
+Auteur  ...... : PAIE - MF
+Créé le ...... : 19/07/2004
+Modifié le ... : 19/07/2004
+Description .. : procédure TraitementUnSalarie
+Suite ........ : récupération des absences à traiter, des critères et des
+Suite ........ : règles de maintien à appliquer, de l'historique du maintien
+Suite ........ : pour ce salarié.
+Suite ........ : Lancement du calul des nouvelles lignes de maitien.
+Suite ........ : Maj Tob maintien (utilisée pour maj table MAINTIEN)
+Mots clefs ... : PAIE ; MAINTIEN
+*****************************************************************}
+procedure TOF_GENERMAINTIEN.TraitementUnSalarie (const Salarie,DateAnciennete : string; var MtMaintien : string; var MaintienNet : boolean; var Anomalie : integer);
+var
+  Anciennete                                            : WORD;
+  Q                                                     : TQuery;
+  st,wdate                                              : string;
+  Predef,NoDossier,CodeMaint,Convention                 : string;
+  Standard                                              : string;
+  Tob_Abs, tabsence                                     : Tob;
+  Tob_ReglesMaintien                                    : Tob;
+  Tob_Maintien, tMaintien,tMajMaintien                  : Tob;
+  Tob_etab                                              : Tob;
+  WDateFin                                              : TDateTime;
+  Bornefinanc                                           : integer;
+  WCarence, WNbjMaintien,NbjCalendairesRestant          : integer;
+  Ouvres, HOuvres,WMtMaintien                           : double;
+  ACheval                                               : boolean;
+
+begin
+   WDateFin := IDate1900;
+   WCarence := 0;
+   WnbjMaintien := 0;
+   WMtMaintien := 0;
+
+  // Création de la Tob des Absences du salarié pour la période.
+  // ===========================================================
+  st :='SELECT *,PSA_SALARIE,PSA_CALENDRIER,PSA_STANDCALEND,'+
+      'PSA_CONVENTION ';
+  if (ChampCateg <> '') then
+  begin
+    st:=st+','+ChampCateg+' ';
+  end;
+  st := st+'FROM ABSENCESALARIE '+
+        'LEFT JOIN SALARIES ON PSA_SALARIE=PCN_SALARIE '+
+        'WHERE'+
+        ' PCN_SALARIE = "'+   Salarie+ '"'+
+        ' AND PCN_DATEVALIDITE <= "' + usdatetime(StrToDate(Datef))+'"' +
+        ' AND PCN_DATEPAIEMENT <= "' + usdatetime(10)+'"'+
+        ' AND PCN_GESTIONIJSS ="X"';
+// A voir : compléter la requête voir RecupereAbsnce...
+  Q:=OpenSql(st, TRUE);
+  if not Q.eof then
+    begin
+    Tob_Abs:= Tob.create('les absences du salarié',nil,-1);
+    Tob_Abs.LoadDetailDB('ABSENCESALARIE','','',Q,False);
+    end;
+  Ferme(Q);
+
+//  TobDebug(Tob_Abs);
+
+  // Pour chaque absence du salarié
+  // ==============================
+  if (Tob_Abs <> nil) then
+  begin
+    tabsence:= Tob_Abs.Findfirst([''],[''],false);
+    while tabsence <> nil do
+    begin
+      Tob_etab := TOB_Etablissement.findfirst(['ETB_ETABLISSEMENT'],
+                                              [Tabsence.GetValue('PCN_ETABLISSEMENT')], True);
+      // récup du nbre de jours ouvrés du mois (en fct du calendrie)
+      Standard := '';
+      if tabsence.GetValue('PSA_STANDCALEND') = 'PER' then
+        Standard := tabsence.GetValue('PSA_CALENDRIER')
+      else
+        if tabsence.GetValue('PSA_STANDCALEND') = 'ETB' then
+          Standard := Tob_etab.getvalue('ETB_STANDCALEND')
+        else
+          if tabsence.GetValue('PSA_STANDCALEND') = 'ETS' then
+            Standard := tabsence.GetValue('PSA_CALENDRIER');
+
+      Tob_CalendrierSalarie := ChargeCalendrierSalarie(tabsence.GetValue('PCN_ETABLISSEMENT'),
+      tabsence.GetValue('PCN_SALARIE'), tabsence.GetValue('PSA_CALENDRIER'),
+      tabsence.GetValue('PSA_STANDCALEND'), Standard);
+      CalculVarOuvresOuvrablesMois(Tob_etab, tabsence, Tob_CalendrierSalarie,
+                                   StrToDate(DateD), StrToDate(DateF),TRUE,
+                                   Ouvres, HOuvres);
+
+      // calcul de l'ancienneté du salarié traité à la date de début d'absence
+      // ----------------------------------------------------------------------
+      Anciennete := AncienneteMois (StrToDate(DateAnciennete), tabsence.getValue('PCN_DATEDEBUTABS'));
+      tabsence.AddChampSupValeur('ANCIENNETE', Anciennete, False);
+
+      // récup des paramètres de maintien
+
+     // récup critères de maintien
+     // --------------------------------
+      st := 'SELECT * FROM CRITMAINTIEN WHERE ##PCM_PREDEFINI## PCM_BORNEFINANC >= "'+
+            IntToStr(Anciennete)+'" AND PCM_BORNEDEBANC <= "'+IntToStr(Anciennete)+
+            '" ';
+      if (tabsence.GetValue('PSA_CONVENTION') <> '') then
+        st := st + 'AND PCM_CONVENTION ="'+tabsence.GetValue('PSA_CONVENTION')+'"'
+      else
+        st := st + 'AND PCM_CONVENTION ="000"';
+      if (ChampCateg<>'') then
+      begin
+        st := st + 'AND PCM_VALCATEG = "'+tabsence.GetValue(ChampCateg)+'"';
+      end;
+
+      Q:=OpenSql(st, TRUE);
+
+      if Q.eof then
+      begin
+        if (tabsence.GetValue('PSA_CONVENTION') <> '') then
+        begin
+          ferme(Q);
+          st := 'SELECT * FROM CRITMAINTIEN WHERE ##PCM_PREDEFINI## PCM_BORNEFINANC >= "'+
+            IntToStr(Anciennete)+'" AND PCM_BORNEDEBANC <= "'+IntToStr(Anciennete)+
+            '" AND PCM_CONVENTION = "000"';
+          Q:=OpenSql(st, TRUE);
+        end;
+        if Q.eof then
+        // pas de paramétrage CRITMAINTIEN correspondant aux critères
+        begin
+          Anomalie := 1;
+          Ferme(Q);
+          exit;
+        end;
+      end;
+      while  not Q.eof do
+      begin
+        if (Q.FindField('PCM_PREDEFINI').AsString = 'DOS') then
+        begin
+          break;
+        end ;
+        Q.Next;
+      end; { fin while  not Q.eof du SELECT * FROM CRITMAINTIEN}
+
+      tabsence.AddChampSupValeur('PREDEFINI', Q.FindField('PCM_PREDEFINI').AsString, False);
+      tabsence.AddChampSupValeur('NODOSSIER', Q.FindField('PCM_NODOSSIER').AsString, False);
+      tabsence.AddChampSupValeur('CODEMAINT', Q.FindField('PCM_CODEMAINT').AsString, False);
+      tabsence.AddChampSupValeur('CONVENTION', Q.FindField('PCM_CONVENTION').AsString, False);
+      tabsence.AddChampSupValeur('BORNEFINANC', Q.FindField('PCM_BORNEFINANC').AsInteger, False);
+      tabsence.AddChampSupValeur('MAINTIENNET', Q.FindField('PCM_MAINTIENNET').AsString, False);
+      tabsence.AddChampSupValeur('RUBMAINTIEN', Q.FindField('PCM_RUBMAINTIEN').AsString, False);
+      tabsence.AddChampSupValeur('CUMULPAIE', Q.FindField('PCM_CUMULPAIE').AsString, False);
+      Predef := Q.FindField('PCM_PREDEFINI').AsString;
+      NoDossier := Q.FindField('PCM_NODOSSIER').AsString;
+      CodeMaint := Q.FindField('PCM_CODEMAINT').AsString;
+      Bornefinanc := Q.FindField('PCM_BORNEFINANC').AsInteger;
+      Convention := Q.FindField('PCM_CONVENTION').AsString;
+      Ferme (Q);
+
+      // Récup. des régles du maintien à appliquer
+      // -----------------------------------------
+      st := 'SELECT * FROM REGLESMAINTIEN WHERE PAM_PREDEFINI = "'+Predef+'"'+
+            ' AND PAM_NODOSSIER = "'+ NoDossier + '"'+
+            ' AND PAM_BORNEFINANC = "'+ IntToStr(Bornefinanc) +'"'+
+            ' AND PAM_CODEMAINT = "'+ CodeMaint +'"'+
+            ' AND PAM_CONVENTION = "'+ Convention +'"';
+
+      Q:=OpenSql(st, TRUE);
+      if not Q.eof then
+      begin
+        Tob_ReglesMaintien := Tob.create('les régles du maintien',nil,-1);
+        Tob_ReglesMaintien.LoadDetailDB('REGLESMAINTIEN','','',Q,False);
+      end; { fin if not Q.eof du  SELECT * FROM REGLESMAINTIEN }
+      ferme (Q);
+//      TobDebug(Tob_ReglesMaintien);
+      wdate :=  DateToStr(tabsence.GetValue ('PCN_DATEDEBUTABS'));
+
+      // Récup du maintien des 12 mois précédents
+      // ----------------------------------------
+      st := 'SELECT * FROM MAINTIEN WHERE PMT_SALARIE = "'+Salarie+'"'+
+            ' AND PMT_DATEDEBUTABS >= "'+
+            UsDateTime(PlusMois(StrToDate(wdate),-12)) +
+            '" AND PMT_DATEDEBUTABS <= "'+
+            UsDateTime(PlusDate(StrToDate(wdate), -1, 'J'))+'"';
+
+      Q:=OpenSql(st, TRUE);
+      if not Q.eof then
+      begin
+        Tob_Maintien := Tob.create('les maintiens du salariés',nil,-1);
+        Tob_Maintien.LoadDetailDB('MAINTIEN','','',Q,False);
+
+        WDateFin := IDate1900;
+        WCarence := 0;
+        WNbjMaintien := 0;
+
+        tMaintien:= Tob_Maintien.Findfirst([''],[''],false);
+        while tMaintien <> nil do
+        begin
+          // Cumul du nbre de jours de maintien des 12 mois précédents
+          WNbjMaintien := WNbjMaintien + tMaintien.GetValue('PMT_NBJMAINTIEN');
+
+          // Cumul du nbre de jours de carence des 12 mois précédents
+          if (tMaintien.GetValue('PMT_DATEDEBUTABS') <> WDateFin + 1) then
+            WCarence := tMaintien.GetValue('PMT_CARENCE')
+          else
+            WCarence := WCarence +tMaintien.GetValue('PMT_CARENCE');
+
+          WDateFin := tMaintien.GetValue('PMT_DATEFINABS');
+          tMaintien := Tob_Maintien.FindNext([''],[''],false);
+        end; { fin while tMaintien <> nil }
+      end; { fin if not Q.eof du SELECT FROM MAINTIEN}
+      ferme (Q);
+
+      // raz cumul carence si l'absence traitée n'est pas consécutive à la
+      // l'absence correspondant à la derniére ligne de la table MAINTIEN
+      if (tAbsence.GetValue('PCN_DATEDEBUTABS') <> WDateFin+1) then
+        WCarence := 0;
+
+      // Maj Maintien : création nouvelle ligne
+      //========================================
+      if (Tob_Maintien = nil) then
+        Tob_Maintien := Tob.create('les maintiens du salarié',nil,-1);
+
+      tMaintien := TOB.Create('MAINTIEN',Tob_Maintien, -1);
+      NvelleLigneMaintien( Tob_ReglesMaintien ,Tob_etab, Wcarence, Ouvres,Tabsence, tmaintien, ACheval,WMtMaintien, WNbjMaintien,NbjCalendairesRestant, MaintienNet);
+
+      if (ACheval = false) then
+        tabsence := Tob_Abs.Findnext([''],[''],false);
+
+      if (Tob_ReglesMaintien <> nil) then
+        FreeAndNil (Tob_ReglesMaintien);
+    end; {fin while tabsence <> nil}
+
+    // mise à jour de la TOB Final du maintien qui sera utilsée pour la
+    // maj de la table MAINTIEN
+    // =================================================================
+    tMaintien:= Tob_Maintien.Findfirst([''],[''],false);
+    while (TMaintien <> nil) do
+    begin
+      if (TOB_MAJMAINTIEN = NIL) then
+        TOB_MAJMAINTIEN := Tob.create('Les maintiens de tous les salariés',nil,-1);
+
+      tMajMaintien := TOB.Create('MAINTIEN',TOB_MAJMAINTIEN, -1);
+      tMajMaintien.PutValue('PMT_SALARIE',tMaintien.GetValue('PMT_SALARIE'));
+      tMajMaintien.PutValue('PMT_DATEDEBUTABS',tMaintien.GetValue('PMT_DATEDEBUTABS'));
+      tMajMaintien.PutValue('PMT_DATEFINABS',tMaintien.GetValue('PMT_DATEFINABS'));
+      tMajMaintien.PutValue('PMT_DATEDEBUT',tMaintien.GetValue('PMT_DATEDEBUT'));
+      tMajMaintien.PutValue('PMT_DATEFIN',tMaintien.GetValue('PMT_DATEFIN'));
+      tMajMaintien.PutValue('PMT_TYPECONGE',tMaintien.GetValue('PMT_TYPECONGE'));
+      tMajMaintien.PutValue('PMT_LIBELLE',tMaintien.GetValue('PMT_LIBELLE'));
+      tMajMaintien.PutValue('PMT_BASEMAINTIEN',tMaintien.GetValue('PMT_BASEMAINTIEN'));
+      tMajMaintien.PutValue('PMT_PCTMAINTIEN',tMaintien.GetValue('PMT_PCTMAINTIEN'));
+      tMajMaintien.PutValue('PMT_CARENCE',tMaintien.GetValue('PMT_CARENCE'));
+      tMajMaintien.PutValue('PMT_NBJMAINTIEN',tMaintien.GetValue('PMT_NBJMAINTIEN'));
+      tMajMaintien.PutValue('PMT_MTMAINTIEN',tMaintien.GetValue('PMT_MTMAINTIEN'));
+      tMajMaintien.PutValue('PMT_BASEABS',tMaintien.GetValue('PMT_BASEABS'));
+      tMajMaintien.PutValue('PMT_NBJABS',tMaintien.GetValue('PMT_NBJABS'));
+      tMajMaintien.PutValue('PMT_NBHEURES',tMaintien.GetValue('PMT_NBHEURES'));
+      tMajMaintien.PutValue('PMT_RUBRIQUE',tMaintien.GetValue('PMT_RUBRIQUE'));
+      tMaintien:= Tob_Maintien.FindNext([''],[''],false);
+    end; {while (TMaintien <> nil) }
+    FreeAndNil (Tob_Maintien);
+ end; { fin if (Tob_Abs <> nil)}
+
+  Mtmaintien := FloatToStrF(Arrondi(WMtMaintien,2),ffNumber,20,2);
+  FreeAndNil (Tob_Abs);
+end; { fin TraitementUnSalarie }
+
+{***********A.G.L.Privé.*****************************************
+Auteur  ...... : PAIE - MF
+Créé le ...... : 19/07/2004
+Modifié le ... :   /  /
+Description .. : Procédure NvelleLigneMaintien
+Suite ........ : Alimentation de la Tob Maintien avec calcul
+Suite ........ : du nbre jours maintien, carence, du montant du
+Suite ........ : maintien
+Suite ........ : Traitement du cas particulier où la période
+Suite ........ : d'absence est "à cheval" sur 2 règles de
+Suite ........ : maintien. (c.à.d que le nbre jourds cumulé du maintien
+Suite ........ : sur 12 mois est supérieur à la limite de la règle)
+Mots clefs ... : PAIE ; MAINTIEN
+*****************************************************************}
+procedure TOF_GENERMAINTIEN.NvelleLigneMaintien(const Tob_ReglesMaintien, Tob_etab : TOB; const Wcarence : integer; const Ouvres : double; var Tabsence, tmaintien : TOB; var ACheval : boolean;var WMtMaintien : double; var WNbjMaintien,NbjCalendairesRestant : integer;var MaintienNet : boolean);
+var
+  Q                                     : TQuery;
+  st,wdate,wdatef                       : string;
+  BrutHabituel                          : double;
+  OuvMaint, HOuvMaint                   : double;
+  treglesMaint                          : TOB;
+
+begin
+      tMaintien.PutValue('PMT_SALARIE',tabsence.GetValue('PCN_SALARIE'));
+      tMaintien.PutValue('PMT_DATEDEBUTABS',tabsence.GetValue('PCN_DATEDEBUTABS'));
+      tMaintien.PutValue('PMT_DATEFINABS',tabsence.GetValue('PCN_DATEFINABS'));
+      tMaintien.PutValue('PMT_DATEDEBUT',Idate1900);
+      tMaintien.PutValue('PMT_DATEFIN',Idate1900);
+      tMaintien.PutValue('PMT_TYPECONGE',tabsence.GetValue('PCN_TYPECONGE'));
+      tMaintien.PutValue('PMT_LIBELLE',tabsence.GetValue('PCN_LIBELLE'));
+      // calcul nbre de jours de maintien
+      // --------------------------------
+      treglesMaint := Tob_ReglesMaintien.Findfirst([''],[''],false);
+      while treglesMaint <> nil do
+      begin
+        // recherche de la règle à appliquer
+        if (WNbjMaintien + tabsence.GetValue('PCN_NBJCALEND')
+            < treglesMaint.GetValue('PAM_NBJMAINTIEN')) then break
+        else
+          if (ACheval = False) and  (WNbjMaintien < treglesMaint.GetValue('PAM_NBJMAINTIEN')) then
+          // maintien à cheval sur 2 règles
+          // ------------------------------
+          begin
+            ACheval := True;
+            // le nbre jours de maitien = nbj maintien de la règle - cumul nbre
+            // jours de maitien sur les 12 mois précédents.
+            tMaintien.PutValue('PMT_NBJMAINTIEN',
+                               treglesMaint.GetValue('PAM_NBJMAINTIEN')-
+                               WNbjMaintien);
+            if (tMaintien.GetValue('PMT_NBJMAINTIEN') <=
+                treglesMaint.GetValue('PAM_CARENCE')) then
+            // la carence est supérieure au nbre jours de maintien calculé --> le
+            // nbre de jours de maintien = 0.
+            begin
+              tMaintien.PutValue('PMT_CARENCE',tMaintien.GetValue('PMT_NBJMAINTIEN'));
+              MaintienNet := False;
+              if (tabsence.GetValue('MAINTIENNET') = 'X') then
+              begin
+                // maintien du net --> Carence = 9999
+                tMaintien.PutValue('PMT_CARENCE',9999);
+                MaintienNet := True;
+              end;
+              tMaintien.PutValue('PMT_NBJMAINTIEN',0);
+            end
+            else
+            // la carence est inférieure au nbre jours de maintien calculé --> le
+            // nbre jours maintien = nbre jours maintien calculé - carence
+            begin
+              tMaintien.PutValue('PMT_NBJMAINTIEN',
+                                 tMaintien.GetValue('PMT_NBJMAINTIEN')-
+                                 treglesMaint.GetValue('PAM_CARENCE'));
+              tMaintien.PutValue('PMT_CARENCE',
+                                 treglesMaint.GetValue('PAM_CARENCE'));
+              if (tabsence.GetValue('MAINTIENNET') = 'X') then
+              begin
+                // maintien du net --> Carence = 9999
+                tMaintien.PutValue('PMT_CARENCE',9999);
+                MaintienNet := True;
+              end;
+            end;
+            // On conserve le nbre jours de maintien sur lequel sera appliquée
+            // la règle suivante.
+            NbjCalendairesRestant := tabsence.GetValue('PCN_NBJCALEND')-
+                                     (tMaintien.GetValue('PMT_CARENCE')+
+                                      tMaintien.GetValue('PMT_NBJMAINTIEN'));
+            // la date de fin d'absence est limitée en fct du nbre jours maintien.
+            tMaintien.PutValue('PMT_DATEFINABS',
+                               PlusDate(tabsence.GetValue('PCN_DATEDEBUTABS'),
+                                       (treglesMaint.GetValue('PAM_NBJMAINTIEN')-
+                                        WNbjMaintien-1), 'J'));
+            break;
+          end;
+          treglesMaint := Tob_ReglesMaintien.FindNext([''],[''],false);
+          ACheval := False;
+      end;
+
+      if (ACheval = False) and (NbjCalendairesRestant = 0) then
+      // Maintien sur 1 seule règle
+      //---------------------------
+      begin
+        // nbre jours calendaire de maintien =
+        // nbre jours calendaire d'absence - nbre jours de carence
+        if (tabsence.GetValue('PCN_NBJCALEND') <=
+            treglesMaint.GetValue('PAM_CARENCE')) then
+        begin
+          tMaintien.PutValue('PMT_NBJMAINTIEN',0);
+          tMaintien.PutValue('PMT_CARENCE',tabsence.GetValue('PCN_NBJCALEND'));
+          if (tabsence.GetValue('MAINTIENNET') = 'X') then
+          begin
+            // maintien du net --> Carence = 9999
+            tMaintien.PutValue('PMT_CARENCE',9999);
+            MaintienNet := True;
+          end;
+        end
+        else
+        begin
+          tMaintien.PutValue('PMT_NBJMAINTIEN',
+                             tabsence.GetValue('PCN_NBJCALEND')-treglesMaint.GetValue('PAM_CARENCE'));
+          tMaintien.PutValue('PMT_CARENCE',WCarence + treglesMaint.GetValue('PAM_CARENCE'));
+          if (tabsence.GetValue('MAINTIENNET') = 'X') then
+          begin
+            // maintien du net --> Carence = 9999
+            tMaintien.PutValue('PMT_CARENCE',9999);
+            MaintienNet := True;
+          end;
+        end;
+      end; { fin if (ACheval := False)}
+
+      if (ACheval = False) and (NbjCalendairesRestant <> 0) then
+      // Traitement de la 2ème ligne de maitien d'un maintien à chaval sur 2 règleS.
+      begin
+        // la date de début d'absence est recalculée en fct du nbre jours
+        // maintien appliqué sur la ligne de maitien précédente.
+        tMaintien.PutValue('PMT_DATEDEBUTABS',
+                           PlusDate(tabsence.GetValue('PCN_DATEDEBUTABS'),
+                           tabsence.GetValue('PCN_NBJCALEND')-
+                           NbjCalendairesRestant,'J'));
+
+        // nbre jours calendaire de maintien =
+        // nbre jours calendaire d'absence - nbre jours de carence
+        if (NbjCalendairesRestant <=
+            treglesMaint.GetValue('PAM_CARENCE')) then
+        begin
+          tMaintien.PutValue('PMT_NBJMAINTIEN',0);
+          tMaintien.PutValue('PMT_CARENCE',NbjCalendairesRestant);
+          if (tabsence.GetValue('MAINTIENNET') = 'X') then
+          begin
+            // maintien du net --> Carence = 9999
+            tMaintien.PutValue('PMT_CARENCE',9999);
+            MaintienNet := True;
+          end;
+        end
+        else
+        begin
+          tMaintien.PutValue('PMT_NBJMAINTIEN',
+                             NbjCalendairesRestant-
+                             treglesMaint.GetValue('PAM_CARENCE'));
+          tMaintien.PutValue('PMT_CARENCE',WCarence +
+                             treglesMaint.GetValue('PAM_CARENCE'));
+          if (tabsence.GetValue('MAINTIENNET') = 'X') then
+          begin
+            // maintien du net --> Carence = 9999
+            tMaintien.PutValue('PMT_CARENCE',9999);
+            MaintienNet := True;
+          end;
+        end;
+        NbjCalendairesRestant :=  0;
+      end;
+
+      tMaintien.PutValue('PMT_PCTMAINTIEN',treglesMaint.GetValue('PAM_TXMAINTIEN'));
+      tMaintien.PutValue('PMT_BASEABS',tabsence.GetValue('PCN_BASE'));
+      tMaintien.PutValue('PMT_NBJABS',tabsence.GetValue('PCN_JOURS'));
+      tMaintien.PutValue('PMT_NBHEURES',tabsence.GetValue('PCN_HEURES'));
+
+      // calcul de la base du maintien (brut habituel)
+      // ---------------------------------------------
+      // il s'agit du mt du cumul paramétré dans CRITMAINTIEN concernant
+      // la paie du mois précédent.
+      st := 'SELECT PHC_MONTANT FROM HISTOCUMSAL WHERE PHC_SALARIE = "'+
+            tabsence.GetValue('PCN_SALARIE')+'" AND '+
+            'PHC_CUMULPAIE = "'+tabsence.GetValue('CUMULPAIE')+'" AND '+
+            'PHC_DATEDEBUT = "'+usdatetime(PlusMois(StrToDate(Dated),-1))+'" '+
+            'AND PHC_DATEFIN = "'+usdatetime(PlusMois(StrToDate(Datef),-1))+'" ';
+      BrutHabituel := 0;
+      Q:=OpenSql(st, TRUE);
+      if not Q.eof then
+      begin
+        BrutHabituel := Q.FindField('PHC_MONTANT').AsFloat;
+      end;
+      ferme (Q);
+      tMaintien.PutValue('PMT_BASEMAINTIEN',BrutHabituel);
+
+      // Calcul du montant du maintien
+      // -----------------------------
+      // 1 - calcul du nbre de jours ouvrés à maintenir
+      wdate :=  DateToStr(tMaintien.GetValue ('PMT_DATEDEBUTABS'));
+      wdatef := DateToStr(tMaintien.GetValue ('PMT_DATEFINABS'));
+      wdate := DateToStr(PlusDate(StrToDate(wdate),tMaintien.GetValue('PMT_CARENCE'), 'J'));
+      CalculVarOuvresOuvrablesMois(Tob_etab, tabsence, Tob_CalendrierSalarie,
+                                   StrToDate(Wdate), StrToDate(Wdatef),TRUE,
+                                   OuvMaint, HOuvMaint);
+      // 2 - Montant maintien =
+      //     (brut habituel/nb jours ouvrés du mois) *
+      //     (nb jours ouvrés de maintien) *
+      //     (tx du maintien)
+      tMaintien.PutValue('PMT_MTMAINTIEN',
+                         ((BrutHabituel/Ouvres)*OuvMaint)*tMaintien.GetValue('PMT_PCTMAINTIEN'));
+      WMtmaintien := WMtMaintien + tMaintien.GetValue('PMT_MTMAINTIEN');
+
+      tMaintien.PutValue('PMT_BASEABS',tabsence.GetValue('PCN_BASE'));
+      tMaintien.PutValue('PMT_NBJABS',tabsence.GetValue('PCN_JOURS'));
+      tMaintien.PutValue('PMT_NBHEURES',tabsence.GetValue('PCN_HEURES'));
+      tMaintien.PutValue('PMT_RUBRIQUE',tabsence.GetValue('RUBMAINTIEN'));
+end; { fin NvelleLigneMaintien }
+procedure TOF_GENERMAINTIEN.ImprimeTrace(Sender: TObject);
+var
+  NomFic                                         : String;
+begin
+{$IFDEF EAGLCLIENT}
+  NomFic := VH_Paie.PGCheminEagl+'\Maintien.log';
+{$ELSE}
+  NomFic := V_PGI.DatPath+'\Maintien.log';    // PT6
+{$ENDIF}
+ShellExecute( 0, PCHAR('open'),PChar('WordPad'), PChar(NomFic),Nil,SW_RESTORE);
+end;
+//FIN PT18-2
+
+Initialization
+  registerclasses ( [ TOF_GENERMAINTIEN ] ) ;
+end.

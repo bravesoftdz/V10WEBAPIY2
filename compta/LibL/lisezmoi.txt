@@ -1,0 +1,13 @@
+%%% Fichiers nécessaires à la compilation pour appel à la fonction de transmission
+EtbUser.pas	Unité EtbUser
+EtbUser.dfm	Fiche EtbUser
+
+%%% Fichiers nécessaires à la compilation pour le paramétrage ETEBAC
+EtbMce.pas	Unité
+EtbMce.dfm	Fiche
+
+%%% Fichiers du projet test
+Etb_main.pas	Unité de test
+Etb_main.dfm	Fiche de test
+Etb_Test.dpr	Projet de test
+-----------

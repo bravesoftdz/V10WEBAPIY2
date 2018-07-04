@@ -1,0 +1,7079 @@
+unit ULibEcriture;
+
+interface
+
+Uses
+  {$IFNDEF EAGLCLIENT}
+    db,
+   {$IFNDEF DBXPRESS} dbtables, {$ELSE} uDbxDataSet, {$ENDIF}
+  {$ENDIF}
+  {$IFDEF EAGLSERVER}
+  eSession,
+  uWa,
+  {$ENDIF}
+  {$IFNDEF EAGLSERVER}
+  Dialogs,
+  Windows,
+  Forms, // pour le GetEcran( TForm )
+  {$ENDIF}
+  UTOB,
+  HEnt1 ,
+  UtilPGI,   // pour les fct de conversion ( EuroToPivot ... )
+  HMsgBox,   // pour le PGIInfo
+  Ent1,      // pour le VH
+  SysUtils,  // pour IntToStr
+  Classes,
+  Messages,
+ {$IFDEF VER150}
+  variants,
+ {$ENDIF}
+  SaisComm,
+  HCompte,
+  ZCompte,   // pour le ZCompte
+  SAISUTIL,  // pour le tDC  RDEVISE
+  UtilSais, // pour le NaturePieceCompteOk
+  {$IFNDEF EAGLSERVER}
+  {$IFNDEF ERADIO}
+    Lookup,
+    ULibWindows, // pour le CGetGridSens
+  {$ENDIF !ERADIO}
+  {$ENDIF}
+  ParamSoc,
+ {$IFDEF COMPTA}
+  Echeance,
+ {$ELSE COMPTA}
+   {$IFDEF TRESO}
+    Echeance,
+   {$ENDIF TRESO}
+ {$ENDIF COMPTA}
+ // Echeance, // pour le CalculModeRegle
+ ULibExercice ,
+ {$IFDEF EAGLSERVER}
+ ULibCpContexte ,
+ {$ENDIF}
+ hctrls;    // pour OpenSql;
+
+const RC_PASERREUR              =  -1 ;
+      RC_SELCOMPTE              =  0 ;
+      RC_SELTIERS               =  1 ;
+      RC_BADNUMFOLIO            =  2 ;
+      RC_JALNONSOLDE            =  3 ;
+      RC_SELNATURE              =  4 ;
+      RC_BADWRITE               =  5 ;
+      RC_CINTERDIT              =  6 ;
+      RC_BADGUIDE               =  7 ;
+      RC_RESTOREFOLIO           =  8 ;
+      RC_LIBREBLACKOUT          =  9 ;
+      RC_AUXATTEND              = 10 ;
+      RC_ECRLETTREE             = 11 ;
+      RC_THEBADGUY              = 12 ;
+      RC_FOLIOLOCK              = 13 ;
+      RC_EURO                   = 14 ;
+      RC_MODEBOR                = 15 ;
+      RC_MODELIB                = 16 ;
+      RC_BORCLOTURE             = 17 ;
+      RC_BADDATEEURO            = 18 ;
+      RC_CNATURE                = 19 ;
+      RC_ABANDON                = 20 ;
+      RC_NOJALAUTORISE          = 21 ;
+      RC_CFERMESOLDE            = 22 ;
+      RC_COUVREBIL              = 23 ;
+      RC_NONEGATIF              = 24 ;
+      RC_NOGRPMONTANT           = 25 ;
+      RC_SAISIEECR              = 26 ;
+      RC_CFERME                 = 27 ;
+      RC_AUXFERME               = 28 ;
+      RC_BADROW                 = 29 ;
+      RC_RIB                    = 30 ;
+      RC_JALNONSOLDEEXIT        = 31 ;
+      RC_TRESO                  = 32 ;
+      RC_TRESO2                 = 33 ;
+      RC_CNATURE2               = 34 ;
+      RC_NEWIMMO                = 35 ;
+      RC_CONCEPTVISU            = 36 ;
+      RC_BADGUYJAL              = 37 ;
+      RC_LETTRAGE               = 38 ;
+      RC_TMONODEVISE            = 39 ;
+      RC_GUIDESTOP              = 40 ;
+      RC_NOEXISTIMMO            = 41 ;
+      RC_VALIDAGAIN             = 42 ;
+      RC_BORREVISION            = 43 ;
+      RC_ECRPOINTEE             = 45 ;
+      RC_ECRIMMO                = 46 ;
+      RC_ECRTVAENC              = 47 ;
+      RC_PASTOUCHEMODELIBRE     = 49 ;
+      RC_PARAMAUX               = 50 ;
+      RC_COMPTEECART            = 51 ;
+      RC_PASCOLLECTIF           = 52 ;
+      RC_AUXINEXISTANT          = 53 ;
+      RC_JALINEXISTANT          = 54 ;
+      RC_JALNONMULTIDEVISE      = 55 ;
+      RC_DATEINCORRECTE         = 56 ;
+      RC_ECRANOUVEAU            = 57 ;
+      RC_MODESAISIE             = 58 ;
+      RC_NUMPERIODE             = 59 ;
+      RC_COMPTEINEXISTANT       = 60 ;
+      RC_AUXOBLIG               = 61 ;
+      RC_NATAUX                 = 62 ;
+      RC_DEVISE                 = 63 ;
+      RC_ECRECART               = 64 ;
+      RC_NATINEXISTANT          = 65 ;
+      RC_ETABLISSINEXISTANT     = 66 ;
+      RC_NATUREJAL              = 67 ;
+      RC_ERREURINFOLETT         = 68 ;
+      RC_MODEPAIEINCORRECT      = 69 ;
+      RC_DATEVALEURINCORRECT    = 70 ;
+      RC_REGIMETVAINCORRECT     = 71 ;
+      RC_TAUXDEVINCORRECT       = 72 ;
+      RC_ABANDONINTERDIT        = 73 ;
+      RC_JALFERME               = 74 ;
+      RC_NONSOLDER              = 75 ;
+      RC_MONTANTINEXISTANT      = 76 ;
+      RC_CHAMPSOBLIGATOIRE      = 77 ;
+      RC_NUMPIECEOBLIG          = 78 ;
+      RC_NUMLIGNEOBLIG          = 79 ;
+      RC_JALVALID               = 80 ;
+      RC_ERREURINFOPOINTAGE     = 81 ;
+      RC_COMPTECONFIDENT        = 82 ;
+      RC_BORCONF                = 83 ;
+      RC_CONTREINCORRECT        = 84 ;
+      RC_PERIODECLOSE           = 85 ;
+      RC_COMPTEVISA             = 86 ;
+      RC_GCTTC                  = 87 ;
+      RC_QUALIFPIECEMS          = 88 ;
+      RC_NATUREERR              = 89 ;
+      // Code 90 à ne pas utiliser ( saisie bordereau )
+      RC_YSECTIONINEXIST         = 91 ;
+      RC_YSECTIONOBLIG           = 92 ;
+      RC_YSECTIONFERMEE          = 93 ;
+      RC_YSECTIONRESTRICTION     = 94 ;
+      RC_YAXESECTION             = 95 ;
+      RC_YSOLDEPOURC             = 96 ;
+      RC_YSOLDEMONTANT           = 97 ;
+      RC_YSOLDEMONTANTDEV        = 98 ;
+      RC_YSOLDEQTE1              = 99 ;
+      RC_YSOLDEQTE2              = 100 ;
+      RC_YPOURCINEXISTANT        = 101 ;
+      RC_YMONTANTINEXISTANT      = 102 ;
+      RC_YAXEVIDE                = 103 ;
+      RC_YSECTIONBUDGET          = 104 ;
+
+      RC_CODEFOU                = 'F' ;
+      RC_CODEFOUN               = '0' ;
+      RC_CODECLIN               = '9' ;
+      RC_CODECLI                = 'C' ;
+      RC_CODESAL                = 'S' ;
+      RC_CODEDIV                = 'D' ;
+      RC_CODEGEN                = '*' ;
+
+
+      {$IFNDEF EAGLSERVER}
+      KEY_LOOKUP                = VK_F5  ;
+      KEY_MENUPOP               = VK_F11 ;
+      KEY_AUTONEXT              = VK_F4 ;
+      KEY_AUTOPREV              = VK_F3 ;
+      {$ENDIF}
+
+ const
+  cStDateInfDateDebExo                  = 'La date saisie ne peut être inférieure à la date de début de l''exercice N';  // FB 14331
+  cStDateInfDateFinExo                  = 'La date saisie ne peut être supérieure à la date de fin de l''exercice N+1';
+  cStDateHorsExo                        = 'La date saisie n''est pas valide';
+
+type
+
+
+ RecCalcul = record
+  D, C, DD, CD : Double;
+  Index : integer;
+ end;
+
+TTypeRechGen = ( RechTous , RechGen , RechAux , TrouverAucun , TrouverGen , TrouverAux , TrouverDeux , ControlGen, ControlAux , ControlSuiv);
+
+ // Permet d'identifier le contexte de message a utiliser par TMessageCompta, liste non exhaustive...
+ TTypeMessage = ( msgSaisieBor, msgSaisiePiece, msgSaisieLibre, msgSaisieAnal ) ;
+
+ TRecError = record
+   RC_Error    : integer;
+   RC_Message  : string;
+   RC_Methode  : string ;
+   RC_Axe      : integer ;  // utilisé uniquement dans le cadre de l'analytique
+ end;
+
+ // classe contenant les info utile à la saisie d'ecriture simplifie
+ // unite UTOFECRLET
+ TAGLLanceFiche_TOFECRLET = Class
+  TOBEcr     : TOB ; // TOB contenant les ecritures d'origines
+  TOBResult  : TOB ; // TOB contenant les ecritures generes
+  Info       : TObject; // lG -015/07/2002 obj de type TInfoEcriture mais on utilise un TObject pour ne pas inclure l'unite ULibEcriture
+ end;
+
+ TErrorProc = procedure (sender : TObject; Error : TRecError ) of object;
+
+ TMessageCompta = Class
+  private
+   FStTitre      : string ;
+   FListeMessage : HTStringList ;
+  public
+   constructor Create ( vStTitre : string; vTypeMsg : TTypeMessage = msgSaisieBor ) ;
+   destructor  Destroy ; override ;
+   function    Execute( RC_Numero : integer ) : integer ;
+   function    GetMessage ( RC_Numero : integer ) : string ;
+ end;
+
+ TZList = Class
+  private
+   function    GetCount : Integer ;
+   function    GetTOB : TOB ;
+   function    GetTOBByIndex(Index : integer) : TOB ;
+  protected
+   FTOB        : TOB ;
+   FInIndex    : integer ;
+   FStTable    : string ;
+   FDossier    : string ;
+   function    MakeTOB : TOB ; virtual ;
+   procedure   Initialize ; virtual ; abstract ;
+   procedure   SetCrit(vTOB : TOB; const Values : array of string) ; virtual ;
+  public
+   constructor Create( vDossier : string = '') ; virtual ;
+   destructor  Destroy ; override ;
+   function    GetValue(Name : string ; Index : integer=-1) : Variant;
+   function    GetString(Name : string ; Index : integer=-1) : string;
+   procedure   PutValue(Name : string ; Value : Variant) ;
+   procedure   PutValueByIndex(Name : string ; Value : Variant ; Index : integer) ;
+   function    Load(const Values : array of string ) : integer ; virtual ;
+
+   property    Count   : Integer read GetCount ;
+   property    InIndex : integer read FInIndex ;
+   property    Item    : TOB read GetTOB ;
+   property    Items   : TOB read FTOB ;
+
+ end;
+
+
+ TZDevise = Class(TZList)
+  private
+   function    GetRecDevise : RDevise ;
+  protected
+   function    MakeTOB : TOB ; override ;
+   procedure   Initialize ; override ;
+   public
+   function    Load(const Values : array of string) : integer ; override ;
+   procedure   AffecteTaux ( vDtDateComptable : TDateTime ) ;
+
+   property    Dev       : RDevise read GetRecDevise ;
+
+  end ;
+
+ TZScenario = Class(TZList)
+  protected
+   FListe  : HTStringList ; // liste des codes inexistant
+   FMemo   : HTStringList ;
+   function    GetMemo : HTStringList ;
+   procedure   Initialize ; override ;
+  public
+   constructor Create( vDossier : String = '' ) ; override ;
+   destructor  Destroy ; override ;
+   function    Load(const Values : array of string) : integer ; override ;
+
+   property    Memo : HTStringList read GetMemo ;
+
+ end;
+
+  TZListJournal = Class(TZList)
+  private
+   function    GetNatureParDefaut : string ;
+  protected
+   procedure   Initialize ; override ;
+   function    MakeTOB : TOB ; override ;
+   function    GetNombreDeCompteAuto : integer ;
+   function    GetCompteAuto : string ;
+  public
+   function    Load(const Values : array of string) : integer ; override ; // charge un journal soit depuis la base ou la tob FTOBJournal et positionne FTOBLigneJournal
+   function    GetNumJal(vDtDateComptable : TDateTime) : integer; // retourne le prochain numero de journal
+   function    GetTabletteNature : string; // retourne le nom de la tablette des natures de piece en fonction de la nature du journal
+   function    isJalBqe : boolean ;
+   property    NatureParDefaut : string read GetNatureParDefaut ;
+   property    NombreDeCompteAuto : integer read GetNombreDeCompteAuto ;
+   property    CompteAuto : string read GetCompteAuto ;
+//   property    CompteAuto : string read GetCompteAuto ;
+  end ;
+
+  TZTier = Class(TZList)
+  private
+   FBoCodeOnly     : boolean ;
+   FBoLibelleOnly  : boolean ;
+   FBoBourrageCode : Boolean ;
+  protected
+   procedure   Initialize ; override ;
+   function    MakeTOB : TOB; override ;
+   function    LoadFromList(const Values : array of string) : integer;
+
+  public
+   procedure   RAZSolde ;
+   function    Load(const Values : array of string) : integer ; reintroduce ;
+   function    GetCompte(var NumCompte : string ) : integer ;
+   procedure   Solde(var D, C: double ; vTypeExo : TTypeExo );
+
+   // Chargement sans SQL
+   function    GetCompteOpti(var NumCompte : string ; vTobSource : tob ) : Integer ;
+
+   property    BoCodeOnly     : boolean  read FBoCodeOnly      write FBoCodeOnly ;
+   property    BoLibelleOnly  : boolean  read FBoLibelleOnly   write FBoLibelleOnly ;
+   property    BoBourrageCode : boolean  read FBoBourrageCode  write FBoBourrageCode ;
+  end ;
+
+ TZEtabliss = Class(TZList)
+  protected
+   procedure   Initialize ; override ;
+  public
+   function    Load(const Values : array of string) : integer ; override ; // charge un journal soit depuis la base ou la tob FTOBJournal et positionne FTOBLigneJournal
+   procedure   LoadAll ;
+  end ;
+
+  TZNature = Class(TZList)
+  protected
+   procedure   Initialize ; override ;
+  public
+   function    Load(const Values : array of string) : integer ; override ; // charge un journal soit depuis la base ou la tob FTOBJournal et positionne FTOBLigneJournal
+   procedure   LoadAll ;
+   procedure   MakeTag( vStNatureJal : string ) ;
+   function    NextNature : string ;
+  end ;
+
+  TZSections = Class(TZList)
+  private
+   function    GetStAxe :  string ;
+   function    GetNumAxe : integer ;
+  protected
+   procedure   Initialize ; override ;
+  public
+   function    Load(const Values : array of string) : integer ; reintroduce ;
+   function    GetCompte( var NumCompte : string ; NumAxe : string ) : integer ; // Ok
+
+   property    StAxe : string    read GetStAxe ;
+   property    NumAxe : integer  read GetNumAxe ;
+
+  end ;
+
+ TTErreurIgnoree = array of integer ;
+
+ TInfoEcriture = Class
+  private
+   FCompte           : TZCompte ;
+   FAux              : TZTier ;
+   FJournal          : TZListJournal ;
+   FDevise           : TZDevise ;
+   FEtabliss         : TZEtabliss ;
+   FOnError          : TErrorProc ;
+   FLastError        : TRecError ;
+   FTypeExo          : TTypeExo ;
+   FErreurIgnoree    : TTErreurIgnoree ;
+   FDossier          : string ;
+   FSection          : TZSections ;
+
+   procedure   NotifyError( RC_Error : integer ; RC_Message : string ) ;
+   procedure   SetOnError( Value : TErrorProc ) ;
+   function    GetDevise : TZDevise ;
+   function    GetEtabliss : TZEtabliss ;
+   function    GetJournal : string ;
+   function    GetCompte : string ;
+   function    GetAux    : string ;
+   function    GetExercice : TZExercice ;
+   function    GetSection : string ;
+  public
+
+   constructor Create( vDossier : string = '' ) ;
+   destructor  Destroy ; override ;
+
+   procedure   Initialize ; virtual ;
+
+   procedure   Load( vStCompte , vStAux , vStJournal : string ) ;
+   function    LoadCompte ( vStCompte : string ) : boolean ;
+   function    LoadAux ( vStAux : string ) : boolean ;
+   function    LoadJournal ( vStJournal : string ) : boolean ;
+   procedure   ClearCompte ;
+   procedure   ClearAux;
+   procedure   ClearJal;
+   function    Compte_GetValue( vStNom : string ) : variant ;
+   function    Aux_GetValue( vStNom : string ) : variant ;
+   procedure   AjouteErrIgnoree( Value : array of Integer ) ;
+   function    LoadSection ( vStSection, vStAxe : string ) : boolean ;
+   procedure   ClearSection;
+   function    Section_GetValue( vStNom : string ) : variant ;
+
+   procedure   LoadOpti( vStCompte , vStAux : string ; vTobSource : Tob ) ;
+
+   property    StCompte          : string           read GetCompte ;
+   property    StAux             : string           read GetAux ;
+   property    StJournal         : string           read GetJournal ;
+   property    StSection         : string           read GetSection ;
+   property    Compte            : TZCompte         read FCompte ;
+   property    Aux               : TZTier           read FAux ;
+   property    Journal           : TZListJournal    read FJournal ;
+   property    Section           : TZSections       read FSection ;
+   property    Etabliss          : TZEtabliss       read GetEtabliss ;
+   property    Devise            : TZDevise         read GetDevise ;
+   property    Exercice          : TZExercice       read GetExercice ;
+   property    TypeExo           : TTypeExo         read FTypeExo         write FTypeExo ;
+   property    OnError           : TErrorProc       read FOnError         write SetOnError;
+   property    ErreurIgnoree     : TTErreurIgnoree  read FErreurIgnoree   write FErreurIgnoree;
+   property    Dossier           : string           read FDossier ;
+
+ end;
+
+
+ TOBCompta = Class(TOB)
+  private
+   PInfo      : TInfoEcriture ;
+   FLastError : TRecError ;
+   FOnError   : TErrorProc ;
+  protected
+   procedure SetOnError( Value : TErrorProc ) ; virtual ;
+   procedure NotifyError( RC_Error : integer ; RC_Message : string ; RC_Methode : string = '' ) ;
+   procedure SetInfo ( Value : TInfoEcriture ) ; virtual ;
+  public
+
+   procedure Initialize ; virtual ;
+
+   property  OnError   : TErrorProc             read FOnError write SetOnError ;
+   property  Info      : TInfoEcriture          read PInfo  write SetInfo ;
+   property  LastError : TRecError              read FLastError ;
+ end;
+
+
+ TOBEcriture = Class(TOBCompta)
+ protected
+  procedure CheckInfo ;
+//  function  IsValidLigne : boolean ;
+ public
+  procedure SupprimerInfoLettrage ;
+  procedure RemplirInfoLettrage ;
+  procedure PutDefautEcr ;
+  procedure RemplirInfoPointage ;
+  procedure CompleteInfo ;
+
+  function IsValidEtabliss : boolean ; virtual ;
+  function IsValidCompte : boolean ; virtual ;
+  function IsValidAux : boolean ; virtual ;
+  function IsValidNat : boolean ; virtual ;
+  function IsValidDateComptable : boolean ; virtual ;
+  function IsValidJournal : boolean ; virtual ;
+  function IsValidPeriodeSemaine : boolean ; virtual ;
+  function IsValidEcrANouveau : boolean ; virtual ;
+  function IsValidModeSaisie : boolean ; virtual ;
+  function IsValidDebit : boolean ; virtual ;
+  function IsValidCredit : boolean ; virtual ;
+  function IsValidMontant( vRdMontant : double ) : boolean; virtual ;
+  function IsValidDebitCredit: boolean; virtual ;
+  function IsValid  : TRecError ;
+ end;
+
+ TOBEcritureSaisie = Class(TOBEcriture)
+  function IsValidCompte : boolean ; override ;
+  function IsValidAux : boolean ; override ;
+ end;
+
+
+ TRechercheCompte = Class
+  private
+   FEcr              : TOBEcriture ;
+   PInfo             : TInfoEcriture ;
+   FTypeRech         : TTypeRechGen ;
+   FStCarLookUp      : string ;
+   FFocusControl     : TTypeRechGen ;
+   FOnError          : TErrorProc ;
+   FLastError        : TRecError ;
+   FInKey            : Word ;
+   FShift            : TShiftState ;
+
+   procedure SetOnError( Value : TErrorProc ) ; virtual ;
+   procedure SetCompte ( Value : string ) ;
+   function  GetCompte : string ;
+   procedure SetAux ( Value : string ) ;
+   function  GetAux : string ;
+   procedure SetJrn ( Value : string ) ;
+   function  GetJrn : string ;
+   procedure SetNature ( Value : string ) ;
+   function  GetNature : string ;
+   procedure SetDevise ( Value : string ) ;
+   function  GetDevise : string ;
+   procedure NotifyError( RC_Error : integer ; RC_Message : string ) ; virtual ;
+   procedure OnErrorEcr ( sender : TObject ; Error : TRecError);
+  protected
+   procedure LookUpGen ; virtual ;
+   procedure LookUpAux ; virtual ;
+   function  MakeTOB : TOBEcriture ; virtual ;
+  public
+   constructor Create( vInfo : TInfoEcriture ) ; virtual ;
+   destructor  Destroy ; override ;
+
+   procedure Initialize ; virtual ;
+   {$IFNDEF EAGLSERVER}
+   procedure GetEcran ( FForm : TForm ) ;
+   {$ENDIF}
+{$IFNDEF NOVH}
+   function    Execute : boolean ; virtual ;
+{$ENDIF}
+   property    StCompte       : string                read GetCompte       write SetCompte ;
+   property    StAux          : string                read GetAux          write SetAux ;
+   property    StJournal      : string                read GetJrn          write SetJrn ;
+   property    StNature       : string                read GetNature       write SetNature ;
+   property    StDevise       : string                read GetDevise       write SetDevise ;
+   property    TypeRech       : TTypeRechGen          read FTypeRech       write FTypeRech ;
+   property    FocusControl   : TTypeRechGen          read FFocusControl   write FFocusControl ;
+   property    OnError        : TErrorProc            read FOnError        write SetOnError ;
+   property    LastError      : TRecError             read FLastError;
+   property    InKey          : Word                  read FInKey          write FInKey ;
+   property    Shift          : TShiftState           read FShift          write FShift ;
+   property    Info           : TInfoEcriture         read PInfo ;
+
+  end;
+
+ {$IFNDEF EAGLSERVER}
+ {$IFNDEF ERADIO}
+ TRechercheGrille = Class(TRechercheCompte)
+  private
+   FCOL_GEN    : integer ;
+   FCOL_AUX    : integer ;
+   FRow        : integer ;
+   FCol        : integer ;
+   FGrille     : THGrid ;
+//   FBoCellExit : boolean ;
+  protected
+   procedure LookUpGen ; override ;
+   procedure LookUpAux ; override ;
+   procedure NotifyError( RC_Error : integer ; RC_Message : string ) ; override ;
+   procedure SetOnError( Value : TErrorProc ) ; override ;
+   procedure OnErrorInfo ( sender : TObject ; Error : TRecError);
+   procedure ExecuteGen( Sender : TObject; var ACol,ARow : integer; var Cancel : boolean ) ;
+   procedure ExecuteAux( Sender : TObject; var ACol,ARow : integer; var Cancel : boolean ) ;
+   function  MakeTOB : TOBEcriture ; override ;
+  public
+   procedure CellExitGen( Sender : TObject; var ACol,ARow : integer; var Cancel : boolean ) ;
+   procedure CellExitAux( Sender : TObject; var ACol,ARow : integer; var Cancel : boolean ) ;
+   function  ElipsisClick( Sender : TObject ; vBoAvecDeplacement : boolean = true ) : boolean;
+
+   property COL_GEN  : integer read FCOL_GEN  write FCOL_GEN ;
+   property COL_AUX  : integer read FCOL_AUX  write FCOL_AUX ;
+   property Row      : integer read FRow      write FRow ;
+   property Col      : integer read FCol      write FCol ;
+   property Grille   : THGrid  read FGrille   write FGrille ;
+
+ end ;
+
+{$ENDIF !ERADIO}
+{$ENDIF}
+
+
+ TObjetCompta = Class
+  private
+   FInfo      : TInfoEcriture ;
+   FLastError : TRecError ;
+   FOnError   : TErrorProc ;
+  protected
+   procedure SetOnError( Value : TErrorProc ) ; virtual ;
+   procedure NotifyError( RC_Error : integer ; RC_Message : string  ; RC_Methode : string = '' ) ; overload ; virtual ;
+   procedure NotifyError( RC_Message, RC_MessageDelphi, RC_Methode : string ) ; overload ; virtual ;
+   procedure SetInfo ( Value : TInfoEcriture ) ; virtual ;
+  public
+   constructor Create( vInfoEcr : TInfoEcriture ) ; virtual ;
+   procedure Initialize ; virtual ;
+
+   property  OnError  : TErrorProc             read FOnError write SetOnError ;
+   property  Info     : TInfoEcriture          read FInfo    write SetInfo ;
+ end;
+
+
+function  CCalculProchainNumeroSouche ( const vStTypeSouche, vStCodeSouche : string ) : Integer ;
+function  CCalculClefUniqueInteger ( const StTableName, StFieldName, StCloseWhere : string ) : Integer ;
+function  CMAJNumeroSouche ( const vStTypeSouche, vStCodeSouche : string ; vNewValue,vOldValue : integer) : boolean;
+function  CEquilibrePiece ( vTOBEcr : TOB ; TOBResult : TOB = nil ) : boolean;
+function  CSoldePieceCompteAttente ( vTOBEcr : TOB ; var vRdSolde : double ; vInIndex : integer = 0 ; TOBResult : TOB = nil ) : boolean;
+function  CCalculSoldePiece ( vTOBEcr : TOB ; vInIndex : integer = 0 ) : RecCalcul;
+function  CAffectCompteContrePartie ( vTOBEcr : TOB ; vInfo : TInfoEcriture = nil ) : boolean;
+procedure CSetMontants ( vTOBLigneEcr : TOB ; vRdDebit, vRdCredit : Double; vDev : RDEVISE; vBoForce : Boolean );
+procedure CSetCotation ( vTOBLigneEcr : TOB ) ;
+procedure CSetPeriode  ( vTOBLigneEcr : TOB );
+function  CGetBalanceParcompte (Exo,Compte : string; Dateecr1,Dateecr2 : TDateTime ; var MttDeb,MttCre,MttSolde : double; Anouveau : string=''; Auxi : Boolean=FALSE) : Boolean;
+function  CBlocageBor(vStJournal : string ; vDtDateComptable : TDateTime ; vInNumeroPiece : integer ; Parle : boolean = true) : boolean;
+function  CBloqueurBor(vStJournal : string ; vDtDateComptable : TDateTime ; vInNumeroPiece : integer ; Bloc : boolean ; Parle : boolean = true) : boolean;
+function  CEstBloqueBor( vStJournal : string = '' ; vDtDateComptable : TDateTime = -1 ; vInNumeroPiece : integer = -1 ; Parle : boolean = true ) : boolean;
+procedure CAfficheLigneEcrEnErreur( O : TOB );
+procedure CSupprimerInfoLettrage( vTOBLigneEcr : TOB );
+procedure CRemplirInfoLettrage( vTOBLigneEcr : TOB );
+
+function  CBloqueurJournal( Bloc : boolean ; vStJournal : string = '' ; Parle : boolean = true ) : boolean ;
+function  CEstBloqueJournal( vStJournal : string ; Parle : boolean = true ) : boolean;
+
+{$IFNDEF NOVH}
+procedure CRemplirDateComptable( vTOBLigneEcr : TOB ; Value : TDateTime );
+{$ENDIF}
+procedure CPutDefautEcr( vTOBLigneEcr : TOB );
+procedure CDupliquerTOBEcr( vTOBLigneSource,vTOBLigneDestination : TOB );
+procedure CDupliquerInfoAux( vTOBLigneSource,vTOBLigneDestination : TOB );
+procedure CRemplirInfoPointage( vTOBLigneEcr : TOB );
+procedure CNumeroPiece( vTOBPiece : TOB );
+function  COuvreScenario( vStJournal, vStNature, vStQualifpiece, vStEtablissement : string ; vTOBResult : TOB ; var vMemoComp : HTStringList ; vDossier : String = '') : boolean;
+function  CGetRIB( vTOBLigneEcr : TOB ) : string;
+procedure CInitMessageBor ( vListe : HTStringList );
+procedure CInitMessagePiece ( vListe : HTStringList );
+function  CPrintMessageRC(vStTitre : string ; RC_Numero : integer ; vListe : HTStrings ) : integer;
+function  CGetMessageRC( RC_Numero : integer ; vListe : HTStrings ) : string ;
+procedure CRDeviseVersTOB( vRecRDevise : RDevise ; vTOB : TOB ) ;
+procedure CTOBVersRDevise( vTOB : TOB ; var vRecRDevise : RDevise ) ;
+function  CIsCarRecherche ( vValues : string ) : boolean ;
+function  CGetSQLFromTable(TableName : string; ExceptFields : array of string ; WithOutFrom : boolean = false ) : string;
+procedure CMakeSQLLookupGen(var vStWhere,vStColonne,vStOrder,vStSelect : string ; vTypeExo : TTypeExo = teEnCours ) ;
+procedure CMakeSQLLookupAux(var vStWhere,vStColonne,vStOrder,vStSelect : string ; vStNaturePiece,vStNatureGene : string ) ;
+procedure CMakeSQLLookupAuxGrid(var vStWhere,vStColonne,vStOrder,vStSelect : string ; vStPremierCarDuCompte,vStNaturePiece,vStNatureGene : string ) ;
+function  CQuelRecherche ( var vStCompte,vStAux : string ; vStNat : string ) : TTypeRechGen;
+function  CControleDateBor(vDateComptable : TDateTime ; vExercice : TZExercice ; Parle : Boolean = true ; vStCodeExo : string = '' ) : boolean ;
+function  CGetListeBordereauBloque : TOB ;
+function  CEstBloqueEcritureBor ( vEcr : TOB ; vListeBor : TOB = nil ) : boolean ;
+{$IFNDEF EAGLSERVER}
+function  CIsRowLock(G : THGrid ; Lig : integer = - 1) : boolean ;
+function  CControleLigneBor( G : THGrid ; vListeBor : TOB = nil )  : boolean ;
+{$ENDIF}
+function  CEstSaisieOuverte( Parle : boolean = false) : boolean ;
+function  CUnSeulEtablis : boolean ;
+{$IFNDEF EAGLSERVER}
+{$IFNDEF NOVH}
+procedure CDateParDefautPourSaisie( var vDateDebut,vDateFin : TDateTime ) ;
+procedure CDecodeKeyForAux ( vInKey : Word ; vShift : TShiftState ; var vBoCodeOnly, vBoLibelleOnly, vBoBourrage : boolean );
+{$ENDIF}
+{$ENDIF}
+function  CControleChampsObligSaisie ( vEcr : TOB ; var vStMessage : string ) : Integer ;
+procedure CSupprimeLigneSaisieVide ( vTOB : TOB ) ;
+function  CZompteVersTGGeneral ( vCompte : TZCompte ) : TGGeneral ;
+procedure CAffectRegimeTva( vTOBEcr : TOB ) ;
+function  CGetRowTiers( vTOBEcr : TOB ; vIndex : integer ; vInfo : TInfoEcriture ) : integer ;
+procedure CRempliComboFolio ( vItem, vValue : HTStrings ; E_JOURNAL,E_EXERCICE : string ; E_DATECOMPTABLE : TDateTime ) ;
+{$IFNDEF EAGLSERVER}
+function  CControleVisa ( vStCompte : string ; vInfo : TInfoEcriture )  : boolean ;
+{$ENDIF}
+
+procedure CNumeroLigneBor(vTOBPiece : TOB );
+function  CEnregistreSaisie( vTOBEcr : TOB ; vNumerote : boolean ; vAjouter : boolean = false ; vBoInsert : boolean = true ; vInfo : TInfoEcriture = nil ; vBoEcrNormale : Boolean = True) : boolean ;
+function  CMAJSaisie( vTOBEcr : TOB ) : boolean ;
+function  CDetruitAncienPiece( vTOB : TOB ; vDossier : String = '' ) : boolean ;
+function  CDetruitAncienAnaPiece( vTOB : TOB ; vDossier : String = '' ) : boolean ;
+function  CDetruitAncienAnaEcr( vTOB : TOB ) : boolean ;
+
+function  CIsValidEtabliss( vTOB : TOB ; vInfo : TInfoEcriture  ) : integer ;
+function  CIsValidNat ( vTOB : TOB ; vInfo : TInfoEcriture  ) : integer ;
+function  CIsValidEcrANouveau ( vTOB : TOB ; vInfo : TInfoEcriture  ) : integer ;
+function  CIsValidModeSaisie ( vTOB : TOB ; vInfo : TInfoEcriture  ) : integer ;
+function  CIsValidPeriodeSemaine( vTOB : TOB ; vInfo : TInfoEcriture  ) : integer ;
+function  CIsValidMontant( vRdMontant : double ) : integer ;
+function  CIsValidJournal( vTOB : TOB ; vInfo : TInfoEcriture  ) : integer ;
+function  CIsValidJal( vStCodeJal : string ; vStCodeDev : string ; vInfo : TInfoEcriture ) : integer ;
+function  CIsValidCompte( vTOB : TOB ; vInfo : TInfoEcriture  ) : integer ;
+function  CIsValidAux( vTOB : TOB ; vInfo : TInfoEcriture  ) : integer ;
+//function  CIsValidJournalPeriode( vStExo , vStValideN , vStValideN1 : string ;  vDtDate : TDateTime ) : integer ;
+
+function  CIsValidSaisiePiece( vTob : TOB ; vInfo : TInfoEcriture ; vBoPourSaisie : boolean = false ) : TRecError ;
+function  CIsValidLigneSaisie( vTob : TOB ; vInfo : TInfoEcriture ; vBoPourSaisie : boolean = false  ) : TRecError ;
+procedure CChargeTInfoEcr( vTob : TOB ; var vInfo : TInfoEcriture ; vDossier : String = '' ) ;
+
+function  CBlocageLettrage(vStJournal : string ; vDtDateComptable : TDateTime ; vInNumeroPiece : integer ; Parle : boolean = true) : boolean ;
+procedure CDeBlocageLettrage ( Parle : boolean = false ) ;
+//procedure CDeBlocageLettrageP (vStJournal : string ; vDtDateComptable : TDateTime ; vInNumeroPiece : integer ; Parle : boolean = true) ;
+function  CEstBloqueLettrage ( Parle : boolean = false) : boolean ;
+function  CEstBloqueLett (vStJournal : string ; vDtDateComptable : TDateTime ; vInNumeroPiece : integer ; Parle : boolean = true) : boolean ;
+function  EncodeDateBor ( vInAnnee , vInMois : integer ; vTExo : TExoDate ) : TDateTime ;
+procedure CGetEch        ( vTOB : TOB ; vInfo : TInfoEcriture = nil ) ;
+procedure CGetRegimeTVA  ( vTOB : TOB ; vInfo : TInfoEcriture = nil ) ;
+procedure CGetTVA        ( vTOB : TOB ; vInfo : TInfoEcriture = nil ) ;
+procedure CGetConso      ( vTOB : TOB ; vInfo : TInfoEcriture = nil ) ;
+//procedure CGetAnalytique ( vTOB : TOB ; vInfo : TInfoEcriture = nil ) ;
+{$IFNDEF NOVH}
+procedure CGetTypeMvt    ( vTOB : TOB ; vInfo : TInfoEcriture = nil ) ;
+{$ENDIF}
+
+function WhereEcritureTOB( vTS : TTypeSais ; vTobEcr : TOB ; vBoLigneSeule : boolean ; vBoBordereau : Boolean = FALSE; Prefix : string = '' ) : String ;
+function RIBestIBAN ( vE_Rib : String ) : Boolean ;
+Function IBANtoE_RIB( vIBan : String ) : String ;
+
+function CEstAutoriseDelettrage( vBoSelected : Boolean; vBoTestSelected : Boolean ) : Boolean;
+
+procedure CPutTOBCompl ( TheTOB : TOB ;  Valeur : TOB ) ;
+function  CSelectDBTOBCompl( TheTOB : TOB ; TheParent : TOB ) : TOB ;
+function  CGetTOBCompl ( TheTOB : TOB ) : TOB ;
+function  CGetValueTOBCompl ( TheTOB : TOB  ; Nom : string ) : variant ;
+procedure CPutValueTOBCompl (  TheTOB : TOB ;  Nom : string ; Valeur : variant ) ;
+procedure CFreeTOBCompl ( TheTob : TOB ) ;
+function  CCreateDBTOBCompl( TheTOB : TOB ; TheParent : TOB ; Q : TQuery ) : TOB ;
+function  CCreateTOBCompl( TheTOB : TOB ; TheParent : TOB ) : TOB ;
+procedure CMAJTOBCompl( TheTOB : TOB ) ;
+procedure CDeleteDBTOBCompl( vQ : TQuery ) ;
+procedure CSupprimerEcrCompl( TheTOB : TOB ;  vDossier : String = '' ) ;
+procedure CCalculDateCutOff( vTOB : TOB ; G_CUTOFFPERIODE : string ; G_CUTOFFECHUE : string) ;
+
+type
+
+ TOnUpdateEcriture = ( cEcrCompl, cEcrBor ) ;
+ TOnUpdateEcritures = set of TOnUpdateEcriture ;
+
+// SBO 26/11/2003 : EVT sur maj table écriture (utilisé pour mode pièce uniquement pout le moment)
+//Function  OnUpdateEcriture( vEcr : TQuery ; vAction : TActionFiche ; vListeAction : TOnUpdateEcritures ) : Boolean ; // ok
+function  OnUpdateEcritureTOB( vEcr : TOB ; vAction : TActionFiche ; vListeAction : TOnUpdateEcritures ; vInfo : TInfoEcriture = nil  ) : boolean ;
+//Function  OnDeleteEcriture( vEcr : TQuery ; vListeAction : TOnUpdateEcritures) : Boolean ;
+Function  OnDeleteEcritureTOB( vEcr : TOB ; vAction : TActionFiche ; vListeAction : TOnUpdateEcritures ) : Boolean ;
+
+
+implementation
+
+
+
+uses
+  ULibTrSynchro,
+ uLibAnalytique ;
+
+
+
+const
+ _InMaxChamps = 37 ;   _InMaxChampsRepar = 3 ;
+ _RecChampsOblig : array[0.._InMaxChamps] of string =
+ ('E_EXERCICE'     ,'E_JOURNAL'       ,'E_DATECOMPTABLE' ,'E_NUMEROPIECE'     ,'E_NUMLIGNE'     ,'E_GENERAL'       ,'E_DEBIT'         ,'E_CREDIT',
+  'E_NATUREPIECE'  ,'E_QUALIFPIECE'   ,'E_VALIDE'          ,'E_UTILISATEUR'   ,'E_DATECREATION'  ,'E_DATEMODIF',
+  'E_SOCIETE'      ,'E_ETABLISSEMENT' {'E_VISION'}        ,'E_TVAENCAISSEMENT' ,'E_LETTRAGEDEV'  ,'E_DATEPAQUETMAX' ,'E_ECRANOUVEAU',
+  'E_DATEPAQUETMIN','E_DEVISE'          ,'E_DEBITDEV'     ,'E_CREDITDEV'       ,'E_TAUXDEV'       ,'E_COTATION',
+  'E_MODESAISIE'   ,'E_PERIODE'       ,'E_SEMAINE'       {'E_ETATREVISION'}    ,'E_IO'           ,'E_PAQUETREVISION','E_CONTROLE'    ,
+  'E_ETATLETTRAGE' ,'E_ENCAISSEMENT'  ,'E_CONTROLETVA'   ,'E_CREERPAR'        ,'E_EXPORTE'       , 'E_CONFIDENTIEL'  ) ;
+ _RecReparChampsOblig : array[0.._InMaxChampsRepar ,0..1 ] of string =
+ ( ( 'E_VISION'       , 'DEM' ) ,
+   ( 'E_ETAT  '       , '0000000000' ) ,
+   ( 'E_ETATREVISION' , '-' ) ,
+   ( 'E_TYPEMVT'      , 'DIV' ) ) ;
+
+
+
+{$IFDEF TT}
+var
+ TheLogU : HTStringList;
+ TheLastError : string ;
+
+procedure DelEvenement ;
+begin
+ if TheLogU=nil then TheLogU:=HTStringList.Create ;
+ TheLogU.Clear ;
+ {$I-}
+ TheLogU.SaveToFile('c:\ULibEcriture.txt') ;
+ {$I+}
+end;
+
+procedure AddEvenement( value : string );
+begin
+ exit ; // fuite memoire qd on l'utilise a remettre pour test
+ if TheLogU=nil then TheLogU:=HTStringList.Create ;
+ TheLastError:=value ;
+ TheLogU.Add(Value) ;
+ {$I-}
+ TheLogU.SaveToFile('c:\ULibEcriture.txt') ;
+ {$I+}
+end;
+
+{$ENDIF}
+
+procedure _CTestErreur( var vErreur : TRecError ; vInfo : TInfoEcriture ) ;
+var
+ j : integer ;
+begin
+ for j := low(vInfo.FErreurIgnoree) to high(vInfo.FErreurIgnoree) do
+  if vErreur.RC_Error = vInfo.FErreurIgnoree[j] then
+   begin
+    vErreur.RC_Error := RC_PASERREUR ;
+    break ;
+   end ;
+end ;
+
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent Gendreau
+Créé le ...... : 02/12/2002
+Modifié le ... : 10/12/2002
+Description .. : -02/12/2002 - fiche 10942 - on ne pouvait pas saisir des
+Suite ........ : comptes
+Suite ........ : generaux alphanumerique
+Mots clefs ... :
+*****************************************************************}
+function CQuelRecherche ( var vStCompte,vStAux : string ; vStNat : string ) : TTypeRechGen;
+var
+ lStCar : string ;
+begin
+
+ lStCar := UpperCase(Copy(vStCompte,1,1)) ;
+
+ if ( lStCar = RC_CODEGEN ) then
+  begin
+    vStAux         := Copy(vStCompte,2,length(vStCompte)) ;
+    vStCompte      := '' ;
+    result         := RechAux ;
+    exit ;
+  end;
+
+ if ( ( lStCar = RC_CODEFOUN ) and (CASENATP(vStNat) in [4,5,6,7]) ) or ( ( lStCar = RC_CODECLIN ) and (CASENATP(vStNat) in [1,2,3,7]) ) then
+  begin
+    vStAux           := vStCompte ;
+    vStCompte        := '' ;
+    result           := RechAux ;
+    exit ;
+  end;
+
+  if ( (lStCar = RC_CODEFOU) and (CASENATP(vStNat) in [7]) ) or ( (lStCar = RC_CODECLI) and (CASENATP(vStNat) in [7]) ) or
+     ( (lStCar = RC_CODESAL) and (CASENATP(vStNat) in [7]) ) or ( (lStCar = RC_CODEDIV) and (CASENATP(vStNat) in [7]) ) then
+   begin
+    vStAux             := Copy(vStCompte,2,length(vStCompte)) ;
+    vStCompte          := '' ;
+    result             := RechAux ;
+    exit ;
+   end; // if
+
+   if ( vStCompte <> '' ) and  not IsNumeric(vStCompte) then
+    begin
+     if not(lStCar[1] in ['1'..'8']) then
+     begin
+     vStAux            := vStCompte ;
+     vStCompte         := '' ;
+     result            := RechAux ;
+     exit ;
+     end;
+    end; // if
+ 
+  result := RechGen ;
+
+end;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent Gendreau
+Créé le ...... : 20/02/2003
+Modifié le ... : 25/08/2005
+Description .. : - 20/02/2003 - FB 12005 - on ne propose pas les comptes 
+Suite ........ : ferme
+Suite ........ : - FB 16397 - LG  - 25/08/2005 - test de la revision
+Suite ........ : uniquement pour l'exercice en cours
+Mots clefs ... : 
+*****************************************************************}
+procedure CMakeSQLLookupGen(var vStWhere,vStColonne,vStOrder,vStSelect : string ; vTypeExo : TTypeExo = teEnCours ) ;
+begin
+ vStSelect  := 'G_LIBELLE' ;
+ vStOrder   := 'G_GENERAL' ;
+ vStColonne := 'G_GENERAL' ;
+ vStWhere   := 'G_FERME<>"X" ' ;
+// if ( vTypeExo = teEnCours ) then
+//  vStWhere   := ' AND G_VISAREVISION<>"X" ' ;
+end;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent Gendreau
+Créé le ...... : 20/02/2003
+Modifié le ... : 09/09/2005
+Description .. : - 20/02/2003 - FB 12005 - on ne propose pas les comptes
+Suite ........ : ferme
+Suite ........ : - VL - 14/10/2003 - FB 12769 - ?
+Suite ........ : - LG - 31/10/2003 - FB 12904 - pour une nature d'ecriture 
+Suite ........ : OD on affiche trois colonne : code,libelle et nature
+Suite ........ : - LG - 03/08/2004 - FB 13626 - le compte sur les auxi ferme 
+Suite ........ : etait incorrect
+Suite ........ : - LG - 10/11/2004 - FB 14912 - ajout des tiers crediteurs et 
+Suite ........ : debiteurs pour les natures FF et FC
+Suite ........ : - LG - 09/09/2205 - FB x
+Suite ........ : en saisie  Bordereau  Uniquement sur les journaux qui ne 
+Suite ........ : sont pas de type Achat et Vente on voit dans la liste des 
+Suite ........ : tiers des tiers de nature Prospect , Concurrent , Suspect .
+Mots clefs ... : 
+*****************************************************************}
+procedure CMakeSQLLookupAux(var vStWhere,vStColonne,vStOrder,vStSelect : string ; vStNaturePiece,vStNatureGene : string ) ;
+begin
+
+ vStWhere   := '' ;
+ vStColonne := 'T_AUXILIAIRE' ;
+ vStOrder   := 'T_AUXILIAIRE' ;
+ vStSelect  := 'T_LIBELLE' ;
+
+ case CaseNatP(vStNaturePiece) of
+  4,5,6 : vStWhere := '(T_NATUREAUXI="FOU" OR T_NATUREAUXI="AUC" OR T_NATUREAUXI="DIV") ' ;
+  1,2,3 : vStWhere := '(T_NATUREAUXI="CLI" OR T_NATUREAUXI="AUD" OR T_NATUREAUXI="DIV") ' ;
+ end; // case
+
+ if vStNatureGene = 'COF' then vStWhere := '(T_NATUREAUXI="FOU" OR T_NATUREAUXI="AUC" OR T_NATUREAUXI="DIV") '  // FQ 12769
+  else
+   if vStNatureGene = 'COC' then vStWhere := '(T_NATUREAUXI="CLI" OR T_NATUREAUXI="AUD" OR T_NATUREAUXI="DIV") '  // FQ 12769
+    else
+     if vStNatureGene = 'COS' then vStWhere := 'T_NATUREAUXI="SAL"'
+      else
+       if vStNatureGene = 'COD' then vStWhere := '' // FQ 12769 un collectif divers peut prendre TOUT type d'auxiliaire
+        else
+         if vStNatureGene = 'DIV' then vStWhere := 'T_NATUREAUXI="DIV"';  // FQ 12769
+
+  if vStWhere = '' then
+   vStWhere := vStWhere + ' T_FERME<>"X" AND (T_NATUREAUXI<>"NCP" AND T_NATUREAUXI<>"CON" AND T_NATUREAUXI<>"PRO" AND T_NATUREAUXI<>"SUS") '
+    else
+     vStWhere := vStWhere + 'AND T_FERME<>"X" AND (T_NATUREAUXI<>"NCP" AND T_NATUREAUXI<>"CON" AND T_NATUREAUXI<>"PRO" AND T_NATUREAUXI<>"SUS") ' ;
+
+  if UpperCase(vStNaturePiece) = 'OD' then
+  begin
+   vStSelect  := 'T_LIBELLE, T_NATUREAUXI' ;
+   vStOrder   := 'T_AUXILIAIRE,T_NATUREAUXI ' ;
+  end
+   else
+    begin
+     vStSelect  := 'T_LIBELLE' ;
+     vStOrder   := 'T_AUXILIAIRE' ;
+    end; // if
+
+end;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent Gendreau
+Créé le ...... : 20/02/2003
+Modifié le ... : 14/10/2003
+Description .. : - 20/02/2003 - FB 11938 - la saisie d'un 0 ou 9 avec une
+Suite ........ : nature OD ne fct pas.
+Suite ........ : - LG - 28/07/2003 - FB 12005 - le C+F5 ds la case des
+Suite ........ : generaux affichaient les auxi fermes
+Suite ........ : - VL - 14/10/2003 - FB 12769 - ?
+Mots clefs ... :
+*****************************************************************}
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent Gendreau
+Créé le ...... : 31/10/2003
+Modifié le ... :   /  /
+Description .. : - LG - 31/10/2003 - FB 12904 - pour une nature d'ecriture
+Suite ........ : OD on affiche trois colonne : code,libelle et nature
+Mots clefs ... :
+*****************************************************************}
+procedure CMakeSQLLookupAuxGrid(var vStWhere,vStColonne,vStOrder,vStSelect : string ; vStPremierCarDuCompte,vStNaturePiece,vStNatureGene : string ) ;
+
+
+ procedure _AjoutCondition( vStSql : string ) ;
+ begin
+  if vStWhere = '' then vStWhere := vStSql
+   else
+   vStWhere := vStWhere + 'AND ' + vStSql ;
+ end;
+
+begin
+
+ CMakeSQLLookupAux(vStWhere,vStColonne,vStOrder,vStSelect,vStNaturePiece,vStNatureGene) ;
+
+ vStPremierCarDuCompte := UpperCase(vStPremierCarDuCompte) ;
+ // pour les piece de type OD si le collectif n'est pas renseigner on test le 1er caractere du compte
+ if ( CaseNatP(vStNaturePiece) = 7 ) and ( vStNatureGene = '' ) then
+   begin
+    if (vStPremierCarDuCompte = RC_CODEFOU) or (vStPremierCarDuCompte = RC_CODEFOUN) then _AjoutCondition('T_NATUREAUXI="FOU" OR T_NATUREAUXI="AUC" OR T_NATUREAUXI="DIV"')  // FQ 12769
+     else
+      if (vStPremierCarDuCompte = RC_CODECLI) or (vStPremierCarDuCompte = RC_CODECLIN) then _AjoutCondition('T_NATUREAUXI="CLI" OR T_NATUREAUXI="AUD" OR T_NATUREAUXI="DIV"' )  // FQ 12769
+       else
+        if (vStPremierCarDuCompte = RC_CODESAL) then _AjoutCondition('T_NATUREAUXI="SAL"')
+         else
+          if (vStPremierCarDuCompte = RC_CODEDIV) then _AjoutCondition('T_NATUREAUXI="DIV" OR T_NATUREAUXI="AUC" OR T_NATUREAUXI="AUD"') ; // FQ 12769
+
+    vStPremierCarDuCompte := '' ;
+
+   end;
+
+end;
+
+
+function CGetSQLFromTable(TableName : string; ExceptFields : array of string ; WithOutFrom : boolean = false ) : string;
+var
+ i,j : integer;
+ lIndex : integer ;
+ GarderChamps : boolean ;
+begin
+
+ result:='' ;
+ if (trim(TableName)='') then exit ; TableName:=UpperCase(TableName) ;
+ lIndex:=PrefixeToNum(TableToPrefixe(TableName)) ; if lIndex=-1 then exit ;
+ {$IFDEF EAGLSERVER}
+ for i:=1 to High(V_PGI.HDEChamps[LookupCurrentSession.SocNum, lIndex]) do
+ {$ELSE EAGLSERVER}
+ for i:=1 to High(V_PGI.DeChamps[lIndex]) do
+ {$ENDIF EAGLSERVER}
+  begin
+   GarderChamps:=true ;
+   for j:=low(ExceptFields) to high(ExceptFields) do
+    if V_PGI.DEChamps[lIndex,i].Nom=UpperCase(ExceptFields[j]) then begin GarderChamps:=false; break ; end ;
+   if GarderChamps then result:= result+V_PGI.DEChamps[lIndex,i].Nom+',';
+  end; // for;
+ if result = '' then
+  begin
+   if WithOutFrom then
+    result := 'select *'
+    else
+     result := 'select ' + TableName + '.* from ' +TableName ;
+  end
+   else
+    if WithOutFrom then
+     result:='SELECT '+copy(result,1,length(result)-1) 
+      else
+       result:='SELECT '+copy(result,1,length(result)-1)+' FROM '+TableName ;
+
+end;
+
+procedure CInitMessageBor ( vListe : HTStringList );
+begin
+ vListe.Clear;
+ vListe.Add('0;?caption?;Sélection du compte;E;O;O;O;');
+ vListe.Add('1;?caption?;Sélection du tiers;E;O;O;O;');
+ vListe.Add('2;?caption?;Numéro de Bordereau incorrect;E;O;O;O;');
+ vListe.Add('3;?caption?;Journal non soldé;E;O;O;O;');
+ vListe.Add('4;?caption?;Sélection de la nature;E;O;O;O;');
+ vListe.Add('5;?caption?;Impossible de sauvegarder le Bordereau;E;O;O;O;');
+ vListe.Add('6;?caption?;Compte interdit sur ce journal;E;O;O;O;');
+ vListe.Add('7;?caption?;Le guide de saisie est incorrect !!!;E;O;O;O;');
+ vListe.Add('8;?caption?;Le dernier folio n''a pas été sauvegardé correctement;E;O;O;O;');
+ vListe.Add('9;?caption?;Simulation d''une coupure de courant;E;O;O;O;');
+ vListe.Add('10;?caption?;Veuillez paramétrer les comptes d''attente de la fiche société;E;O;O;O;');
+ vListe.Add('11;?caption?;Mouvement lettré non modifiable ...;E;O;O;O;');
+ vListe.Add('12;?caption?;Création de ce folio en cours.;E;O;O;O;');
+ vListe.Add('13;?caption?;Ce bordereau est en cours de modification, seule la consultation est possible;E;O;O;O;');
+ vListe.Add('14;?caption?;Euro;E;O;O;O;');
+ vListe.Add('15;?caption?;en mode Bordereau;E;O;O;O;');
+ vListe.Add('16;?caption?;en mode Libre;E;O;O;O;');
+ vListe.Add('17;?caption?;Ce bordereau est validé, seule la consultation est possible;E;O;O;O;');
+ vListe.Add('18;?caption?;La saisie en Euro avant sa date d''entrée en vigueur est impossible;E;O;O;O;');
+ vListe.Add('19;?caption?;Ce compte général est interdit pour cette nature de pièce;E;O;O;O;');
+ vListe.Add('20;?caption?;Aucune des modifications apportées ne sera prise en compte.#10#13Veuillez utiliser F10 pour enregister.#10#13Confirmez-vous l''abandon de la saisie ?;Q;YN;N;N;');
+ vListe.Add('21;?caption?;Vous n''avez pas le droit de saisir sur ce journal;E;O;O;O;');
+ vListe.Add('22;?caption?;Attention : ce compte est fermé et soldé. Vous ne pouvez plus l''utiliser en saisie;E;O;O;O;');
+ vListe.Add('23;?caption?;Vous ne pouvez pas saisir sur le compte d''ouverture de bilan;E;O;O;O;');
+ vListe.Add('24;?caption?;Vous ne pouvez pas saisir des montants négatifs;E;O;O;O;');
+ vListe.Add('25;?caption?;Le montant que vous avez saisi est en dehors de la fourchette autorisée;E;O;O;O;');
+ vListe.Add('26;?caption?;Saisie des écritures;E;O;O;O;');
+ vListe.Add('27;?caption?;Mouvement lié à un compte fermé non modifiable;E;O;O;O;');
+ vListe.Add('28;?caption?;Attention : le compte auxiliaire est en sommeil;E;O;O;O;');
+ vListe.Add('29;?caption?;Attention : la ligne n''est pas correcte;E;O;O;O;');
+ vListe.Add('30;?caption?;Attention : le RIB de la ligne n''est pas correct;E;O;O;O;');
+ vListe.Add('31;?caption?;Journal non soldé, Voulez-vous abandonner la saisie ?;Q;YN;N;N;');
+ vListe.Add('32;?caption?;Votre pièce est incorrecte : elle doit comporter une ligne sur le compte de trésorerie du journal;E;O;O;O;');
+ vListe.Add('33;?caption?;Votre bordereau est incorrect : il doit comporter une ligne sur le compte de trésorerie du journal;E;O;O;O;');
+ vListe.Add('34;?caption?;Le compte général  %s de la ligne %d est interdit pour cette nature de pièce;E;O;O;O;');
+ vListe.Add('35;?caption?;Voulez-vous créer une fiche d''immobilisation ?;Q;YN;Y;N;');
+ vListe.Add('36;?caption?;Vous n''avez pas le droit de modifier les écritures : seule la consultation est autorisée;E;O;O;O;');
+ vListe.Add('37;?caption?;Journal utilisé par : ;E;O;O;O;');
+ vListe.Add('38;?caption?;Voulez-vous lettrer vos échéances ?;Q;YN;Y;Y;');
+ vListe.Add('39;?caption?;La devise saisie ne peut être utilisée avec ce tiers;E;O;O;O;');
+ vListe.Add('40;?caption?;Voulez-vous arrêter le guide de saisie ?;Q;YN;Y;Y;');
+ vListe.Add('41;?caption?;L''immobilisation n''existe plus;W;O;O;O;');
+ vListe.Add('42;?caption?;Ce bordereau n''a pas été enregistré, Voulez-vous recommencer ?;Q;YN;Y;Y;');
+ vListe.Add('43;?caption?;Ce bordereau a déjà été révisé;E;O;O;O;');
+ vListe.Add('44;?caption?;Choix d''un compte automatique;E;O;O;O;');
+ vListe.Add('45;?caption?;Mouvement pointé non modifiable ...;E;O;O;O;');
+ vListe.Add('46;?caption?;Mouvement  lié à une immobilisation non modifiable ...;E;O;O;O;');
+ vListe.Add('47;?caption?;Mouvement  validé en TVA encaissements non modifiable ...;E;O;O;O;');
+ vListe.Add('48;?caption?;ATTENTION : Des conflits d''accès ont été détectés ! '+#13#10+'La pièce est validée, mais vous devez demander à l''administrateur de lancer un recalcul du solde des comptes;E;O;O;O;');
+ vListe.Add('49;?caption?;PME;E;O;O;O;');
+ vListe.Add('50;?caption?;Le compte rattaché à l''auxiliaire n''existe pas;E;O;O;O;');
+ vListe.Add('51;?caption?;Vous ne pouvez pas saisir sur le compte d''écart de conversion euro;E;O;O;O;');
+ vListe.Add('52;?caption?;Ce compte n''est pas collectif ! ;E;O;O;O;');
+ vListe.Add('53;?caption?;Compte auxiliaire inexistant !;E;O;O;O;');
+ vListe.Add('54;?caption?;Ce journal n''existe pas !;E;O;O;O;');
+ vListe.Add('55;?caption?;Ce journal n''est pas multidevise !;E;O;O;O;');
+ vListe.Add('56;?caption?;La date d''entrée est incompatible avec la saisie. Vous ne pouvez pas créer de pièce à cette date;W;O;O;O;') ;
+ vListe.Add('57;?caption?;Le champ E_ECRANOUVEAU n''est pas cohérent avec le journal;E;O;O;O;') ;
+ vListe.Add('58;?caption?;Le champ E_MODESAISIE n''est pas cohérent avec le journal;E;O;O;O;') ;
+ vListe.Add('59;?caption?;Erreur dans le champ E_NUMPERIODE/E_SEMAINE;E;O;O;O;') ;
+ vListe.Add('60;?caption?;Le compte général n''existe pas;E;O;O;O;') ;
+ vListe.Add('61;?caption?;Le compte auxiliaire doit être renseigné ! ;E;O;O;O;') ;
+ vListe.Add('62;?caption?;La nature du compte n''est pas cohérente avec la nature du général ! ;E;O;O;O;') ;
+ vListe.Add('63;?caption?;la devise n''est pas renseignée ! ;E;O;O;O;') ;
+ vListe.Add('64;?caption?;Ecart de conversion euro non modifiable.... ! ;E;O;O;O;') ;
+ vListe.Add('65;?caption?;Votre ecriture est incorrecte : nature inexistante.... ! ;E;O;O;O;') ;
+ vListe.Add('66;?caption?;Votre ecriture est incorrecte : établissement inexistante.... ! ;E;O;O;O;') ;
+ vListe.Add('67;?caption?;Cette nature est interdite pour ce journal ! ;E;O;O;O;') ;
+ vListe.Add('68;?caption?;Votre écriture est incorrecte : les informations de lettrage ne sont pas correctes.... ! ;E;O;O;O;') ;
+ vListe.Add('69;?caption?;Votre écriture est incorrecte : Le champ E_MODEPAIE n''est pas renseigné ;E;O;O;O;') ;
+ vListe.Add('70;?caption?;Votre écriture est incorrecte : Le champ E_DATEVALEUR n''est pas renseigné ;E;O;O;O;') ;
+ vListe.Add('71;?caption?;Votre écriture est incorrecte : Le champ E_REGIMETVA n''est pas renseigné ;E;O;O;O;') ;
+ vListe.Add('72;?caption?;Votre écriture est incorrecte : Le champ E_TAUXDEV n''est pas renseigné ;E;O;O;O;') ;
+ vListe.Add('73;?caption?;Vous ne pouvez pas abandonner la saisie alors qu''un lettrage ou une consultation est en cours !;W;O;O;O;');
+ vListe.Add('74;?caption?;ATTENTION : Le journal est fermé ;E;O;O;O;');
+ vListe.Add('75;?caption?;L''écriture n''est pas soldée !;E;O;O;O;');
+ vListe.Add('76;?caption?;Votre écriture est incorrecte : Aucun montant n''a été saisi ;E;O;O;O;') ;
+ vListe.Add('77;?caption?;Votre écriture est incorrecte : Un champ obligatoire n''est pas renseigné ;E;O;O;O;') ;
+ vListe.Add('78;?caption?;Votre écriture est incorrecte : Le champ E_NUMEROPIECE n''est pas renseigné ;E;O;O;O;') ;
+ vListe.Add('79;?caption?;Votre écriture est incorrecte : Le champ E_NUMLIGNE n''est pas renseigné ;E;O;O;O;') ;
+ vListe.Add('80;?caption?;ATTENTION : Le journal est validé ;E;O;O;O;');
+ vListe.Add('81;?caption?;Votre écriture est incorrecte : les informations de pointage ne sont pas correctes.... ! ;E;O;O;O;') ;
+ vListe.Add('82;?caption?;Ce compte est confidentiel ! ;E;O;O;O;') ;
+ vListe.Add('83;?caption?;Ce bordereau contient un compte confidentiel ! ;E;O;O;O;') ;
+ vListe.Add('84;?caption?;Votre écriture est incorrecte : Le champ E_CONTREPARTIEGEN n''est pas renseigné ;E;O;O;O;') ;
+ vListe.Add('85;?caption?;Ce bordereau est clôturé, seule la consultation est possible;W;O;O;O;');
+ vListe.Add('86;?caption?;Mouvement lié à un compte visé non modifiable;E;O;O;O;');
+ vListe.Add('87;?caption?;Ligne TTC importée non modifiable;E;O;O;O;');
+ vListe.Add('88;?caption?;Votre écriture est incorrecte : Le champ E_QUALIFPIECE n''est pas cohérent avec le champs E_MODESAISIE ;E;O;O;O;') ;
+ vListe.Add('89;?caption?;Votre pièce est incorrecte : toutes les lignes n''ont pas la même nature ! ;E;O;O;O;') ;
+ vListe.Add('90;?caption?;ATTENTION : Des conflits d''accès ont été détectés ! '+#13#10+'La pièce est validée, mais vous devez demander à l''administrateur de lancer un recalcul des a-nouveaux;E;O;O;O;');
+ vListe.Add('91;?caption?;La section est inexistante !;E;O;O;O;');
+ vListe.Add('92;?caption?;La section doit être renseignée ! ;E;O;O;O;') ;
+ vListe.Add('93;?caption?;Attention : cette section est fermée. Vous ne pouvez plus l''utiliser en saisie;E;O;O;O;');
+ vListe.Add('94;?caption?;Cette section est soumise a un modèle de restriction !;E;O;O;O;');
+ vListe.Add('95;?caption?;L''axe de la section n''est pas cohérente avec l''axe de la ligne;E;O;O;O;');
+ vListe.Add('96;?caption?;La somme des ventilations doit être égale à 100% !;E;O;O;O;') ;
+ vListe.Add('97;?caption?;Le montant des ventilations n''est pas égal au montant de la ligne d''écriture !;E;O;O;O;') ;
+ vListe.Add('98;?caption?;Le montant en devise des ventilations n''est pas égal au montant en devise de la ligne d''écriture !;E;O;O;O;') ;
+ vListe.Add('99;?caption?;Attention ! Il a été relevé une incohérence dans les quantités saisies ( Quantité 1 ) !;E;O;O;O;');
+ vListe.Add('100;?caption?;Attention ! Il a été relevé une incohérence dans les quantités saisies ( Quantité 2 ) !;E;O;O;O;');
+ vListe.Add('101;?caption?;Votre ligne d''analytique est incorrecte : Aucun pourcentage n''a été saisi ;E;O;O;O;') ;
+ vListe.Add('102;?caption?;Votre ligne d''analytique est incorrecte : Aucun montant n''a été saisi ;E;O;O;O;') ;
+ vListe.Add('103;?caption?;La ventilation doit comporter au moins une ligne !;E;O;O;O;') ;
+ vListe.Add('104;?caption?;Certaines sections sur le compte général ne sont pas compatibles avec la définition du budget. Confirmez-vous la validation ?;Q;YN;N;N;') ;
+end;
+
+procedure CInitMessagePiece ( vListe : HTStringList );
+begin
+// Message d'erreurs
+ vListe.Clear;
+ vListe.Add('0;?caption?;Sélection du compte;E;O;O;O;');
+ vListe.Add('1;?caption?;Sélection du tiers;E;O;O;O;');
+ vListe.Add('2;?caption?;Numéro de pièce incorrect;E;O;O;O;');
+ vListe.Add('3;?caption?;Journal non soldé;E;O;O;O;');
+ vListe.Add('4;?caption?;Sélection de la nature;E;O;O;O;');
+ vListe.Add('5;?caption?;Impossible de sauvegarder la pièce;E;O;O;O;');
+ vListe.Add('6;?caption?;Compte interdit sur ce journal;E;O;O;O;');
+ vListe.Add('7;?caption?;Le guide de saisie est incorrect !!!;E;O;O;O;');
+ vListe.Add('8;?caption?;Le dernier folio n''a pas été sauvegardé correctement;E;O;O;O;');
+ vListe.Add('9;?caption?;Simulation d''une coupure de courant;E;O;O;O;');
+ vListe.Add('10;?caption?;Veuillez paramétrer les comptes d''attente de la fiche société;E;O;O;O;');
+ vListe.Add('11;?caption?;Mouvement lettré non modifiable ...;E;O;O;O;');
+ vListe.Add('12;?caption?;Création de ce folio en cours.;E;O;O;O;');
+ vListe.Add('13;?caption?;Cette pièce est en cours de modification, seule la consultation est possible;E;O;O;O;');
+ vListe.Add('14;?caption?;Euro;E;O;O;O;');
+ vListe.Add('15;?caption?;en mode Bordereau;E;O;O;O;');
+ vListe.Add('16;?caption?;en mode Libre;E;O;O;O;');
+ vListe.Add('17;?caption?;Cette pièce est validée, seule la consultation est possible;E;O;O;O;');
+ vListe.Add('18;?caption?;La saisie en Euro avant sa date d''entrée en vigueur est impossible;E;O;O;O;');
+ vListe.Add('19;?caption?;Ce compte général est interdit pour cette nature de pièce;E;O;O;O;');
+ vListe.Add('20;?caption?;Aucune des modifications apportées ne sera prise en compte.#10#13Veuillez utiliser F10 pour enregister.#10#13Confirmez-vous l''abandon de la saisie ?;Q;YN;N;N;');
+ vListe.Add('21;?caption?;Vous n''avez pas le droit de saisir sur ce journal;E;O;O;O;');
+ vListe.Add('22;?caption?;Attention : ce compte est fermé et soldé. Vous ne pouvez plus l''utiliser en saisie;E;O;O;O;');
+ vListe.Add('23;?caption?;Vous ne pouvez pas saisir sur le compte d''ouverture de bilan;E;O;O;O;');
+ vListe.Add('24;?caption?;Vous ne pouvez pas saisir des montants négatifs;E;O;O;O;');
+ vListe.Add('25;?caption?;Le montant que vous avez saisi est en dehors de la fourchette autorisée;E;O;O;O;');
+ vListe.Add('26;?caption?;Saisie des écritures;E;O;O;O;');
+ vListe.Add('27;?caption?;Mouvement lié à un compte fermé non modifiable;E;O;O;O;');
+ vListe.Add('28;?caption?;Attention : le compte auxiliaire est en sommeil;E;O;O;O;');
+ vListe.Add('29;?caption?;Attention : la ligne n''est pas correcte;E;O;O;O;');
+ vListe.Add('30;?caption?;Attention : le RIB de la ligne n''est pas correct;E;O;O;O;');
+ vListe.Add('31;?caption?;Journal non soldé, Voulez-vous abandonner la saisie ?;Q;YN;N;N;');
+ vListe.Add('32;?caption?;Votre pièce est incorrecte : elle doit comporter une ligne sur le compte de trésorerie du journal;E;O;O;O;');
+ vListe.Add('33;?caption?;Votre pièce est incorrecte : elle doit comporter une ligne sur le compte de trésorerie du journal;E;O;O;O;');
+ vListe.Add('34;?caption?;Le compte général  %s de la ligne %d est interdit pour cette nature de pièce;E;O;O;O;');
+ vListe.Add('35;?caption?;Voulez-vous créer une fiche d''immobilisation ?;Q;YN;Y;N;');
+ vListe.Add('36;?caption?;Vous n''avez pas le droit de modifier les écritures : seule la consultation est autorisée;E;O;O;O;');
+ vListe.Add('37;?caption?;Journal utilisé par : ;E;O;O;O;');
+ vListe.Add('38;?caption?;Voulez-vous lettrer vos échéances ?;Q;YN;Y;Y;');
+ vListe.Add('39;?caption?;La devise saisie ne peut être utilisée avec ce tiers;E;O;O;O;');
+ vListe.Add('40;?caption?;Voulez-vous arrêter le guide de saisie ?;Q;YN;Y;Y;');
+ vListe.Add('41;?caption?;L''immobilisation n''existe plus;W;O;O;O;');
+ vListe.Add('42;?caption?;Cette pièce n''a pas été enregistrée, Voulez-vous recommencer ?;Q;YN;Y;Y;');
+ vListe.Add('43;?caption?;Cette pièce a déjà été révisée;E;O;O;O;');
+ vListe.Add('44;?caption?;Choix d''un compte automatique;E;O;O;O;');
+ vListe.Add('45;?caption?;Mouvement pointé non modifiable ...;E;O;O;O;');
+ vListe.Add('46;?caption?;Mouvement  lié à une immobilisation non modifiable ...;E;O;O;O;');
+ vListe.Add('47;?caption?;Mouvement  validé en TVA encaissements non modifiable ...;E;O;O;O;');
+ vListe.Add('48;?caption?;ATTENTION : Des conflits d''accès ont été détectés ! '+#13#10+'La pièce est validée, mais vous devez demander à l''administrateur de lancer un recalcul du solde des comptes;E;O;O;O;');
+ vListe.Add('49;?caption?;PME;E;O;O;O;');
+ vListe.Add('50;?caption?;Le compte rattaché à l''auxiliaire n''existe pas;E;O;O;O;');
+ vListe.Add('51;?caption?;Vous ne pouvez pas saisir sur le compte d''écart de conversion euro;E;O;O;O;');
+ vListe.Add('52;?caption?;Ce compte n''est pas collectif ! ;E;O;O;O;');
+ vListe.Add('53;?caption?;Compte auxiliaire inexistant !;E;O;O;O;');
+ vListe.Add('54;?caption?;Ce journal n''existe pas !;E;O;O;O;');
+ vListe.Add('55;?caption?;Ce journal n''est pas multidevise !;E;O;O;O;');
+ vListe.Add('56;?caption?;La date d''entrée est incompatible avec la saisie. Vous ne pouvez pas créer de pièce à cette date;W;O;O;O;') ;
+ vListe.Add('57;?caption?;Le champ E_ECRANOUVEAU n''est pas cohérent avec le journal;E;O;O;O;') ;
+ vListe.Add('58;?caption?;Le champ E_MODESAISIE n''est pas cohérent avec le journal;E;O;O;O;') ;
+ vListe.Add('59;?caption?;Erreur dans le champ E_NUMPERIODE/E_SEMAINE;E;O;O;O;') ;
+ vListe.Add('60;?caption?;Le compte général n''existe pas;E;O;O;O;') ;
+ vListe.Add('61;?caption?;Le compte auxiliaire doit être renseigné ! ;E;O;O;O;') ;
+ vListe.Add('62;?caption?;La nature du compte n''est pas cohérente avec la nature du général ! ;E;O;O;O;') ;
+ vListe.Add('63;?caption?;la devise n''est pas renseignée ! ;E;O;O;O;') ;
+ vListe.Add('64;?caption?;Ecart de conversion euro non modifiable.... ! ;E;O;O;O;') ;
+ vListe.Add('65;?caption?;Votre ecriture est incorrecte : nature inexistante.... ! ;E;O;O;O;') ;
+ vListe.Add('66;?caption?;Votre ecriture est incorrecte : établissement inexistante.... ! ;E;O;O;O;') ;
+ vListe.Add('67;?caption?;Cette nature est interdite pour ce journal ! ;E;O;O;O;') ;
+ vListe.Add('68;?caption?;Votre écriture est incorrecte : les informations de lettrage ne sont pas correctes.... ! ;E;O;O;O;') ;
+ vListe.Add('69;?caption?;Votre écriture est incorrecte : Le mode de paiement n''est pas renseigné ;E;O;O;O;') ;
+ vListe.Add('70;?caption?;Votre écriture est incorrecte : La date de valeur n''est pas renseigné ;E;O;O;O;') ;
+ vListe.Add('71;?caption?;Votre écriture est incorrecte : Le régime de tva n''est pas renseigné ;E;O;O;O;') ;
+ vListe.Add('72;?caption?;Votre écriture est incorrecte : Le taux de change n''est pas renseigné ;E;O;O;O;') ;
+ vListe.Add('73;?caption?;Vous ne pouvez pas abandonner la saisie alors qu''un lettrage ou une consultation est en cours !;W;O;O;O;');
+ vListe.Add('74;?caption?;ATTENTION : Le journal est fermé ;E;O;O;O;');
+ vListe.Add('75;?caption?;L''écriture n''est pas soldée !;E;O;O;O;');
+ vListe.Add('76;?caption?;Votre écriture est incorrecte : Aucun montant n''a été saisi ;E;O;O;O;') ;
+ vListe.Add('77;?caption?;Votre écriture est incorrecte : Un champ obligatoire n''est pas renseigné ;E;O;O;O;') ;
+ vListe.Add('78;?caption?;Votre écriture est incorrecte : Le numero de pièce n''est pas renseigné ;E;O;O;O;') ;
+ vListe.Add('79;?caption?;Votre écriture est incorrecte : Le numéro de ligne n''est pas renseigné ;E;O;O;O;') ;
+ vListe.Add('80;?caption?;ATTENTION : Le journal est validé ;E;O;O;O;');
+ vListe.Add('81;?caption?;Votre écriture est incorrecte : les informations de pointage ne sont pas correctes.... ! ;E;O;O;O;') ;
+ vListe.Add('82;?caption?;Ce compte est confidentiel ! ;E;O;O;O;') ;
+ vListe.Add('83;?caption?;Cette pièce contient un compte confidentiel ! ;E;O;O;O;') ;
+ vListe.Add('84;?caption?;Votre écriture est incorrecte : Le champ E_CONTREPARTIEGEN n''est pas renseigné ;E;O;O;O;') ;
+ vListe.Add('85;?caption?;Cette pièce est clôturée, seule la consultation est possible;W;O;O;O;');
+ vListe.Add('86;?caption?;Mouvement lié à un compte visé non modifiable;E;O;O;O;');
+ vListe.Add('87;?caption?;Ligne TTC importée non modifiable;E;O;O;O;');
+ vListe.Add('88;?caption?;Votre écriture est incorrecte : Le champ E_QUALIFPIECE n''est pas cohérent avec le champs E_MODESAISIE ;E;O;O;O;') ;
+ vListe.Add('89;?caption?;Votre pièce est incorrecte : toutes les lignes n''ont pas la même nature ! ;E;O;O;O;') ;
+ vListe.Add('90;?caption?;ATTENTION : Des conflits d''accès ont été détectés ! '+#13#10+'La pièce est validée, mais vous devez demander à l''administrateur de lancer un recalcul des a-nouveaux;E;O;O;O;');
+ vListe.Add('91;?caption?;La section est inexistante !;E;O;O;O;');
+ vListe.Add('92;?caption?;La section doit être renseignée ! ;E;O;O;O;') ;
+ vListe.Add('93;?caption?;Attention : cette section est fermée. Vous ne pouvez plus l''utiliser en saisie;E;O;O;O;');
+ vListe.Add('94;?caption?;Cette section est soumise a un modèle de restriction !;E;O;O;O;');
+ vListe.Add('95;?caption?;L''axe de la section n''est pas cohérente avec l''axe de la ligne;E;O;O;O;');
+ vListe.Add('96;?caption?;La somme des ventilations doit être égale à 100% !;E;O;O;O;') ;
+ vListe.Add('97;?caption?;Le montant des ventilations n''est pas égal au montant de la ligne d''écriture !;E;O;O;O;') ;
+ vListe.Add('98;?caption?;Le montant en devise des ventilations n''est pas égal au montant en devise de la ligne d''écriture !;E;O;O;O;') ;
+ vListe.Add('99;?caption?;Attention ! Il a été relevé une incohérence dans les quantités saisies ( Quantité 1 ) !;E;O;O;O;');
+ vListe.Add('100;?caption?;Attention ! Il a été relevé une incohérence dans les quantités saisies ( Quantité 2 ) !;E;O;O;O;');
+ vListe.Add('101;?caption?;Votre ligne d''analytique est incorrecte : Aucun pourcentage n''a été saisi ;E;O;O;O;') ;
+ vListe.Add('102;?caption?;Votre ligne d''analytique est incorrecte : Aucun montant n''a été saisi ;E;O;O;O;') ;
+ vListe.Add('103;?caption?;La ventilation doit comporter au moins une ligne !;E;O;O;O;') ;
+ vListe.Add('104;?caption?;Certaines sections sur le compte général ne sont pas compatibles avec la définition du budget. Confirmez-vous la validation ?;Q;YN;N;N;') ;
+end;
+
+function CPrintMessageRC(vStTitre : string ; RC_Numero : integer ; vListe : HTStrings) : integer;
+begin
+
+ result := 1;
+
+ if vListe = nil then exit ;
+
+ if RC_Numero > vListe.Count then
+  begin
+   PGIInfo('Le numéro ' + intToStr(RC_Numero) + ' est inconnu ', vStTitre ) ;
+   exit ;
+  end; // if
+
+ result := HShowMessage(vListe[RC_Numero] , '' , '' ) ;
+
+end;
+
+function CGetMessageRC( RC_Numero : integer ; vListe : HTStrings ) : string ;
+var
+ lStParam : string ;
+ lStTexte : string ;
+begin
+
+ if ( RC_Numero > vListe.Count ) or ( RC_Numero < 0 ) then
+  begin
+   PGIInfo('Le numéro ' + intToStr(RC_Numero) + ' est inconnu ', 'Attention' ) ;
+   exit ;
+  end; // if
+
+ lStTexte := vListe[RC_Numero] ;
+ lStParam := ReadTokenSt(lStTexte) ;
+ result  := ReadTokenSt(lStTexte) ;
+  result  := ReadTokenSt(lStTexte) ;
+
+ if ( Valeur(lStParam) <> RC_Numero ) or ( result = '' ) then
+  begin
+   PGIInfo('Le formatage du message ' + intToStr(RC_Numero) + ' est incorrect ! ', 'Attention' ) ;
+   exit ;
+  end; // if
+
+end ;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent Gendreau
+Créé le ...... : 15/03/2002
+Modifié le ... : 04/04/2002
+Description .. : Solde une piece desequilibre sur le compte d'attente definie
+Suite ........ : dans les parametres
+Suite ........ : Attention : si le compte d'attente n'existe pas la ligne n'est
+Suite ........ : pas generee
+Suite ........ : Param :
+Suite ........ :  vTOBEcr : TOB des ecritures ( piece ou bordereau)
+Suite ........ :  vRdSolde : solde en monnaie de tenue
+Suite ........ :  vRdSoldeEuro : solde en contrevaleur
+Suite ........ : attention: un solde > 0 (debiteur ) sera affecte au credit de
+Suite ........ : la piece
+Suite ........ :  vIndex : index de depart dans la TOB ( pour un bordereau )
+Suite ........ :  TOBResult : tob contenant les ecritures generees
+Suite ........ : rem :
+Suite ........ : 1) les soldes sont recalcules tenir compte de la nouvelle
+Suite ........ : ligne ajoute
+Suite ........ : 2) fonction travaillant de paire avec CCalculSoldePiece
+Suite ........ :
+Suite ........ : LG - 04-04-2002 - correction de l'equilibrage de la piece
+Suite ........ : pour une saisie en contre-valeur
+Mots clefs ... :
+*****************************************************************}
+function CSoldePieceCompteAttente ( vTOBEcr : TOB ; var vRdSolde : double ; vInIndex : integer = 0 ; TOBResult : TOB = nil ) : boolean;
+var
+ lTOBLigneEcr       : TOB;
+ lTOBLastLigneEcr   : TOB;
+ lTOBLigneResult    : TOB;
+ lInNbFille         : integer;
+ lDEV               : RDEVISE;
+ lComptes           : TZCompte;
+ lIndex             : integer;
+ CpteAttente        : string;
+begin
+
+ result             := false;
+ // precaution
+ if vRdSolde = 0 then exit;
+
+ if vInIndex = 0 then
+  lInNbFille        := vTOBEcr.Detail.Count - 1
+   else
+    lInNbFille      := vInIndex;
+
+ lTOBLastLigneEcr   := vTOBEcr.Detail[lInNbFille-1];
+ lComptes           := TZCompte.Create();
+
+ CpteAttente        := GetParamSocSecur ('SO_GENATTEND','');
+
+
+ // test l'existence du compte d'attente
+ lIndex := lComptes.GetCompte(CpteAttente);
+ if lIndex < 0 then begin lComptes.Free ; exit; end;
+
+ lTOBLigneEcr       := TOB.Create('ECRITURE',vTOBEcr,lInNbFille);
+
+  try
+
+      CPutDefautEcr(lTOBLigneEcr);
+      CDupliquerTOBEcr(lTOBLastLigneEcr,lTOBLigneEcr);
+
+      if lComptes.IsLettrable(lIndex) then
+       CRemplirInfoLettrage(lTOBLastLigneEcr)
+        else
+         CSupprimerInfoLettrage( lTOBLigneEcr );
+
+      lDEV.Code := lTOBLigneEcr.GetValue( 'E_DEVISE' );
+      GETINFOSDEVISE(lDEV);
+      lDEV.Taux := GetTaux(lDEV.Code , lDEV.DateTaux, V_PGI.DateEntree) ;
+
+      // on equilibre la piece sur la monnais pivot
+      if vRdSolde > 0 then
+       CSetMontants(lTOBLigneEcr,0,vRdSolde,lDEV,false)
+        else
+          CSetMontants(lTOBLigneEcr,-vRdSolde,0,lDEV,false);
+
+      lTOBLigneEcr.PutValue ( 'E_LIBELLE'          , lComptes.GetValue('G_LIBELLE',lIndex) ) ;
+      lTOBLigneEcr.PutValue ( 'E_GENERAL'          , CpteAttente ) ;
+      lTOBLigneEcr.PutValue ( 'E_CONTREPARTIEGEN'  , '' ) ;
+      lTOBLigneEcr.PutValue ( 'E_NUMLIGNE'         , lInNbFille + 2 ) ;
+
+      result := true;
+      // ajoute dans TOB Result de la nouvelle ligne d'ecriture
+      if assigned(TOBResult) then
+       begin
+        lTOBLigneResult := TOB.Create('ECRITURE',TOBResult,-1);
+        lTOBLigneResult.Dupliquer(lTOBLigneEcr,false,true);
+       end; // if
+
+ lComptes.Free ;
+
+ except
+  On E:Exception do
+   begin
+    PGIINfo('Erreur sur la génération des écritures de régularisation' + #10#13 + E.Message , 'Attention !');
+    lTOBLigneEcr.Free ; raise ;
+   end; //if
+ end;
+
+end;
+
+function CCalculClefUniqueInteger ( const StTableName, StFieldName, StCloseWhere : string ) : Integer ;
+var
+ Q               : TQuery ;
+ lInCodeDepart   : integer;
+ lInCode         : integer;
+begin
+
+ lInCode       := -1;
+ Q             := nil;
+
+ try
+
+  Q            := OpenSQL ( 'SELECT ' + StFieldName + ' FROM ' + StTableName + ' WHERE ' + StCloseWhere , True );
+
+  if not Q.Eof then
+   begin
+
+    lInCode       := Q.FindField(StFieldName).AsInteger;
+    lInCodeDepart := lInCode;
+    ferme ( Q );
+
+     while True do
+      begin
+
+       Inc (lInCode);
+       // on remet à jour le nouveau numero
+       if ExecuteSQL ( 'UPDATE ' + StTableName  + ' SET ' + StFieldName + '=' + intToStr(lInCode)  +
+                       ' WHERE ' + StCloseWhere + ' AND ' + StFieldName + '=' + intToStr(lInCodeDepart) ) = 1 then Break ;
+      end; // while
+   end
+    else
+     ferme ( Q );
+
+  Q := nil;
+
+  result := lInCode;
+
+ finally
+   if assigned(Q) then ferme(Q);
+ end; // try
+
+end;
+
+
+function CCalculProchainNumeroSouche ( const vStTypeSouche, vStCodeSouche : string ) : Integer ;
+begin
+ result := CCalculClefUniqueInteger('SOUCHE','SH_NUMDEPART','SH_TYPE = "' + vStTypeSouche + '" and SH_SOUCHE = "' + vStCodeSouche + '"');
+end;
+
+
+function CMAJNumeroSouche ( const vStTypeSouche, vStCodeSouche : string ; vNewValue,vOldValue : integer) : boolean;
+var
+ s  : string;
+begin
+
+ s := 'UPDATE SOUCHE SET SH_NUMDEPART ='  + intToStr(vNewValue)      +
+      'WHERE SH_TYPE = "' + vStTypeSouche + '" and SH_SOUCHE = "' + vStCodeSouche + '" AND ' +
+      'SH_NUMDEPART =' + intToStr(vOldValue);
+
+ // on remet à jour le nouveau numero
+ result := ExecuteSQL (s) = 1;
+
+end;
+
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent Gendreau
+Créé le ...... : 15/03/2002
+Modifié le ... :   /  /
+Description .. : calcul de le solde d'une piece
+Suite ........ : Param :
+Suite ........ :  vTOBEcr : TOB des ecritures ( piece ou bordereau )
+Suite ........ :  vInINdex : index de depart ( pour un bordereau )
+Mots clefs ... :
+*****************************************************************}
+function CCalculSoldePiece ( vTOBEcr : TOB ; vInIndex : integer = 0 ) : RecCalcul;
+var
+ lStPrefixe       : string;
+ lTOBLigneEcr     : TOB;
+ i                : integer;
+ lvarNumGroupeEcr : variant;
+ lBoTableEcr      : boolean;
+begin
+
+ result.D   := 0;
+ result.C   := 0;
+ result.DD  := 0;
+ result.CD  := 0;
+
+ if ( not assigned(vTOBEcr) ) or  ( not assigned( vTOBEcr.Detail ) ) or ( vTOBEcr.Detail.Count = 0 ) then exit;
+
+ lStPrefixe  := TableToPrefixe ( vTOBEcr.Detail[0].NomTable );
+ lBoTableEcr := lStPrefixe = 'E';
+
+ if lBoTableEcr then
+  lvarNumGroupeEcr := vTOBEcr.Detail[vInIndex].GetValue( lStPrefixe + '_NUMGROUPEECR');
+
+ for i := vInIndex to ( vTOBEcr.Detail.Count - 1 ) do
+  begin
+
+   lTOBLigneEcr  := vTOBEcr.Detail[i];
+
+   if lBoTableEcr and ( lTOBLigneEcr.GetValue( lStPrefixe + '_NUMGROUPEECR') <> lvarNumGroupeEcr ) then
+    begin
+      Result.Index        := i;
+      exit;
+    end; // if
+
+//   if ( lTOBLigneEcr.GetValue( lStPrefixe + '_GENERAL' ) <> VH^.EccEuroDebit ) or
+//      ( lTOBLigneEcr.GetValue( lStPrefixe + '_GENERAL' ) <> VH^.EccEuroCredit ) then
+//    begin
+
+     result.D    := result.D  + lTOBLigneEcr.GetValue( lStPrefixe + '_DEBIT' );
+     result.C    := result.C  + lTOBLigneEcr.GetValue( lStPrefixe + '_CREDIT' );
+     result.DD   := result.DD + lTOBLigneEcr.GetValue( lStPrefixe + '_DEBITDEV' );
+     result.CD   := result.CD + lTOBLigneEcr.GetValue( lStPrefixe + '_CREDITDEV' );
+
+//    end; // if
+
+  end; // for
+ // on renvoie l'incide de fin de la piece pour une prochaine iteration dans celle ci ( pour la fct CEquilibrePiece )
+ Result.Index    := vTOBEcr.Detail.Count ;
+
+end;
+
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent Gendreau
+Créé le ...... : 12/03/2002
+Modifié le ... : 15/03/2002
+Description .. : fonction d' equilibre d'une piece et de geenration des ecartd
+Suite ........ : de conversion
+Suite ........ : fct pour une piece ou un bordereau.
+Suite ........ : rem : si la piece n'est pas equilibre -> generation d'une ligne
+Suite ........ : sur le compte d'attente
+Mots clefs ... :
+*****************************************************************}
+function CEquilibrePiece ( vTOBEcr : TOB ; TOBResult : TOB = nil) : boolean;
+var
+ lTdc           : RecCalcul; // structure de retour de la fonction de calcul du solde
+ lRdSolde       : double;    // solde en monnaie de tenue
+ lInIndex       : integer;   // index permettant de se deplacer dans la piece
+ lBoContinue    : boolean;
+ Montant        : double;
+ lRdSoldeDevise : double;
+ lDEV           : RDEVISE;
+ lRdSoldeDev    : double;
+begin
+
+ result    := false;
+ // controle de la piece passé en parametre
+ if ( not assigned(vTOBEcr) ) or  ( not assigned( vTOBEcr.Detail ) ) or ( vTOBEcr.Detail.Count = 0 ) then exit;
+
+ lInIndex        := 0;
+ lBoContinue     := true;
+
+ while lBoContinue do
+  begin
+
+   lTDC           := CCalculSoldePiece ( vTOBEcr,lInIndex );
+
+   lRdSolde       := Arrondi ( ( lTDC.D  - lTDC.C )  , V_PGI.OkDecV );
+   // ajout me fiche 10361
+   lRdSoldeDev    := Arrondi ( ( lTDC.DD  - lTDC.CD )  , V_PGI.OkDecV );
+
+   lDEV.Code := vTOBEcr.detail[vTOBEcr.Detail.Count-1].GetValue( 'E_DEVISE' );
+
+   if ( lRdSolde <> 0 ) then
+   begin
+       if lDEV.Code = V_PGI.DevisePivot then
+       begin
+         // la piece n'est pas equilibre on l'equilibre sur le compte d'attente
+         lBoContinue := CSoldePieceCompteAttente( vTOBEcr , lRdSolde , lTdc.Index , TOBResult);
+         // on incremente Index puisque l'on vient de rajouter une ligne à la piece
+         if lBoContinue then Inc(lTdc.Index) ;
+       end
+       else      //AJOUT ME 16-03-2005 // équilibre de l'écart euro sur la dernière ligne
+       begin
+          lRdSoldeDevise       := lTDC.D  - lTDC.C ;
+          Montant := vTOBEcr.detail[vTOBEcr.Detail.Count-1].GetValue('E_DEBIT') - vTOBEcr.detail[vTOBEcr.Detail.Count-1].GetValue('E_CREDIT');
+          lRdSolde  := Montant - lRdSoldeDevise;
+          if lRdSolde > 0 then
+          begin
+               vTOBEcr.detail[vTOBEcr.Detail.Count-1].PutValue('E_CREDIT', 0);
+               vTOBEcr.detail[vTOBEcr.Detail.Count-1].PutValue('E_DEBIT',  Arrondi (lRdSolde, V_PGI.OkDecV));
+          end
+          else
+          begin
+               vTOBEcr.detail[vTOBEcr.Detail.Count-1].PutValue('E_CREDIT',  Arrondi (lRdSolde*(-1), V_PGI.OkDecV));
+               vTOBEcr.detail[vTOBEcr.Detail.Count-1].PutValue('E_DEBIT', 0);
+          end;
+       end;
+   end
+   else
+   begin
+         if ( lRdSoldeDev <> 0 ) then   // ajout me fiche 10361
+         begin
+             if lDEV.Code <> V_PGI.DevisePivot then
+             begin
+                lRdSoldeDevise       := lTDC.DD  - lTDC.CD ;
+                Montant := vTOBEcr.detail[vTOBEcr.Detail.Count-1].GetValue('E_DEBITDEV') - vTOBEcr.detail[vTOBEcr.Detail.Count-1].GetValue('E_CREDITDEV');
+                lRdSolde  := Montant - lRdSoldeDevise;
+                if lRdSolde > 0 then
+                begin
+                     vTOBEcr.detail[vTOBEcr.Detail.Count-1].PutValue('E_CREDITDEV', 0);
+                     vTOBEcr.detail[vTOBEcr.Detail.Count-1].PutValue('E_DEBITDEV',  Arrondi (lRdSolde, V_PGI.OkDecV));
+                end
+                else
+                begin
+                     vTOBEcr.detail[vTOBEcr.Detail.Count-1].PutValue('E_CREDITDEV',  Arrondi (lRdSolde*(-1), V_PGI.OkDecV));
+                     vTOBEcr.detail[vTOBEcr.Detail.Count-1].PutValue('E_DEBITDEV', 0);
+                end;
+             end;
+         end;
+   end;
+   // on continue jusqu'a la fin !
+   lBoContinue    := lBoContinue and ( lTdc.Index < ( vTOBEcr.Detail.Count - 1 ) );
+
+    // on passe à la piece suivante
+   lInIndex        := lTdc.Index;
+
+  end; // while
+
+  result := true;
+end;
+
+
+
+procedure CSetCotation ( vTOBLigneEcr : TOB ) ;
+var
+ lRdCote              : double;
+ lRdTaux              : double;
+ lStDev               : string;
+ lDtDateComptable     : TDateTime;
+ lStPrefixe           : string;
+begin
+
+ if vTOBLigneEcr = nil then exit;
+
+ lStPrefixe       := TableToPrefixe ( vTOBLigneEcr.NomTable );
+
+ lDtDateComptable := vTOBLigneEcr.GetValue( lStPrefixe + '_DATECOMPTABLE');
+ lRdTaux          := vTOBLigneEcr.GetValue( lStPrefixe + '_TAUXDEV');
+
+ if lDtDateComptable < V_PGI.DateDebutEuro then
+  lRdCote := lRdTaux
+   else
+    begin
+     lStDev := vTOBLigneEcr.GetValue( lStPrefixe + '_DEVISE') ;
+     if ( ( lStDev = V_PGI.DevisePivot ) or ( lStDev = V_PGI.DeviseFongible)) then
+      lRdCote := 1.0
+       else
+        if V_PGI.TauxEuro <> 0 then
+         lRdCote := lRdTaux / V_PGI.TauxEuro
+          else
+           lRdCote := 1;
+    end ; // if
+
+ vTOBLigneEcr.PutValue( lStPrefixe + '_COTATION',lRdCote) ;
+
+END ;
+
+
+procedure CSetMontants ( vTOBLigneEcr : TOB ; vRdDebit, vRdCredit : Double; vDev : RDEVISE;  vBoForce : Boolean );
+var
+ lRdOldDebit  : double;
+ lRdOldCredit : double;
+ lStPrefixe   : string;
+begin
+
+ if not assigned(vTOBLigneEcr) then exit ;
+ if vDev.Taux = 0 then
+  begin
+   MessageAlerte('Le taux n''est pas définie') ;
+   exit ;
+  end;
+
+ lStPrefixe := TableToPrefixe ( vTOBLigneEcr.NomTable );
+
+ vRdDebit   := Arrondi(vRdDebit  , vDev.Decimale);
+ vRdCredit  := Arrondi(vRdCredit , vDev.Decimale);
+
+ if vDev.Code = V_PGI.DevisePivot then
+  begin
+   vTOBLigneEcr.PutValue ( lStPrefixe + '_DEBIT'      , vRdDebit  ) ;
+   vTOBLigneEcr.PutValue ( lStPrefixe + '_CREDIT'     , vRdCredit ) ;
+   vTOBLigneEcr.PutValue ( lStPrefixe + '_DEBITDEV'   , vRdDebit  );
+   vTOBLigneEcr.PutValue ( lStPrefixe + '_CREDITDEV'  , vRdCredit ) ;
+  end // else Compta tenue en Euro
+  else
+    begin
+     {Saisie en Devise}
+     lRdOldDebit  := vTOBLigneEcr.GetValue ( lStPrefixe + '_DEBITDEV' ) ;
+     lRdOldCredit := vTOBLigneEcr.GetValue ( lStPrefixe + '_CREDITDEV' ) ;
+
+     if ( ( lRdOldDebit = vRdDebit ) and ( lRdOldCredit = vRdCredit ) and ( not vBoForce ) ) then
+      Exit;
+
+     vTOBLigneEcr.PutValue ( lStPrefixe + '_DEBIT'      , DeviseToEuro ( vRdDebit  , vDEV.Taux , vDEV.Quotite ) ) ;
+     vTOBLigneEcr.PutValue ( lStPrefixe + '_CREDIT'     , DeviseToEuro ( vRdCredit , vDEV.Taux , vDEV.Quotite ) ) ;
+     vTOBLigneEcr.PutValue ( lStPrefixe + '_DEBITDEV'   , vRdDebit ) ;
+     vTOBLigneEcr.PutValue ( lStPrefixe + '_CREDITDEV'  , vRdCredit ) ;
+
+  end ;
+
+ vTOBLigneEcr.PutValue ( lStPrefixe + '_DEVISE'     , vDev.Code ) ;
+ vTOBLigneEcr.PutValue ( lStPrefixe + '_TAUXDEV'    , vDev.Taux ) ;
+
+ // pour la table analytiq le champ cotation n'est pas définie
+ if vTOBLigneEcr.GetNumChamp( lStPrefixe + '_COTATION' ) <> -1 then
+  CSetCotation ( vTOBLigneEcr );
+
+  // pour la table analytiq le champ cotation n'est pas définie
+ if vTOBLigneEcr.GetNumChamp( lStPrefixe + '_ENCAISSEMENT' ) <> -1 then
+   vTOBLigneEcr.PutValue ( lStPrefixe + '_ENCAISSEMENT' ,SENSENC ( vRdDebit,vRdCredit) ) ;
+
+end;
+
+
+
+procedure CSetPeriode  ( vTOBLigneEcr : TOB );
+var
+ lStPrefixe : string;
+begin
+
+ lStPrefixe := TableToPrefixe ( vTOBLigneEcr.NomTable );
+
+ if not assigned(vTOBLigneEcr) then exit ;
+
+ vTOBLigneEcr.PutValue( lStPrefixe + '_PERIODE' , GetPeriode( vTOBLigneEcr.getValue( lStPrefixe + '_DATECOMPTABLE' ) ) );
+ vTOBLigneEcr.PutValue( lStPrefixe + '_SEMAINE' , NumSemaine( vTOBLigneEcr.getValue( lStPrefixe + '_DATECOMPTABLE' ) ) );
+
+end;
+
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent Gendreau
+Créé le ...... : 15/03/2002
+Modifié le ... : 15/03/2002
+Description .. : fct de recherche des comptes de contrepartie gen et aux
+Suite ........ : param :
+Suite ........ :  vTOBEcr : piece
+Suite ........ :  vInIndex  : indice de la ligne a traiter
+Suite ........ :  vBoJalEffet : true si journal effet ( J_EFFET='X' )
+Suite ........ :  vBoJalEffet : true si journal bqe ( J_NATUREJAL='BQE'
+Suite ........ :                       ou J_NATUREJAL='CAI' )
+Suite ........ :  vStCptContreP : compte de contrepartie du journal de  bqe
+Suite ........ :  vcompte : objet ZCompte
+Mots clefs ... :
+*****************************************************************}
+function CGetCptsContreP( vTOBEcr : TOB ; vInIndex : integer ; vBoJalBqe,vBoJalEffet : boolean ; lStCptContreP : string ; vCompte : TZCompte ; Parle : boolean = true) : boolean ;
+var
+ lInNumGroupeEcr  : integer;
+ lTOBLigneEcr     : TOB;
+ lTOBLigneRef     : TOB;
+ lInIndex         : integer;
+ i                : integer;
+ lInPos           : integer ;
+ lInMax           : integer ;
+ lInMin           : integer ;
+
+ function PosCompte : integer;
+ var
+  lStCompte       : string;
+ begin
+  lStCompte    := lTOBLigneEcr.GetValue('E_GENERAL');
+  result       := vCompte.GetCompte(lStCompte);
+  if result = - 1 then
+   begin
+    if Parle then
+     MessageAlerte('Le compte de contrepartie ' + lStCompte + ' est inconnu !' + #10#13 +'Vérifiez le paramétrage société');
+    exit;
+   end;
+ end;
+
+begin
+
+ result := false ;
+
+ if not assigned(vTOBEcr) then exit;
+
+ lInMax := vInIndex + 4 ;
+ if lInMax > vTOBEcr.Detail.Count - 1 then lInMax := vTOBEcr.Detail.Count - 1 ;
+ lInMin := vInIndex - 4 ;
+ if lInMin < 0 then lInMin := 0 ;
+
+ lTOBLigneRef    := vTOBEcr.Detail[vInIndex];
+ lInNumGroupeEcr := lTOBLigneRef.GetValue('E_NUMGROUPEECR');
+ lTOBLigneRef.PutValue('E_CONTREPARTIEGEN' , '');
+ lTOBLigneRef.PutValue('E_CONTREPARTIEAUX' , '');
+
+ if vBoJalBqe or vBoJalEffet then
+  begin
+  // piece de banque
+   if lTOBLigneRef.GetValue('E_GENERAL') = lStCptContreP then
+    begin
+    // sur compte de banque, contrepartie= premier compte non banque au dessus
+     for i := ( vInIndex - 1 ) downto lInMin do
+      begin
+       lTOBLigneEcr  := vTOBEcr.Detail[i];
+       if lTOBLigneEcr.GetValue('E_NUMGROUPEECR') <> lInNumGroupeEcr then break;
+       if (lTOBLigneEcr.GetValue('E_GENERAL') <> lStCptContreP) then
+        begin
+         lTOBLigneRef.PutValue('E_CONTREPARTIEGEN' , vTOBEcr.Detail[i].GetValue('E_GENERAL') );
+         CReporteVentil(lTOBLigneRef,'E_CONTREPARTIEGEN', vTOBEcr.Detail[i].GetValue('E_GENERAL') , true ) ;
+         if vBoJalEffet then
+          begin
+           lTOBLigneRef.PutValue('E_CONTREPARTIEAUX'  , vTOBEcr.Detail[i].GetValue('E_AUXILIAIRE'));
+           CReporteVentil(lTOBLigneRef,'E_CONTREPARTIEAUX', vTOBEcr.Detail[i].GetValue('E_AUXILIAIRE') , true ) ;
+          end ;
+         result := true ;
+         exit;
+        end; // if
+      end; // for
+    end // if
+     else
+      begin
+      // sur compte non banque, contrepartie = premier compte banque en dessous
+      lTOBLigneRef.PutValue('E_CONTREPARTIEGEN' , lStCptContreP);
+       for i := ( vInIndex + 1 ) to lInMax do
+        begin
+         lTOBLigneEcr  := vTOBEcr.Detail[i];
+         if lTOBLigneEcr.GetValue('E_NUMGROUPEECR') <> lInNumGroupeEcr then break;
+         if (lTOBLigneEcr.GetValue('E_GENERAL') = lStCptContreP) then
+          begin
+           lTOBLigneRef.PutValue('E_CONTREPARTIEGEN' , vTOBEcr.Detail[i].GetValue('E_GENERAL'));
+           lTOBLigneRef.PutValue('E_CONTREPARTIEAUX' , vTOBEcr.Detail[i].GetValue('E_AUXILIAIRE'));
+           CReporteVentil(lTOBLigneRef,'E_CONTREPARTIEGEN', vTOBEcr.Detail[i].GetValue('E_GENERAL') , true ) ;
+           CReporteVentil(lTOBLigneRef,'E_CONTREPARTIEAUX', vTOBEcr.Detail[i].GetValue('E_AUXILIAIRE') , true ) ;
+           result := true ;
+           exit;
+          end; // if
+        end; // for
+      end;
+  end // if vBoJalBqe or vBoJalEffet
+   else
+   // journal non banque
+    begin
+     lTOBLigneEcr := vTOBEcr.Detail[vInIndex] ;
+     if vCompte.iSTiers( PosCompte ) or ( Length( lTOBLigneEcr.GetString('E_AUXILIAIRE') ) = GetInfoCpta( fbAux ).Lg ) then
+      begin
+      // lecture avant pout trouver le HT
+       for i := ( vInIndex + 1 ) to lInMax do
+        begin
+         lTOBLigneEcr := vTOBEcr.Detail[i];
+         if lTOBLigneEcr.GetValue('E_NUMGROUPEECR') <> lInNumGroupeEcr then break;
+         if vCompte.iSHT(PosCompte) then
+          begin
+           lTOBLigneRef.PutValue('E_CONTREPARTIEGEN' , lTOBLigneEcr.GetValue('E_GENERAL'));
+           CReporteVentil(lTOBLigneRef,'E_CONTREPARTIEGEN', lTOBLigneEcr.GetValue('E_GENERAL') , true ) ;
+           result := true ;
+           exit;
+          end; // if
+        end; // for
+       if lTOBLigneRef.GetValue('E_CONTREPARTIEGEN') = '' then
+        begin
+         // lecture arriere pour trouver le HT
+         for i := ( vInIndex - 1 ) downto lInMin do
+          begin
+           lTOBLigneEcr := vTOBEcr.Detail[i];
+           if lTOBLigneEcr.GetValue('E_NUMGROUPEECR') <> lInNumGroupeEcr then break;
+           if vCompte.iSHT(PosCompte) then
+            begin
+             lTOBLigneRef.PutValue('E_CONTREPARTIEGEN' , lTOBLigneEcr.GetValue('E_GENERAL'));
+             CReporteVentil(lTOBLigneRef,'E_CONTREPARTIEGEN', lTOBLigneEcr.GetValue('E_GENERAL') , true ) ;
+             result := true ;
+             exit;
+            end; // if
+          end; // for
+        end; // if
+      end // if tiers
+       else
+        begin
+         // lecture arriere pour trouver le tiers
+         for i := ( vInIndex - 1 ) downto lInMin do
+          begin
+           lTOBLigneEcr := vTOBEcr.Detail[i];
+           if lTOBLigneEcr.GetValue('E_NUMGROUPEECR') <> lInNumGroupeEcr then break;
+           lInPos := PosCompte ;  if lInPos = - 1 then exit ;
+           if ( Length( lTOBLigneEcr.GetString('E_AUXILIAIRE') ) = GetInfoCpta( fbAux ).Lg )
+              or ( (lInPos <> -1) and vCompte.isTiers(lInPos) ) then
+            begin
+             lTOBLigneRef.PutValue('E_CONTREPARTIEGEN' , lTOBLigneEcr.GetValue('E_GENERAL'));
+             lTOBLigneRef.PutValue('E_CONTREPARTIEAUX' , lTOBLigneEcr.GetValue('E_AUXILIAIRE'));
+             CReporteVentil(lTOBLigneRef,'E_CONTREPARTIEGEN', lTOBLigneEcr.GetValue('E_GENERAL') , true ) ;
+             CReporteVentil(lTOBLigneRef,'E_CONTREPARTIEAUX', lTOBLigneEcr.GetValue('E_AUXILIAIRE') , true ) ;
+             result := true ;
+             exit;
+            end; // if
+          end; // for
+           if lTOBLigneRef.GetValue('E_CONTREPARTIEGEN') = '' then
+            begin
+             // lecture avant pour trouver le tiers
+             for i := ( vInIndex + 1 ) to lInMax do
+              begin
+               lTOBLigneEcr := vTOBEcr.Detail[i];
+               if lTOBLigneEcr.GetValue('E_NUMGROUPEECR') <> lInNumGroupeEcr then break;
+               lInPos := PosCompte ;  if lInPos = - 1 then exit ;
+               if ( Length( lTOBLigneEcr.GetString('E_AUXILIAIRE') ) = GetInfoCpta( fbAux ).Lg )
+                  or ( (lInPos <> -1) and vCompte.isTiers(lInPos) ) then
+                begin
+                 lTOBLigneRef.PutValue('E_CONTREPARTIEGEN' , lTOBLigneEcr.GetValue('E_GENERAL'));
+                 lTOBLigneRef.PutValue('E_CONTREPARTIEAUX' , lTOBLigneEcr.GetValue('E_AUXILIAIRE'));
+                 CReporteVentil(lTOBLigneRef,'E_CONTREPARTIEGEN', lTOBLigneEcr.GetValue('E_GENERAL') , true ) ;
+                 CReporteVentil(lTOBLigneRef,'E_CONTREPARTIEAUX', lTOBLigneEcr.GetValue('E_AUXILIAIRE') , true ) ;
+                 result := true ;
+                 exit;
+                end; // if
+              end; // for
+            end; // if
+        end;
+    end; // journal non banque
+
+ // cas particulier
+ if lTOBLigneRef.GetValue('E_CONTREPARTIEGEN') <> '' then
+  begin
+   result := true ;
+   exit;
+  end ;
+
+ lTOBLigneEcr := vTOBEcr.Detail[vInIndex];
+
+ if not vCompte.IsBqe(PosCompte) then
+  begin
+   for i := ( vInIndex + 1 ) to lInMax do
+    begin
+     lTOBLigneEcr := vTOBEcr.Detail[i];
+     if lTOBLigneEcr.GetValue('E_NUMGROUPEECR') <> lInNumGroupeEcr then exit;
+     if vCompte.isBqe(PosCompte) then
+      begin
+       lTOBLigneRef.PutValue('E_CONTREPARTIEGEN' , vTOBEcr.Detail[i].GetValue('E_GENERAL'));
+       CReporteVentil(lTOBLigneRef,'E_CONTREPARTIEGEN', vTOBEcr.Detail[i].GetValue('E_GENERAL') , true ) ;
+       result := true ;
+       exit;
+      end; // if
+    end; // for
+   if lTOBLigneRef.GetValue('E_CONTREPARTIEGEN') =  '' then
+    begin
+     for i := ( vInIndex - 1 ) downto lInMin do
+      begin
+       lTOBLigneEcr := vTOBEcr.Detail[i];
+       if lTOBLigneEcr.GetValue('E_NUMGROUPEECR') <> lInNumGroupeEcr then exit;
+       if vCompte.isBqe(PosCompte) then
+        begin
+         lTOBLigneRef.PutValue('E_CONTREPARTIEGEN' , vTOBEcr.Detail[i].GetValue('E_GENERAL'));
+         CReporteVentil(lTOBLigneRef,'E_CONTREPARTIEGEN', vTOBEcr.Detail[i].GetValue('E_GENERAL') , true ) ;
+         result := true ;
+         exit;
+        end; // if
+      end; // for
+    end; // if Gene=''
+  end // if not Comptes.IsBqe(lInNumCompte)
+   else
+    begin
+     for i := ( vInIndex - 1 ) downto lInMin do
+      begin
+       lTOBLigneEcr := vTOBEcr.Detail[i];
+       if lTOBLigneEcr.GetValue('E_NUMGROUPEECR') <> lInNumGroupeEcr then exit;
+       if ( Length( lTOBLigneEcr.GetString('E_AUXILIAIRE') ) = GetInfoCpta( fbAux ).Lg )
+          or vCompte.isTiers(PosCompte) then
+//       if ( lTOBLigneEcr.GetValue('E_AUXILIAIRE') <> ' ' ) or vCompte.isTiers(PosCompte) then
+        begin
+         lTOBLigneRef.PutValue('E_CONTREPARTIEGEN' , vTOBEcr.Detail[i].GetValue('E_GENERAL'));
+         lTOBLigneRef.PutValue('E_CONTREPARTIEAUX' , vTOBEcr.Detail[i].GetValue('E_AUXILIAIRE'));
+         CReporteVentil(lTOBLigneRef,'E_CONTREPARTIEGEN', vTOBEcr.Detail[i].GetValue('E_GENERAL') , true ) ;
+         CReporteVentil(lTOBLigneRef,'E_CONTREPARTIEAUX', vTOBEcr.Detail[i].GetValue('E_AUXILIAIRE') , true ) ;
+         result := true ;
+         exit;
+        end; // if
+      end; // for
+     if lTOBLigneRef.GetValue('E_CONTREPARTIEGEN') = '' then
+      begin
+       for i := ( vInIndex + 1 ) to vTOBEcr.Detail.Count - 1 do
+        begin
+         lTOBLigneEcr := vTOBEcr.Detail[i];
+         if lTOBLigneEcr.GetValue('E_NUMGROUPEECR') <> lInNumGroupeEcr then exit;
+         if vCompte.isTiers(PosCompte) then
+          begin
+           lTOBLigneRef.PutValue('E_CONTREPARTIEGEN' , vTOBEcr.Detail[i].GetValue('E_GENERAL'));
+           lTOBLigneRef.PutValue('E_CONTREPARTIEAUX' , vTOBEcr.Detail[i].GetValue('E_AUXILIAIRE'));
+           CReporteVentil(lTOBLigneRef,'E_CONTREPARTIEGEN', vTOBEcr.Detail[i].GetValue('E_GENERAL') , true ) ;
+           CReporteVentil(lTOBLigneRef,'E_CONTREPARTIEAUX', vTOBEcr.Detail[i].GetValue('E_AUXILIAIRE') , true ) ;
+           result := true ;
+           exit;
+          end; // if
+        end; // for
+      end; // if
+    end;
+
+  result := true ;
+  // si rien trouve, swaper les lignes 1 et 2
+  if lTOBLigneRef.GetValue('E_CONTREPARTIEGEN') <> '' then exit;
+
+  lInIndex := -1 ;
+
+  if ( vInIndex > 0 ) and ( vTOBEcr.Detail[vInIndex-1].GetValue('E_NUMGROUPEECR') =lInNumGroupeEcr ) then
+   lInIndex := vInIndex - 1
+    else
+     if ( ( vInIndex + 1 ) <= ( vTOBEcr.Detail.count - 1 ) ) and ( vTOBEcr.Detail[vInIndex+1].GetValue('E_NUMGROUPEECR') =lInNumGroupeEcr ) then
+      lInIndex := vInIndex + 1 ;
+
+  if lInIndex <> - 1 then
+   begin
+    lTOBLigneRef.PutValue('E_CONTREPARTIEGEN' , vTOBEcr.Detail[lInIndex].GetValue('E_GENERAL'));
+    lTOBLigneRef.PutValue('E_CONTREPARTIEAUX' , vTOBEcr.Detail[lInIndex].GetValue('E_AUXILIAIRE'));
+    CReporteVentil(lTOBLigneRef,'E_CONTREPARTIEGEN', vTOBEcr.Detail[lInIndex].GetValue('E_GENERAL') , true ) ;
+    CReporteVentil(lTOBLigneRef,'E_CONTREPARTIEAUX', vTOBEcr.Detail[lInIndex].GetValue('E_AUXILIAIRE') , true ) ;
+   end; // if
+
+end;
+
+procedure CAffectRegimeTva( vTOBEcr : TOB ) ;
+var
+ i            : integer ;
+ lStRegimeTva : string ;
+begin
+
+ if not assigned(vTOBEcr) then exit ;
+ lStRegimeTva := '' ;
+ i            := vTOBEcr.Detail.Count - 1 ;
+
+ while ( lStRegimeTva = '' ) and ( i > - 1) do
+  begin
+   lStRegimeTva := vTOBEcr.Detail[i].GetValue('E_REGIMETVA') ;
+   dec(i) ;
+  end; // while
+
+ if lStRegimeTva <> '' then
+  for i := 0 to vTOBEcr.Detail.Count - 1 do
+   vTOBEcr.Detail[i].PutValue('E_REGIMETVA',lStRegimeTva) ;
+
+end;
+
+
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent Gendreau
+Créé le ...... : 15/03/2002
+Modifié le ... : 19/07/2002
+Description .. : Fct de genération des comptes de contrepartie generaux et
+Suite ........ : auxiliaires
+Suite ........ :
+Suite ........ : - 18/07/2002 - ajout d'un TInfoEcriture pour eviter des
+Suite ........ : requetes en base
+Mots clefs ... :
+*****************************************************************}
+function CAffectCompteContrePartie ( vTOBEcr : TOB ; vInfo : TInfoEcriture = nil ) : boolean;
+var
+ i                    : integer;
+ lCompte              : TZCompte;
+ lBoJalEffet          : boolean;
+ lBoJalBqe            : boolean;
+ lStNatJal            : string;
+ lStCptContreP        : string;
+ lQ                   : TQuery;
+ lBoCreateCompte      : boolean ;
+begin
+
+ result               := true;
+ if vTOBEcr.Detail.Count > 1000 then exit ;
+ lBoCreateCompte      := false ;
+
+ if ( not assigned(vTOBEcr) ) or  ( not assigned( vTOBEcr.Detail ) ) or ( vTOBEcr.Detail.Count = 0 ) then exit;
+
+ if vInfo = nil then
+  begin
+   // recherche des info de parametrage du journal
+   lQ := OpenSQL('select J_CONTREPARTIE,J_NATUREJAL,J_EFFET from JOURNAL where J_JOURNAL="' + vTOBEcr.Detail[0].GetValue('E_JOURNAL') + '"' ,true);
+
+   lStNatJal         := lQ.FindField('J_NATUREJAL').asString;
+   lBoJalBqe         := ( lQ.FindField('J_NATUREJAL').asString = 'BQE' ) or ( lQ.FindField('J_NATUREJAL').asString = 'CAI' );
+   lBoJalEffet       := lQ.FindField('J_EFFET').asString = 'X';
+   lStCptContreP     := lQ.FindField('J_CONTREPARTIE').asString;
+   lCompte           := TZCompte.Create();
+   lBoCreateCompte   := true ;
+   Ferme(lQ);
+  end
+   else
+    begin
+     lCompte         := vInfo.Compte ;
+     vInfo.Journal.Load( [vTOBEcr.Detail[0].GetValue('E_JOURNAL')] ) ;
+     lStNatJal       := vInfo.Journal.GetValue('J_NATUREJAL') ;
+     lBoJalBqe       := ( vInfo.Journal.GetValue('J_NATUREJAL') = 'BQE' ) or ( vInfo.Journal.GetValue('J_NATUREJAL') = 'CAI' );
+     lBoJalEffet     := vInfo.Journal.GetValue('J_EFFET') = 'X' ;
+     lStCptContreP   := vInfo.Journal.GetValue('J_CONTREPARTIE') ;
+    end; // if
+
+ result      := false;
+
+ try
+
+  for i:= 0 to vTOBEcr.Detail.Count - 1 do
+   if not CGetCptsContreP( vTOBEcr , i , lBoJalBqe,lBoJalEffet, lStCptContreP,lCompte) then break ;
+
+ finally
+  if lBoCreateCompte and assigned(lCompte) then lCompte.Free;
+ end;
+
+end;
+
+function _IsRowTiers( vTOBEcr : TOB ; vInfo : TInfoEcriture ) : Boolean ;
+begin
+ //result := false ;
+ vInfo.LoadCompte(vTOBEcr.GetString('E_GENERAL')) ;
+ result := ( trim(vTOBEcr.GetString('E_AUXILIAIRE')) <> '' ) or ( ( vInfo.Compte.InIndex > -1 ) and vInfo.Compte.IsTiers ) ;
+end ;
+
+function CGetRowTiers( vTOBEcr : TOB ; vIndex : integer ; vInfo : TInfoEcriture ) : integer ;
+var
+ i              : integer ;
+ lInNumeroPiece : integer ;
+begin
+
+ result         := -1 ;
+ lInNumeroPiece := vTOBEcr.Detail[vIndex].getValue('E_NUMEROPIECE') ;
+
+ for i := vIndex downto 0 do
+  begin
+   if vTOBEcr.Detail[i].getValue('E_NUMEROPIECE') <> lInNumeroPiece then Break ;
+   if _IsRowTiers(vTOBEcr.Detail[i],vInfo) then
+    begin
+     result := i ;
+     exit ;
+    end ; // if
+  end ; // for
+
+ for i:= vIndex to vTOBEcr.Detail.Count - 1 do
+  begin
+   if vTOBEcr.Detail[i].getValue('E_NUMEROPIECE') <> lInNumeroPiece then Break ;
+   if _IsRowTiers(vTOBEcr.Detail[i],vInfo) then
+    begin
+     result := i ;
+     exit ;
+    end ; // if
+  end ; // for
+
+end ;
+
+{***********A.G.L.*****************************************
+Auteur  ...... : M.ENTRESSANGLE
+Créé le ...... : 29/11/2001
+Modifié le ... :   /  /
+Description .. : Fonction de la lecture d'une balance pour un compte donné
+Suite ........ : Exo                    :  Exercice comptable
+Suite ........ : Compte                 :  Précision du compte
+Suite ........ : Dateecr1, Dateecr2     :  Date début et fin de séléction
+Suite ........ : Mttdeb, Mttcre         :  Les montants débiteurs et créditeurs
+Suite ........ : MttSolde               :  solde de la balance
+Suite ........ : Anouveau               :  'O' uniquement les anouveaux
+Suite ........ :                           'N' sans les anouveaux
+Suite ........ :                           ' ' balance comptable + anouveaux
+Suite ........ : Auxi                   :  TRUE si Compte=auxiliaire
+Mots clefs ... :
+*****************************************************************}
+Function CGetBalanceParcompte (Exo,Compte : string; Dateecr1,Dateecr2 : TDateTime ; var MttDeb,MttCre,MttSolde : double; Anouveau : string=''; Auxi : Boolean=FALSE) : Boolean;
+var
+Q1               : TQuery;
+Sql              : string;
+Condition      : string;
+begin
+           Result := FALSE;
+           Condition := '';
+
+           if Exo <> '' then
+            Condition := ' AND E_EXERCICE="'+Exo+'" ';
+
+           if Auxi  then Condition := Condition + ' AND E_AUXILIAIRE="'+ Compte + '" '
+           else
+           Condition := Condition + ' AND E_GENERAL="'+Compte+'" AND E_AUXILIAIRE<>"." ';
+
+           if Anouveau = 'O' then  Condition := Condition + 'AND E_ECRANOUVEAU="H" or E_ECRANOUVEAU="OAN" ';
+           if Anouveau = 'N' then  Condition := Condition + 'AND E_ECRANOUVEAU="N" ';
+
+           Sql := 'SELECT sum(E_DEBIT) as TOTDEBIT, sum(E_CREDIT) as TOTCREDIT FROM ECRITURE ' +
+           'WHERE E_DATECOMPTABLE>="'+USDateTime(Dateecr1)+'" AND E_DATECOMPTABLE<="'+USDateTime(Dateecr2) +
+           '" AND (E_QUALIFPIECE="N" ) '+ Condition;
+
+           Q1 := OpenSql (Sql, TRUE);
+           if not Q1.EOF then
+           begin
+               MttDeb    := Q1.FindField ('TOTDEBIT').asFloat;
+               MttCre    := Q1.FindField ('TOTCREDIT').asFloat;
+               MttSolde  := MttDeb-MttCre;
+               Result    := TRUE;
+           end;
+           Ferme (Q1);
+end;
+
+function EncodeKeyBordereau( vDtDateComptable : TDateTime ; vStJournal : string ; vInNumeroPiece : integer ) : string;
+var
+ lYear, lMonth, lDay : Word;
+begin
+ DecodeDate(vDtDateComptable,lYear,lMonth,lDay);
+ result := DateToStr(EncodeDate(lYear, lMonth, 1)) + ';' + vStJournal + ';' + intToStr(vInNumeroPiece) + ';';
+end;
+
+function CBloqueurBor(vStJournal : string ; vDtDateComptable : TDateTime ; vInNumeroPiece : integer ; Bloc : boolean ; Parle : boolean = true) : boolean;
+var
+ lStSql : string;
+begin
+ result := false;
+ if Bloc then
+  begin
+   lStSql := 'insert into courrier(mg_utilisateur,mg_combo,mg_type,mg_dejalu,mg_date,mg_averti,mg_expediteur) ' +
+             'values("' + W_W + '","' + EncodeKeyBordereau(vDtDateComptable,vStJournal,vInNumeroPiece) + '",2000,"-","' +
+             USTime(iDate1900) + '","-","' + V_PGI.User + '")';
+   try
+    ExecuteSQL(lStSQL);
+    result := true ;
+   except
+    on E : Exception do
+     begin
+      if Parle then MessageAlerte('Bordereau bloqué' + #10#13#10#13 + E.Message);
+     end;
+   end; // try
+  end // if
+   else
+    begin
+      lStSql := 'delete from courrier ' +
+                'where mg_utilisateur = "' + W_W + '" and mg_type=2000 and mg_expediteur = "' + V_PGI.User + '"' +
+                ' and mg_combo="' + EncodeKeyBordereau(vDtDateComptable,vStJournal,vInNumeroPiece) + '" ';
+      ExecuteSQL(lStSQL);
+      result := true ;
+    end; // if
+end;
+
+
+function CEstBloqueJournal( vStJournal : string ; Parle : boolean = true ) : boolean;
+var
+ lStSql,lStUser : string;
+ lQ             : TQuery;
+begin
+ lStSql := 'select US_LIBELLE from COURRIER,UTILISAT ' +
+           ' where MG_UTILISATEUR="' + W_W + '" AND MG_TYPE=5000 AND MG_COMBO="' + vStJournal + '"' +
+           ' and US_UTILISATEUR=MG_EXPEDITEUR ' ; //AND MG_EXPEDITEUR<>"' + V_PGI.User + '" ' ;
+ lQ     := OpenSql(lStSql,true);
+ result := not lQ.EOF;
+ if result then lStUser:=lQ.FindField('US_LIBELLE').AsString;
+ Ferme(lQ);
+{$IFNDEF EAGLSERVER}
+ if ( lStUser <> '' ) and  Parle then MessageAlerte('Bordereau bloqué par ' + lStUser);
+{$ELSE}
+ cWA.MessagesAuClient('COMSX.IMPORT','','Bordereau bloqué par ' + lStUser) ;
+{$ENDIF}
+end;
+
+
+function CBloqueurJournal( Bloc : boolean ; vStJournal : string = '' ; Parle : boolean = true ) : boolean ;
+var
+ lStSql : string;
+begin
+ result := false;
+ if Bloc then
+  begin
+   if vStJournal = '' then exit ;
+   lStSql := 'insert into courrier(mg_utilisateur,mg_combo,mg_type,mg_dejalu,mg_date,mg_averti,mg_expediteur) ' +
+             'values("' + W_W + '","' + vStJournal + '",5000,"-","' +
+             USTime(iDate1900) + '","-","' + V_PGI.User + '")';
+   try
+    ExecuteSQL(lStSQL);
+    result := true ;
+   except
+    on E : Exception do
+     begin
+      {$IFNDEF EAGLSERVER}
+       if Parle then MessageAlerte('Bordereau bloqué' + #10#13#10#13 + E.Message);
+      {$ELSE}
+      cWA.MessagesAuClient('COMSX.IMPORT','','Bordereau bloqué' + #10#13#10#13 + E.Message) ;
+      {$ENDIF}
+     end;
+   end; // try
+  end // if
+   else
+    begin
+      lStSql := 'delete from courrier ' +
+                'where mg_utilisateur = "' + W_W + '" and mg_type=5000 and mg_expediteur = "' + V_PGI.User + '"' ;
+      if vStJournal <> '' then
+       lStSql := lStSql + ' and mg_combo="' + vStJournal + '" ' ;
+      ExecuteSQL(lStSQL);
+      result := true ;
+    end; // if
+end;
+
+
+function CEstBloqueBor( vStJournal : string = '' ; vDtDateComptable : TDateTime = -1 ; vInNumeroPiece : integer = -1 ; Parle : boolean = true ) : boolean;
+var
+ lStSql,lStUser : string;
+ lQ             : TQuery;
+begin
+ if vStJournal = '' then
+  lStSql := 'select US_LIBELLE from COURRIER,UTILISAT ' +
+            ' where MG_UTILISATEUR="' + W_W + '" AND MG_TYPE=2000 ' +
+            ' and US_UTILISATEUR=MG_EXPEDITEUR'
+  else
+   lStSql := 'select US_LIBELLE from COURRIER,UTILISAT ' +
+             ' where MG_UTILISATEUR="' + W_W + '" AND MG_TYPE=2000 AND MG_COMBO="' + EncodeKeyBordereau(vDtDateComptable,vStJournal,vInNumeroPiece) + '"' +
+             ' and US_UTILISATEUR=MG_EXPEDITEUR';
+ lQ     := OpenSql(lStSql,true);
+ result := not lQ.EOF;
+ if result then lStUser:=lQ.FindField('US_LIBELLE').AsString;
+ Ferme(lQ);
+ if ( lStUser <> '' ) and  Parle then MessageAlerte('Bordereau bloqué par ' + lStUser);
+end;
+
+function CEstSaisieOuverte( Parle : boolean = false) : boolean;
+var
+ lStSQL : string;
+begin
+ {$IFDEF EAGLSERVER}
+   lStSql := 'select MG_COMBO from COURRIER where MG_UTILISATEUR="' + W_W + '" and MG_EXPEDITEUR="' + V_PGI.User + '" ' ;
+ {$ELSE  EAGLSERVER}
+   lStSql := 'select MG_COMBO from COURRIER where MG_UTILISATEUR="' + W_W + '" and MG_EXPEDITEUR="' + V_PGI.FUser + '" ' ;
+ {$ENDIF EAGLSERVER}
+ result  := ExisteSQL(lStSql);
+ if result and Parle then
+  PGIInfo('Une saisie est ouverte, vous ne pouvez pas utiliser cette fonction !');
+end;
+
+
+function CBlocageBor(vStJournal : string ; vDtDateComptable : TDateTime ; vInNumeroPiece : integer ; Parle : boolean = true) : boolean;
+begin
+ result := false;
+ if not CEstBloqueBor(vStJournal,vDtDateComptable,vInNumeroPiece,Parle) then
+  begin
+   result := CBloqueurBor(vStJournal,vDtDateComptable,vInNumeroPiece,true,Parle);
+  end;
+end;
+
+procedure CAfficheLigneEcrEnErreur( O : TOB );
+begin
+ PGIInfo('La ligne : '+#10#13+
+ 'Exercice : '+O.GetValue('E_EXERCICE')+' journal : '+ O.GetValue('E_JOURNAL')+#10#13+
+ 'Bordereau n° '+intToStr(O.GetValue('E_NUMEROPIECE'))+' du '+ DateToStr(O.GetValue('E_DATECOMPTABLE'))+' libellé '+ O.GetValue('E_LIBELLE')+
+ ' débit : '+StrS0(O.GetValue('E_DEBIT'))+' crédit : '+StrS0(O.GetValue('E_CREDIT'))+#10#13+' n''a pas être mise à jour ! ','Erreur dans l''écriture');
+end;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent GENDREAU
+Créé le ...... : 22/03/2005
+Modifié le ... :   /  /    
+Description .. : - LG - 22/03/2005 - ajout d'un test sur mg_expediteur pour 
+Suite ........ : ne pas ce bloque sois meme
+Mots clefs ... :
+*****************************************************************}
+function CGetListeBordereauBloque : TOB ;
+var
+ lQ : TQuery ;
+begin
+ result := TOB.Create('',nil,-1) ; lQ:=nil ;
+ try
+  lQ := OpenSql('SELECT  * FROM COURRIER WHERE MG_UTILISATEUR="' + W_W + '" AND MG_TYPE=2000 AND MG_EXPEDITEUR<>"' + V_PGI.User+'" ',true) ;
+  result.LoadDetailDB('COURRIER','','',lQ,true) ;
+ finally
+  Ferme(lQ) ;
+ end; // try
+end;
+
+function CEstBloqueEcritureBor ( vEcr : TOB ; vListeBor : TOB = nil ) : boolean ;
+var
+ lBoDetruireListeBor : boolean ;
+ lStKey              : string ;
+ i                   : integer ;
+begin
+
+ result := false;
+
+ if vEcr.NomTable <> 'ECRITURE' then
+  begin
+   MessageAlerte('Fonction CEstBloqueEcriture : la TOB n''est pas basé sur la table ecriture ! ');
+   exit;
+  end; // if
+
+ if vEcr = nil then
+  begin
+   MessageAlerte('Fonction CEstBloqueEcriture : vEcr = nil');
+   exit;
+  end; // if
+
+ if (trim(vEcr.GetValue('E_DATECOMPTABLE')) = '' ) then
+  begin
+   MessageAlerte('fonction CEstBloqueEcritureBor : E_DATECOMPTABLE est vide') ;
+   exit;
+  end; // if
+
+
+ if (vEcr.GetValue('E_MODESAISIE') = '-' ) or (vEcr.GetValue('E_MODESAISIE') = '' ) then exit ;
+
+ if vListeBor = nil then
+  begin
+   vListeBor            := CGetListeBordereauBloque ;
+   lBoDetruireListeBor  := true ;
+  end
+   else
+    lBoDetruireListeBor := false ;
+
+ try
+  lStKey := EncodeKeyBordereau( vEcr.GetValue('E_DATECOMPTABLE'),
+                                vEcr.GetValue('E_JOURNAL'),
+                                vEcr.GetValue('E_NUMEROPIECE') ) ;
+
+  for i := 0 to vListeBor.Detail.Count - 1 do
+   begin
+    result     := vListeBor.Detail[i].GetValue('MG_COMBO') = lStKey ;
+    if result then exit ;
+   end; // for
+
+ finally
+  if lBoDetruireListeBor then vListeBor.Free ;
+ end;
+
+end;
+
+{$IFNDEF EAGLSERVER}
+function CControleLigneBor( G : THGrid ; vListeBor : TOB = nil )  : boolean ;
+var
+ i : integer ;
+ O : TOBM ;
+begin
+ result :=  true ;
+ G.BeginUpdate ;
+ try
+ for i:=1 to G.RowCount-1 do
+  begin
+   O:=GetO(G,i) ; if O=nil then continue ;
+   if CEstBloqueEcritureBor(TOB(O),vListeBor) then
+    begin
+     G.Row:=i ; G.EndUpdate ;
+     //caption:=AttribTitre + ' : ligne modifié dans le folio n°' + intToStr(O.GetValue('E_NUMEROPIECE')) + ' du ' + dateToStr(O.GetValue('E_DATECOMPTABLE')) + ' pour le journal ' + O.GetValue('E_JOURNAL') ;
+     if PGIAsk('La ligne d''écriture est en cours de modification' + #10#13 + 'Voulez-vous quand même enregistrer ?')<>idYes then
+      begin
+        result:= false ; exit ;
+      end
+       else exit ;
+    end
+     else O.PutMvt('E_CONTROLEUR','') ;
+ end; // for
+ finally
+  G.EndUpdate ;
+ end ;
+end;
+
+function CIsRowLock(G : THGrid ; Lig : integer = - 1) : boolean ;
+var
+ O : TOBM ;
+begin
+ result:=false ; if Lig=-1 then Lig:=G.Row ;
+ O:=GetO(G,Lig) ; if O=Nil then exit ;
+ result:=O.GetString('E_CONTROLEUR')='X' ;
+end;
+{$ENDIF}
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent Gendreau
+Créé le ...... : 15/03/2002
+Modifié le ... : 16/01/2004
+Description .. : Remise à zero des info de lettrage
+Suite ........ :
+Suite ........ : -LG-24/09/2002- suppression de la remise à zero des
+Suite ........ : champs de pointage
+Suite ........ : -LG-21/10/2002- suppression de le remise à zéro du
+Suite ........ : champs e_modepaie
+Suite ........ : -20/11/2002- plus re emise à zero de la reference de
+Suite ........ : pointage
+Suite ........ : - 16/01/2001 - LG - suppression de la remise a zero de la
+Suite ........ : date d'echeance
+Mots clefs ... :
+*****************************************************************}
+procedure CSupprimerInfoLettrage( vTOBLigneEcr : TOB );
+begin
+  vTOBLigneEcr.PutValue('E_LETTRAGE'          , '');
+  vTOBLigneEcr.PutValue('E_LETTRAGEDEV'       , '-');
+  vTOBLigneEcr.PutValue('E_ECHE'              , '-');
+  vTOBLigneEcr.PutValue('E_ETATLETTRAGE'      , 'RI');
+//  vTOBLigneEcr.PutValue('E_DATEPOINTAGE'      , iDate1900);
+  vTOBLigneEcr.PutValue('E_DATEECHEANCE'      , iDate1900);
+  vTOBLigneEcr.PutValue('E_COUVERTURE'        , 0);
+  vTOBLigneEcr.PutValue('E_COUVERTUREDEV'     , 0);
+  vTOBLigneEcr.PutValue('E_DATEPAQUETMAX'     , vTOBLigneEcr.GetValue('E_DATECOMPTABLE'));
+  vTOBLigneEcr.PutValue('E_DATEPAQUETMIN'     , vTOBLigneEcr.GetValue('E_DATECOMPTABLE'));
+  vTOBLigneEcr.PutValue('E_NUMECHE'           , 0);
+end;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent Gendreau
+Créé le ...... : 15/03/2002
+Modifié le ... : 26/04/2005
+Description .. : Affectation des valeurs par défauts pour un compte lettrable
+Suite ........ : - LG - 20/03/2003 - correction sur le numero d'echeance
+Suite ........ : - lg - 24/08/2004 - ajout de la date de valeur
+Suite ........ : - FB 15668 - 26/04/2005 - suppression de la remise a zero 
+Suite ........ : des info de pointage, faissait planté le letrte sur journal
+Mots clefs ... : 
+*****************************************************************}
+procedure CRemplirInfoLettrage( vTOBLigneEcr : TOB );
+begin
+ vTOBLigneEcr.PutValue('E_LETTRAGE'          , '');
+ vTOBLigneEcr.PutValue('E_LETTRAGEDEV'       , '-');
+ vTOBLigneEcr.PutValue('E_ECHE'              , 'X');
+// vTOBLigneEcr.PutValue('E_REFPOINTAGE'       , '');
+ vTOBLigneEcr.PutValue('E_ETATLETTRAGE'      , 'AL');
+// vTOBLigneEcr.PutValue('E_DATEPOINTAGE'      , iDate1900);
+ vTOBLigneEcr.PutValue('E_COUVERTURE'        , 0);
+ vTOBLigneEcr.PutValue('E_COUVERTUREDEV'     , 0);
+ vTOBLigneEcr.PutValue('E_DATEPAQUETMAX'     , vTOBLigneEcr.GetValue('E_DATECOMPTABLE'));
+ vTOBLigneEcr.PutValue('E_DATEPAQUETMIN'     , vTOBLigneEcr.GetValue('E_DATECOMPTABLE'));
+ vTOBLigneEcr.PutValue('E_DATEECHEANCE'      , vTOBLigneEcr.GetValue('E_DATECOMPTABLE'));
+ vTOBLigneEcr.PutValue('E_DATEVALEUR'        , vTOBLigneEcr.GetValue('E_DATECOMPTABLE'));
+ if vTOBLigneEcr.GetValue('E_NUMECHE') = 0 then
+   vTOBLigneEcr.PutValue('E_NUMECHE'          , 1);
+{$IFNDEF TRESO}
+ {JP 27/09/04 : FQ TRESO 10115 : On passe E_TRESOSYNCHRO des écritures lettrables à CRE
+                IFNDEF TRESO, car toutes les écritures générées en Trésorerie sont considérées
+                à RIE car il est inutile de les synchroniser}
+ vTOBLigneEcr.PutValue('E_TRESOSYNCHRO'      , 'CRE');
+{$ENDIF}
+end;
+
+procedure CRemplirInfoPointage( vTOBLigneEcr : TOB );
+begin
+ vTOBLigneEcr.PutValue('E_LETTRAGE'          , '');
+ vTOBLigneEcr.PutValue('E_LETTRAGEDEV'       , '-');
+ vTOBLigneEcr.PutValue('E_ECHE'              , 'X');
+ vTOBLigneEcr.PutValue('E_ETATLETTRAGE'      , 'RI');
+ vTOBLigneEcr.PutValue('E_COUVERTURE'        , 0);
+ vTOBLigneEcr.PutValue('E_COUVERTUREDEV'     , 0);
+ vTOBLigneEcr.PutValue('E_DATEPAQUETMAX'     , vTOBLigneEcr.GetValue('E_DATECOMPTABLE'));
+ vTOBLigneEcr.PutValue('E_DATEPAQUETMIN'     , vTOBLigneEcr.GetValue('E_DATECOMPTABLE'));
+ vTOBLigneEcr.PutValue('E_DATEECHEANCE'      , vTOBLigneEcr.GetValue('E_DATECOMPTABLE'));
+ vTOBLigneEcr.PutValue('E_NUMECHE'           , 1);
+ vTOBLigneEcr.PutValue('E_MODEPAIE'          , 'DIV');
+{$IFNDEF TRESO}
+ {JP 27/09/04 : FQ TRESO 10115 : On passe E_TRESOSYNCHRO des écritures pointables à CRE.
+                IFNDEF TRESO, car toutes les écritures générées en Trésorerie sont considérées
+                à RIE car il est inutile de les synchroniser}
+ vTOBLigneEcr.PutValue('E_TRESOSYNCHRO'      , 'CRE');
+{$ENDIF}
+end;
+
+{$IFNDEF NOVH}
+procedure CRemplirDateComptable( vTOBLigneEcr : TOB ; Value : TDateTime );
+begin
+ vTOBLigneEcr.PutValue('E_DATECOMPTABLE', Value);
+ vTOBLigneEcr.PutValue('E_EXERCICE', QuelExoDT(Value) );
+ vTOBLigneEcr.PutValue('E_PERIODE'      , GetPeriode ( Value ) ) ;
+ vTOBLigneEcr.PutValue('E_SEMAINE'      , NumSemaine ( Value ) ) ;
+end;
+{$ENDIF}
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent Gendreau
+Créé le ...... : 15/03/2002
+Modifié le ... : 04/04/2005
+Description .. : fct d'initialisation d'une nouvelle ligne d'ecriture
+Suite ........ : Attention : les champs de lettrage ne sont pas initialisé
+Suite ........ : - LG - 02/04/2004 - E_IO passe a X pour un nouvel enr. ( 
+Suite ........ : modif a faire ds importcom
+Suite ........ : - LG - 04/04/2005 - suppression de l'affectation de
+Suite ........ : e_exercice ( doit etre fait lors dela mise a jour de la date
+Suite ........ : comptable )
+Mots clefs ... :
+*****************************************************************}
+procedure CPutDefautEcr( vTOBLigneEcr : TOB );
+begin
+{$IFNDEF SANSCOMPTA}
+{$IFNDEF EAGLSERVER}
+ vTOBLigneEcr.PutValue ( 'E_ETABLISSEMENT'     , GetParamSocSecur('SO_ETABLISDEFAUT','') ) ;
+ {$ENDIF}
+ vTOBLigneEcr.PutValue ( 'E_PERIODE'           , GetPeriode ( V_PGI.DateEntree ) ) ;
+ vTOBLigneEcr.PutValue ( 'E_SEMAINE'           , NumSemaine ( V_PGI.DateEntree ) ) ;
+{$ENDIF}
+ vTOBLigneEcr.PutValue ( 'E_DATECOMPTABLE'     , V_PGI.DateEntree ) ;
+ vTOBLigneEcr.PutValue ( 'E_NATUREPIECE'       , 'OD' ) ;
+ vTOBLigneEcr.PutValue ( 'E_QUALIFPIECE'       , 'N' ) ;
+ vTOBLigneEcr.PutValue ( 'E_TYPEMVT'           , 'DIV' ) ;
+ vTOBLigneEcr.PutValue ( 'E_VALIDE'            , '-' ) ;
+ vTOBLigneEcr.PutValue ( 'E_ETAT'              , '0000000000' ) ;
+ vTOBLigneEcr.PutValue ( 'E_UTILISATEUR'       , V_PGI.User ) ;
+ vTOBLigneEcr.PutValue ( 'E_DATECREATION'      , Date ) ;
+ vTOBLigneEcr.PutValue ( 'E_DATEMODIF'         , NowH ) ;
+ vTOBLigneEcr.PutValue ( 'E_SOCIETE'           , V_PGI.CodeSociete ) ;
+ vTOBLigneEcr.PutValue ( 'E_VISION'            , 'DEM' ) ;
+ vTOBLigneEcr.PutValue ( 'E_TVAENCAISSEMENT'   , '-' ) ;
+ vTOBLigneEcr.PutValue ( 'E_DEVISE'            , V_PGI.DevisePivot ) ;
+ vTOBLigneEcr.PutValue ( 'E_CONTROLE'          , '-' ) ;
+ vTOBLigneEcr.PutValue ( 'E_TIERSPAYEUR'       , '' ) ;
+ vTOBLigneEcr.PutValue ( 'E_QUALIFQTE1'        , '...' ) ;
+ vTOBLigneEcr.PutValue ( 'E_QUALIFQTE2'        , '...' ) ;
+ vTOBLigneEcr.PutValue ( 'E_ECRANOUVEAU'       , 'N' ) ;
+ vTOBLigneEcr.PutValue ( 'E_DATEPAQUETMIN'     , V_PGI.DateEntree ) ;
+ vTOBLigneEcr.PutValue ( 'E_DATEPAQUETMAX'     , V_PGI.DateEntree ) ;
+ vTOBLigneEcr.PutValue ( 'E_ETATLETTRAGE'      , 'RI' ) ;
+ vTOBLigneEcr.PutValue ( 'E_EMETTEURTVA'       , '-' ) ;
+ vTOBLigneEcr.PutValue ( 'E_ANA'               , '-' ) ;
+ vTOBLigneEcr.PutValue ( 'E_FLAGECR'           , '' ) ;
+ vTOBLigneEcr.PutValue ( 'E_DATETAUXDEV'       , V_PGI.DateEntree ) ;
+ vTOBLigneEcr.PutValue ( 'E_CONTROLETVA'       , 'RIE' ) ;
+ vTOBLigneEcr.PutValue ( 'E_CONFIDENTIEL'      , '0' ) ;
+ vTOBLigneEcr.PutValue ( 'E_CREERPAR'          , 'SAI' ) ;
+ vTOBLigneEcr.PutValue ( 'E_EXPORTE'           , '---' ) ;
+ vTOBLigneEcr.PutValue ( 'E_TRESOLETTRE'       , '-' ) ;
+ vTOBLigneEcr.PutValue ( 'E_CFONBOK'           , '-' ) ;
+ vTOBLigneEcr.PutValue ( 'E_MODESAISIE'        , '-' ) ;
+ vTOBLigneEcr.PutValue ( 'E_EQUILIBRE'         , '-' ) ;
+ vTOBLigneEcr.PutValue ( 'E_AVOIRRBT'          , '-' ) ;
+ vTOBLigneEcr.PutValue ( 'E_CODEACCEPT'        , 'NON' ) ;
+ vTOBLigneEcr.PutValue ( 'E_EDITEETATTVA'      , '-' ) ;
+ vTOBLigneEcr.PutValue ( 'E_IO'                , '-' ) ; // une nouvelle enregistrement doit etre exporte par defaut
+ vTOBLigneEcr.PutValue ( 'E_ETATREVISION'      , '-') ;
+ vTOBLigneEcr.PutValue ( 'E_TRESOSYNCHRO'      , 'RIE') ; // Modif SBO : MAJ champs pour synchro Tréso (CRE MOD DYN) par défaut CRE
+end;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent Gendreau
+Créé le ...... : 15/03/2002
+Modifié le ... : 28/07/2003
+Description .. : fct de duplication d'une ligne d'ecriture
+Suite ........ : Attention : les champs consernant les montant et le lettrage
+Suite ........ : ne sont pas repris
+Suite ........ :
+Suite ........ : LG - 28/072003 - FB 12576 - on ne reprends pas le code
+Suite ........ : utilisateur
+Mots clefs ... :
+*****************************************************************}
+procedure CDupliquerTOBEcr( vTOBLigneSource,vTOBLigneDestination : TOB );
+begin
+// E_JOURNAL, E_EXERCICE, E_DATECOMPTABLE, E_NUMEROPIECE, E_NUMLIGNE, E_NUMECHE, E_QUALIFPIECE
+ vTOBLigneDestination.PutValue( 'E_JOURNAL'         , vTOBLigneSource.GetValue('E_JOURNAL') );
+ vTOBLigneDestination.PutValue( 'E_EXERCICE'        , vTOBLigneSource.GetValue('E_EXERCICE') );
+ vTOBLigneDestination.PutValue( 'E_DATECOMPTABLE'   , vTOBLigneSource.GetValue('E_DATECOMPTABLE') );
+ vTOBLigneDestination.PutValue( 'E_NUMEROPIECE'     , vTOBLigneSource.GetValue('E_NUMEROPIECE') );
+ vTOBLigneDestination.PutValue( 'E_QUALIFPIECE'     , vTOBLigneSource.GetValue('E_QUALIFPIECE') );
+ vTOBLigneDestination.PutValue( 'E_DATECOMPTABLE'   , vTOBLigneSource.GetValue('E_DATECOMPTABLE') ) ;
+ vTOBLigneDestination.PutValue( 'E_NATUREPIECE'     , vTOBLigneSource.GetValue('E_NATUREPIECE') ) ;
+ vTOBLigneDestination.PutValue( 'E_TYPEMVT'         , vTOBLigneSource.GetValue('E_TYPEMVT')) ;
+ vTOBLigneDestination.PutValue( 'E_VALIDE'          , vTOBLigneSource.GetValue('E_VALIDE') ) ;
+ vTOBLigneDestination.PutValue( 'E_DATECREATION'    , vTOBLigneSource.GetValue('E_DATECREATION') ) ;
+ vTOBLigneDestination.PutValue( 'E_DATEMODIF'       , vTOBLigneSource.GetValue('E_DATEMODIF') ) ;
+ vTOBLigneDestination.PutValue( 'E_SOCIETE'         , vTOBLigneSource.GetValue('E_SOCIETE') ) ;
+ vTOBLigneDestination.PutValue( 'E_DEVISE'          , vTOBLigneSource.GetValue('E_DEVISE') ) ;
+ vTOBLigneDestination.PutValue( 'E_CONTROLE'        , vTOBLigneSource.GetValue('E_CONTROLE') ) ;
+ vTOBLigneDestination.PutValue( 'E_ECRANOUVEAU'     , vTOBLigneSource.GetValue('E_ECRANOUVEAU') ) ;
+ vTOBLigneDestination.PutValue( 'E_CONFIDENTIEL'    , vTOBLigneSource.GetValue('E_CONFIDENTIEL') ) ;
+ vTOBLigneDestination.PutValue( 'E_CREERPAR'        , vTOBLigneSource.GetValue('E_CREERPAR') ) ;
+ vTOBLigneDestination.PutValue( 'E_EXPORTE'         , vTOBLigneSource.GetValue('E_EXPORTE') ) ;
+ vTOBLigneDestination.PutValue( 'E_TRESOLETTRE'     , vTOBLigneSource.GetValue('E_TRESOLETTRE') ) ;
+ vTOBLigneDestination.PutValue( 'E_MODESAISIE'      , vTOBLigneSource.GetValue('E_MODESAISIE') ) ;
+ vTOBLigneDestination.PutValue( 'E_PERIODE'         , vTOBLigneSource.GetValue('E_PERIODE') ) ;
+ vTOBLigneDestination.PutValue( 'E_SEMAINE'         , vTOBLigneSource.GetValue('E_SEMAINE') ) ;
+ vTOBLigneDestination.PutValue( 'E_TYPEMVT'         , vTOBLigneSource.GetValue('E_TYPEMVT')) ;
+ vTOBLigneDestination.PutValue( 'E_COTATION'        , vTOBLigneSource.GetValue('E_COTATION') ) ;
+ vTOBLigneDestination.PutValue( 'E_NUMGROUPEECR'    , vTOBLigneSource.GetValue('E_NUMGROUPEECR') ) ;
+ vTOBLigneDestination.PutValue( 'E_ETABLISSEMENT'   , vTOBLigneSource.GetValue('E_ETABLISSEMENT') ) ;
+ vTOBLigneDestination.PutValue( 'E_TAUXDEV'         , vTOBLigneSource.GetValue('E_TAUXDEV') ) ;
+ vTOBLigneDestination.PutValue( 'E_COTATION'        , vTOBLigneSource.GetValue('E_COTATION') ) ;
+end;
+
+procedure CDupliquerInfoAux( vTOBLigneSource,vTOBLigneDestination : TOB );
+begin
+ vTOBLigneDestination.PutValue( 'E_AUXILIAIRE'      , vTOBLigneSource.GetValue('E_AUXILIAIRE'));
+ vTOBLigneDestination.PutValue( 'E_MODEPAIE'        , vTOBLigneSource.GetValue('E_MODEPAIE'));
+ vTOBLigneDestination.PutValue( 'E_DATEECHEANCE'    , vTOBLigneSource.GetValue('E_DATEECHEANCE'));
+ vTOBLigneDestination.PutValue( 'E_ORIGINEPAIEMENT' , vTOBLigneSource.GetValue('E_ORIGINEPAIEMENT'));
+end;
+
+
+procedure CNumeroPiece( vTOBPiece : TOB );
+var
+ k                : integer;
+ i                : integer;
+ lTOBLigneEcr     : TOB;
+ lTOBSection      : TOB;
+ lInNumLigne      : integer;
+ lInNumAxe        : integer;
+ lInNumeroPiece   : integer;
+begin
+
+ lInNumLigne     := 0;
+ lInNumeroPiece  := 0;
+
+ for k:=0 to vTOBPiece.Detail.Count-1 do
+  begin
+
+   lTOBLigneEcr   := vTOBPiece.Detail[k];
+
+   if lInNumeroPiece <> lTOBLigneEcr.GetValue('E_NUMEROPIECE') then
+    begin
+      lInNumLigne     := 1;
+      lInNumeroPiece  := lTOBLigneEcr.GetValue('E_NUMEROPIECE');
+    end
+     else
+      Inc(lInNumLigne) ;
+
+   lTOBLigneEcr.PutValue('E_NUMLIGNE' , lInNumLigne);
+
+   // renumerotation de l'analytique
+   if assigned( lTOBLigneEcr.Detail ) and ( lTOBLigneEcr.detail.Count > 0 ) then
+    begin
+     for lInNumAxe := 0 to ( MaxAxe - 1 ) do
+      begin
+       lTOBSection := lTOBLigneEcr.detail[lInNumAxe];
+       if assigned( lTOBSection.Detail ) and ( lTOBSection.detail.Count > 0 ) then
+         for i := 0 to lTOBSection.detail.Count - 1 do
+          begin
+           lTOBSection.Detail[i].PutValue('Y_NUMLIGNE',lInNumLigne);
+           lTOBSection.Detail[i].PutValue('Y_NUMEROPIECE',lInNumeroPiece);
+           lTOBSection.Detail[i].PutValue('Y_QUALIFPIECE',lTOBLigneEcr.GetValue('E_QUALIFPIECE')); // pour la saisie en vrac la qualif piece est réeffecter ici ( pour une ecriture normal ne sert pas ! )
+           lTOBSection.Detail[i].PutValue('Y_DATECOMPTABLE',lTOBLigneEcr.GetValue('E_DATECOMPTABlE')); // pour le CUTOFF la datecomptable est réeffecter ici ( pour une ecriture normal ne sert pas ! )
+          end; // for
+      end; // for
+    end; // if
+
+ end; // for
+
+end;
+
+function COuvreScenario( vStJournal, vStNature, vStQualifpiece, vStEtablissement : string ; vTOBResult : TOB ; var vMemoComp : HTStringList ; vDossier : String = '' ) : boolean;
+var
+ Q : TQuery;
+begin
+
+ result := false;
+ Q      := nil;
+
+ if vTOBResult =  nil then exit ;
+
+ if ( vStJournal = '' ) or (  vStNature = '' ) then exit;
+
+ try
+
+ Q:=OpenSelect( 'Select * from SUIVCPTA Where SC_JOURNAL="' + vStJournal
+             + '" AND SC_NATUREPIECE="' + vStNature + '"'
+             + ' AND (SC_QUALIFPIECE="' + vStQualifpiece
+             + '" OR SC_QUALIFPIECE="" OR SC_QUALIFPIECE="...") '
+             + ' AND (SC_ETABLISSEMENT="" OR SC_ETABLISSEMENT="' + vStEtablissement + '" OR SC_ETABLISSEMENT="...")'
+             + ' AND (SC_USERGRP="" OR SC_USERGRP="' + V_PGI.Groupe + '" OR SC_USERGRP="...")'
+             + ' order by SC_USERGRP, SC_ETABLISSEMENT, SC_QUALIFPIECE ' , vDossier );
+
+ if not Q.EOF then
+  begin
+   vTOBResult.SelectDB('',Q) ;
+   if ( Not TMemoField(Q.FindField('SC_ATTRCOMP')).IsNull ) and ( vMemoComp <> nil ) then
+    vMemoComp.Text:=Q.FindField('SC_ATTRCOMP').asString ;
+   result := true;
+  end;
+
+ finally
+  if assigned(Q) then Ferme(Q);
+ end;
+
+end;
+
+function CGetRIB ( vTOBLigneEcr : TOB ) : string;
+var
+ lTOB : TOB;
+ lTemp : HTStringList ;
+begin
+
+ result := '' ;
+ lTemp  := nil ;
+
+ if ( vTOBLigneEcr = nil ) or ( trim(vTOBLigneEcr.GetValue('E_AUXILIAIRE')) = '' ) then exit;
+
+ lTOB   := TOB.Create('',nil,-1);
+
+ try
+
+  if COuvreScenario(vTOBLigneEcr.GetValue('E_JOURNAL'),
+                    vTOBLigneEcr.GetValue('E_NATUREPIECE'),
+                    vTOBLigneEcr.GetValue('E_QUALIFPIECE'),
+                    vTOBLigneEcr.GetValue('E_ETABLISSEMENT'),
+                    lTOB,
+                    lTemp) then
+   begin
+    if lTOB.GetValue('SC_RIB') = 'PRI' then
+     result := GetRIBPrincipal(vTOBLigneEcr.GetValue('E_AUXILIAIRE'));
+   end
+    else
+     if GetParamSocSecur('SO_ATTRIBRIBAUTO',False) then
+       result := GetRIBPrincipal(vTOBLigneEcr.GetValue('E_AUXILIAIRE'));
+
+ finally
+  if assigned(lTOB) then lTOB.Free;
+ end;
+
+end;
+
+
+procedure CRDeviseVersTOB( vRecRDevise : RDevise ; vTOB : TOB ) ;
+begin
+ vTOB.PutValue('D_DEVISE'            , vRecRDevise.Code) ;
+ vTOB.PutValue('D_LIBELLE'           , vRecRDevise.Libelle) ;
+ vTOB.PutValue('D_SYMBOLE'           , vRecRDevise.Symbole) ;
+ vTOB.PutValue('D_DECIMALE'          , vRecRDevise.Decimale) ;
+ vTOB.PutValue('D_QUOTITE'           , vRecRDevise.Quotite) ;
+ vTOB.PutValue('D_CPTLETTRDEBIT'     , vRecRDevise.CptDebit) ;
+ vTOB.PutValue('D_CPTLETTRCREDIT'    , vRecRDevise.CptCredit) ;
+ vTOB.PutValue('D_MAXDEBIT'          , vRecRDevise.MaxDebit) ;
+ vTOB.PutValue('D_MAXCREDIT'         , vRecRDevise.MaxCredit) ;
+ vTOB.PutValue('TAUX'                , vRecRDevise.Taux) ;
+ vTOB.PutValue('DATETAUX'            , vRecRDevise.DateTaux) ;
+end;
+
+procedure CTOBVersRDevise( vTOB : TOB ; var vRecRDevise : RDevise ) ;
+begin
+ vRecRDevise.Code       := vTOB.GetValue('D_DEVISE') ;
+ vRecRDevise.Libelle    := vTOB.GetValue('D_LIBELLE') ;
+ vRecRDevise.Symbole    := vTOB.GetValue('D_SYMBOLE') ;
+ vRecRDevise.Decimale   := vTOB.GetValue('D_DECIMALE') ;
+ vRecRDevise.Quotite    := vTOB.GetValue('D_QUOTITE') ;
+ vRecRDevise.CptDebit   := vTOB.GetValue('D_CPTLETTRDEBIT') ;
+ vRecRDevise.CptCredit  := vTOB.GetValue('D_CPTLETTRCREDIT') ;
+ vRecRDevise.MaxDebit   := vTOB.GetValue('D_MAXDEBIT') ;
+ vRecRDevise.MaxCredit  := vTOB.GetValue('D_MAXCREDIT') ;
+ vRecRDevise.Taux       := vTOB.GetValue('TAUX') ;
+ vRecRDevise.DateTaux   := vTOB.GetValue('DATETAUX') ;
+end;
+
+{$IFNDEF EAGLSERVER}
+{$IFNDEF NOVH}
+procedure CDecodeKeyForAux ( vInKey : Word ; vShift : TShiftState ; var vBoCodeOnly, vBoLibelleOnly, vBoBourrage : boolean );
+begin
+ vBoCodeOnly    := ((vInKey=VK_F5) and (vShift=[])) or ((vInKey=VK_TAB) and VH^.CPCodeAuxiOnly) ;
+ vBoLibelleOnly := (vInKey=VK_F5) and (vShift=[ssCtrl]) ;
+ vBoBourrage    := not (vInKey=VK_F5) ;
+end;
+{$ENDIF}
+{$ENDIF}
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent Gendreau
+Créé le ...... : 21/11/2002
+Modifié le ... : 06/06/2006
+Description .. : - suppression de warning
+Suite ........ : - 20/01/2002 - correction pour la date
+Suite ........ : - FB 11/08/2004 - FB 14053 - si l'exercice de ref est definie
+Suite ........ : on le prends pour controler la date
+Suite ........ : - LG 14/10/2004 - FB 14634 14297 14798 - voir fiche ( pb
+Suite ........ : sur les cloture etc etc )
+Suite ........ : - LG - 06/06/2006 - on force le controle des compte vises 
+Suite ........ : pour les ecritures simplifiees
+Suite ........ : 
+Mots clefs ... :
+*****************************************************************}
+function CControleDateBor(vDateComptable : TDateTime ; vExercice : TZExercice ; Parle : Boolean = true ; vStCodeExo : string = '' ) : boolean ;
+var
+ lDtDateDebN : TDateTime ;
+ lDtDateFinN : TDateTime ;
+ lStExo      : string ;
+ lDt         : TDateTime ;
+begin
+
+ result      := false ;
+ lDtDateDebN := iDate1900 ;
+ lDtDateFinN := iDate1900 ;
+
+ if vStCodeExo <> '' then
+  lStExo := vStCodeExo
+   else
+    lStExo := vExercice.QuelExoDt(vDateComptable) ;
+
+ if (lStExo='') then
+  begin
+    if Parle then PgiInfo('l''exercice n''existe pas !','Vérification d''exercice');
+    exit;
+  end; // if
+
+
+ if vExercice.EstExoClos(lStExo) then
+  begin
+   if Parle then PgiInfo('l''exercice est clos','Vérification d''exercice');
+   exit;
+  end; // for
+
+ if (lStExo=vExercice.Entree.Code) then
+  begin
+   lDtDateFinN := vExercice.Entree.Fin ;
+   lDtDateDebN := vExercice.Entree.Deb ;
+  end
+   else
+    if (lStExo=vExercice.Suivant.Code) then
+     begin
+      lDtDateDebN := vExercice.Suivant.Deb ;
+      lDtDateFinN := vExercice.Suivant.Fin ;
+     end
+      else
+       if (lStExo=vExercice.Precedent.Code) then
+        begin
+         lDtDateDebN := vExercice.Precedent.Deb ;
+         lDtDateFinN := vExercice.Precedent.Fin ;
+        end
+         else
+          if (lStExo=vExercice.EnCours.Code) then
+           begin
+            lDtDateDebN := vExercice.EnCours.Deb ;
+            lDtDateFinN := vExercice.EnCours.Fin ;
+           end;
+
+
+ // recherche de la derniere date de cloture periodique
+ {$IFDEF EAGLCLIENT}
+ lDt := GetParamSocSecur('SO_DATECLOTUREPER',iDate1900,true) ;
+ if lDt > iDate1900 then
+  lDtDateDebN  := lDt + 1 ;
+ {$ELSE}
+  lDt := GetParamSocSecur('SO_DATECLOTUREPER',iDate1900,true) ;
+  if ( lDt > iDate1900 ) and ( lDt > lDtDateDebN )  then
+  lDtDateDebN  := lDt + 1 ;
+ {$ENDIF}
+
+ if ( lDtDateDebN > vDateComptable ) then
+  begin
+   if Parle then PGIError(cStDateInfDateDebExo,'Attention');
+   exit ;
+  end ;
+
+ if ( lDtDateFinN  < vDateComptable ) then
+  begin
+   if Parle then PGIError(cStDateInfDateFinExo,'Attention');
+   exit ;
+  end ;
+
+ result := true ;
+
+end;
+
+function CUnSeulEtablis : boolean ;
+var
+ lQ : TQuery ;
+begin
+ lQ := OpenSQL('select count(et_etablissement) N from etabliss',true) ;
+ result := lQ.FindField('N').asInteger = 1 ;
+ Ferme(lQ);
+end;
+
+{$IFNDEF EAGLSERVER}
+{$IFNDEF NOVH}
+procedure CDateParDefautPourSaisie( var vDateDebut,vDateFin : TDateTime ) ;
+begin
+
+ vDateDebut  := GetParamSocSecur('SO_DATECLOTUREPER',iDate1900,true) + 1 ;
+
+ if (VH^.DateCloturePer + 1) > VH^.CPExoRef.Deb then
+  vDateDebut := VH^.DateCloturePer + 1
+   else
+    begin
+     if ( VH^.CPExoRef.Code <> '' ) then
+      vDateDebut := VH^.CPExoRef.Deb
+       else
+        vDateDebut := VH^.EnCours.Deb ;
+    end; // if
+
+ if ( VH^.CPExoRef.Code <> '' ) then
+  vDateFin := VH^.CPExoRef.Fin
+   else
+    vDateFin := VH^.EnCours.Fin ;
+
+end;
+{$ENDIF}
+{$ENDIF}
+
+function CControleChampsObligSaisie ( vEcr : TOB ; var vStMessage : string ) : Integer ;
+var
+ i : integer ;
+begin
+ result := RC_CHAMPSOBLIGATOIRE ;
+
+ if vEcr = nil then
+  begin
+   MessageAlerte('Fonction CControleChampsObligSaisie : vEcr = nil');
+   exit;
+  end; // if
+
+ for i := 0 to _InMaxChamps do
+  begin
+   if trim(vEcr.GetValue(_RecChampsOblig[i])) = '' then
+    begin
+     vStMessage := 'le champ ' + _RecChampsOblig[i] + ' est obligatoire !'  ;
+     exit ;
+    end; // if
+  end; // for _InMaxChampsRepar
+
+ for i := 0 to _InMaxChampsRepar do
+  if trim(vEcr.GetValue(_RecReparChampsOblig[i,0])) = '' then
+   vEcr.PutValue(_RecReparChampsOblig[i,0],_RecReparChampsOblig[i,1]) ;
+
+ if vEcr.GetValue('E_NUMEROPIECE') = 0 then
+  begin
+   result := RC_NUMPIECEOBLIG ;
+   vStMessage := 'le champ E_NUMEROPIECE ne peut pas etre nul !'  ;
+   exit ;
+  end; // if
+
+  if vEcr.GetValue('E_NUMLIGNE') = 0 then
+  begin
+   result := RC_NUMLIGNEOBLIG ;
+   vStMessage := 'le champ E_NUMLIGNE ne peut pas etre nul !'  ;
+   exit ;
+  end; // if
+
+ result := RC_PASERREUR ;
+
+end;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent Gendreau
+Créé le ...... : 16/09/2002
+Modifié le ... :   /  /
+Description .. : - 16/09/2002 - Supprime les lignes vides provenant de la
+Suite ........ : saisie
+Mots clefs ... :
+*****************************************************************}
+procedure CSupprimeLigneSaisieVide ( vTOB : TOB ) ;
+var lEcr : TOB ;
+i : integer ;
+begin
+if (vTOB=nil) or (vTOB.DEtail=nil) then exit;
+i:=0 ;
+while i<vTOB.Detail.Count do
+ begin
+  lEcr:=vTOB.Detail[i] ;
+  if (lEcr.GetValue('E_DEBIT')=0) and (lEcr.GetValue('E_CREDIT')=0) then lEcr.Free
+  else Inc(i) ;
+ end; // while
+end ;
+
+function CZompteVersTGGeneral ( vCompte : TZCompte ) : TGGeneral ;
+var
+ lC  : Char ;
+ lSt : String ;
+begin
+ result                      := TGGeneral.Create('') ;
+ result.General              := vCompte.GetValue('G_GENERAL') ;
+ result.Libelle              := vCompte.GetValue('G_LIBELLE');
+ result.Collectif            := vCompte.GetValue('G_COLLECTIF') = 'X' ;
+ result.NatureGene           := vCompte.GetValue('G_NATUREGENE');
+ result.Ventilable[1]        := vCompte.GetValue('G_VENTILABLE1') = 'X' ;
+ result.Ventilable[2]        := vCompte.GetValue('G_VENTILABLE2') = 'X' ;
+ result.Ventilable[3]        := vCompte.GetValue('G_VENTILABLE3') = 'X' ;
+ result.Ventilable[4]        := vCompte.GetValue('G_VENTILABLE4') = 'X' ;
+ result.Ventilable[5]        := vCompte.GetValue('G_VENTILABLE5') = 'X' ;
+ result.Lettrable            := vCompte.GetValue('G_LETTRABLE') = 'X' ;
+ result.TotalDebit           := vCompte.GetValue('G_TOTALDEBIT') ;
+ result.TotalCredit          := vCompte.GetValue('G_TOTALCREDIT') ;
+ result.Budgene              := vCompte.GetValue('G_BUDGENE') ;
+ result.Tva                  := vCompte.GetValue('G_TVA') ;
+ result.Tpf                  := vCompte.GetValue('G_TPF') ;
+ result.Tva_Encaissement     := vCompte.GetValue('G_TVAENCAISSEMENT') ;
+ result.SoumisTPF            := vCompte.GetValue('G_SOUMISTPF') = 'X' ;
+ result.RegimeTVA            := vCompte.GetValue('G_REGIMETVA') ;
+ result.Moderegle            := vCompte.GetValue('G_MODEREGLE') ;
+ result.Pointable            := vCompte.GetValue('G_POINTABLE') = 'X' ;
+ result.Ferme                := vCompte.GetValue('G_FERME') = 'X' ;
+ result.QQ1                  := vCompte.GetValue('G_QUALIFQTE1') ;
+ result.QQ2                  := vCompte.GetValue('G_QUALIFQTE2') ;
+ result.TvaSurEncaissement   := vCompte.GetValue('G_TVASURENCAISS') = 'X' ;
+ result.Abrege               := vCompte.GetValue('G_ABREGE') ;
+ result.SuiviTreso           := vCompte.GetValue('G_SUIVITRESO') ;
+ result.Confidentiel         := vCompte.GetValue('G_CONFIDENTIEL') ;
+ result.CodeConso            := vCompte.GetValue('G_CONSO') ;
+ result.Effet                := vCompte.GetValue('G_EFFET') = 'X' ;
+ lSt                         := vCompte.GetValue('G_SENS') ;
+ if lSt <> '' then lC := lSt[1] else lC := 'M' ;
+ case lC of 'D' : result.Sens := 1 ; 'C' : result.Sens := 2 ; else result.Sens := 3 ; end ;
+end;
+
+procedure CRempliComboFolio ( vItem, vValue : HTStrings ; E_JOURNAL,E_EXERCICE : string ; E_DATECOMPTABLE : TDateTime ) ;
+var
+ lQ : TQuery ;
+ lYear, lMonth, lDay : word ;
+ lInMaxJour : integer ;
+begin
+
+ vItem.Clear ;
+ vValue.Clear ;
+ DecodeDate( E_DATECOMPTABLE , lYear , lMonth , lDay ) ;
+ lInMaxJour := DaysPerMonth( lYear, lMonth) ;
+
+ lQ := OpenSQL('SELECT E_NUMEROPIECE FROM ECRITURE WHERE '            +
+               'E_JOURNAL="'                                          + E_JOURNAL  + '"' +
+               ' AND E_EXERCICE="'                                    + E_EXERCICE + '"' +
+               ' AND E_DATECOMPTABLE>="'                              + USDateTime(EncodeDate(lYear, lMonth, 1)) + '"' +
+               ' AND E_DATECOMPTABLE<="'                              + USDateTime(EncodeDate(lYear, lMonth, lInMaxJour)) + '"' +
+               ' AND ( E_QUALIFPIECE="N" OR E_QUALIFPIECE="C" ) '     +
+               ' GROUP BY E_NUMEROPIECE ORDER BY E_NUMEROPIECE DESC '
+               , true) ;
+
+ while not lQ.EOF do
+  begin
+   vItem.Add  ( lQ.FindField('E_NUMEROPIECE').AsString ) ;
+   vValue.Add( lQ.FindField('E_NUMEROPIECE').AsString ) ;
+   lQ.Next ;
+  end ; // while
+
+ Ferme(lQ) ;
+
+end ;
+
+
+//*obj*
+
+{ TInfoEcriture }
+
+constructor TInfoEcriture.Create( vDossier : String = '' ) ;
+begin
+ if vDossier <> '' then
+  FDossier := vDossier
+   else FDossier := V_PGI.SchemaName ;
+ FCompte           := TZCompte.Create(FDossier) ;
+ FAux              := TZTier.Create(FDossier) ;
+ FJournal          := TZListJournal.Create(FDossier) ;
+ FTypeExo          := teEncours ;
+ FSection          := TZSections.Create(FDossier) ;
+end;
+
+destructor TInfoEcriture.Destroy;
+begin
+
+ try
+  if assigned(FCompte)   then FCompte.Free ;
+  if assigned(FAux)      then FAux.Free ;
+  if assigned(FJournal)  then FJournal.Free ;
+  if assigned(FDevise)   then FDevise.Free ;
+  if assigned(FEtabliss) then FEtabliss.Free ;
+  if assigned(FSection)  then FSection.Free ;
+ finally
+  FCompte                := nil ;
+  FAux                   := nil ;
+  FJournal               := nil ;
+  FDevise                := nil ;
+  FEtabliss              := nil ;
+  FSection               := nil ;
+ end ;
+
+ inherited;
+
+end;
+
+function TInfoEcriture.GetExercice : TZExercice ;
+begin
+ result := ctxExercice ;
+end ;
+
+function TInfoEcriture.GetDevise : TZDevise;
+begin
+ if FDevise = nil then
+  begin
+   FDevise := TZDevise.Create( FDossier ) ;
+   result  := FDevise ;
+  end
+   else
+    result := FDevise ;
+end;
+
+function TInfoEcriture.GetEtabliss : TZEtabliss;
+begin
+ if FEtabliss = nil then
+  begin
+   FEtabliss := TZEtabliss.Create( FDossier ) ;
+   result  := FEtabliss ;
+  end
+   else
+    result := FEtabliss ;
+end;
+
+function TInfoEcriture.GetJournal : string;
+begin
+ result := Journal.GetString('J_JOURNAL') ;
+end;
+
+function TInfoEcriture.GetCompte : string;
+begin
+ result := Compte.GetString('G_GENERAL') ;
+end;
+
+function TInfoEcriture.GetAux : string;
+begin
+ result := Aux.GetString('T_AUXILIAIRE') ;
+end;
+
+
+
+procedure TInfoEcriture.Load(vStCompte, vStAux , vStJournal : string ) ;
+begin
+
+ LoadCompte( vStCompte ) ;
+ LoadAux( vStAux) ;
+ LoadJournal(vStJournal) ;
+
+end;
+
+function TInfoEcriture.LoadCompte( vStCompte : string ) : boolean;
+begin
+  result := ( FCompte.GetCompte(vStCompte) <> - 1  ) ;
+end;
+
+function TInfoEcriture.LoadAux( vStAux : string ) : boolean;
+begin
+  result := ( FAux.GetCompte(vStAux) <> - 1  ) ;
+end;
+
+function TInfoEcriture.LoadJournal( vStJournal : string ) : boolean;
+begin
+ result := ( FJournal.Load([vStJournal]) <> - 1  ) ;
+end;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent Gendreau
+Créé le ...... : 14/10/2003
+Modifié le ... :   /  /
+Description .. : - 14/10/2003 - VL -  VL Correction faute orthographe
+Mots clefs ... :
+*****************************************************************}
+function TInfoEcriture.Compte_GetValue( vStNom : string ) : variant;
+begin
+
+  result := #0 ;
+
+  if ( FCompte.InIndex = - 1 ) or ( trim(vStNom) = '' ) then
+   begin
+     NotifyError( RC_COMPTEINEXISTANT, 'Le compte est inconnu' ) ;
+     exit ;
+   end; // if
+
+  result := FCompte.GetString( vStNom ) ;
+
+end;
+
+function TInfoEcriture.Aux_GetValue( vStNom : string ) : variant;
+begin
+
+  result := #0 ;
+
+  if ( FAux.InIndex = - 1 ) or ( trim(vStNom) = '' ) then
+   begin
+     NotifyError( RC_AUXINEXISTANT, '' ) ;
+     exit ;
+   end; // if
+
+  result := FAux.GetString( vStNom ) ;
+
+end;
+
+procedure TInfoEcriture.NotifyError( RC_Error : integer ; RC_Message : string ) ;
+begin
+ FLastError.RC_Error   := RC_Error ;
+ FLastError.RC_Message := RC_Message ;
+ if assigned(FOnError) then FOnError(self,FLastError) ;
+end;
+
+
+procedure TInfoEcriture.SetOnError( Value : TErrorProc );
+begin
+ FOnError := Value ;
+end;
+
+procedure TInfoEcriture.Initialize;
+begin
+ FLastError.RC_Error   := - 1 ;
+ FLastError.RC_Message := '' ;
+end;
+
+
+procedure TInfoEcriture.ClearCompte ;
+begin
+ FCompte.ClearCompte ;
+end;
+
+procedure TInfoEcriture.ClearAux ;
+begin
+ FAux.Items.ClearDetail ;
+end;
+
+procedure TInfoEcriture.ClearJal ;
+begin
+ FJournal.Items.ClearDetail ;
+// FJournal.Free ;
+// FJournal    := TZListJournal.Create( FDossier ) ;
+end;
+
+
+
+
+{ TTOBCompta }
+procedure TOBCompta.SetInfo( Value : TInfoEcriture );
+begin
+ PInfo := Value ;
+end;
+
+
+procedure TOBCompta.NotifyError( RC_Error : integer ; RC_Message : string ; RC_Methode : string = '') ;
+begin
+ FLastError.RC_Error   := RC_Error ;
+ FLastError.RC_Message := RC_Message ;
+ FLastError.RC_Methode := RC_Methode ;
+ if assigned(FOnError) then FOnError(self,FLastError) ;
+end;
+
+
+procedure TOBCompta.SetOnError( Value : TErrorProc );
+begin
+ FOnError := Value ;
+end;
+
+procedure TOBCompta.Initialize ;
+begin
+ NotifyError(RC_PASERREUR,'');
+end;
+
+
+{ TOBEcriture }
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent GENDREAU
+Créé le ...... : 09/08/2004
+Modifié le ... :   /  /
+Description .. : - 09/08/2004 - FB 13563 - getvalue remplace par getstring
+Mots clefs ... :
+*****************************************************************}
+function TOBEcriture.IsValidDateComptable : boolean;
+begin
+
+ result := false ;
+ CheckInfo ;
+
+  if (length(trim(GetString('E_DATECOMPTABLE')))) < 10 then exit;
+
+  if ( Info.Journal.GetValue('J_MODESAISIE')='-' ) or ( Info.Journal.GetValue('J_MODESAISIE')='' ) then
+   result := ControleDate(GetValue('E_DATECOMPTABLE')) = 0
+    else
+     result := CControleDateBor(GetValue('E_DATECOMPTABLE'),Info.Exercice,false) ;
+
+  if not result then notifyError(RC_DATEINCORRECTE,'','TOBEcriture.IsValidDateComptable') ;
+
+end;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent Gendreau
+Créé le ...... : 10/07/2003
+Modifié le ... :   /  /
+Description .. : - FB 12483 - on pouvait passer une ecriture sur un compte
+Suite ........ : ferme
+Mots clefs ... :
+*****************************************************************}
+function TOBEcriture.IsValidJournal : boolean ;
+var
+ lInCodeErreur : integer ;
+begin
+
+ CheckInfo ;
+
+ lInCodeErreur := CIsValidJournal(self,Info) ;
+ result        := lInCodeErreur = RC_PASERREUR ;
+
+ if not result then
+   NotifyError( lInCodeErreur , '' ) ;
+
+end;
+
+
+function TOBEcriture.IsValid : TRecError ;
+begin
+ CheckInfo ;
+ result := CIsValidLigneSaisie(Self,Info ) ;
+end;
+
+
+function TOBEcriture.IsValidEtabliss : boolean;
+var
+ lInCodeErreur : integer ;
+begin
+ CheckInfo ;
+ Initialize ;
+
+ lInCodeErreur := CIsValidEtabliss(self,Info) ;
+ result        := lInCodeErreur = RC_PASERREUR ;
+
+ if not result then
+   NotifyError( lInCodeErreur , '' ) ;
+
+end;
+
+
+function TOBEcriture.IsValidCompte : boolean ;
+var
+ lInCodeErreur : integer ;
+begin
+
+ {$IFDEF TT}
+ AddEvenement('IsValidCompte');
+{$ENDIF}
+
+// result                := false ;
+ CheckInfo ;
+ Initialize ;
+
+ lInCodeErreur := CIsValidCompte(self,Info) ;
+ if ( lInCodeErreur <> RC_PASERREUR ) then
+   NotifyError( lInCodeErreur , '' ) ;
+ result := not ( ( lInCodeErreur = RC_COMPTEINEXISTANT ) or
+                 ( lInCodeErreur = RC_CINTERDIT ) or
+                 ( lInCodeErreur = RC_CNATURE ) ) ;
+
+end;
+
+function TOBEcriture.IsValidAux : boolean ;
+var
+ lInCodeErreur : integer ;
+begin
+
+ {$IFDEF TT}
+ AddEvenement('IsValidAux');
+{$ENDIF}
+
+// result                := false ;
+ CheckInfo ;
+ Initialize ;
+
+ lInCodeErreur := CIsValidAux( self, Info ) ;
+ if lInCodeErreur <> RC_PASERREUR then
+   NotifyError( lInCodeErreur , '' ) ;
+
+ result := lInCodeErreur = RC_PASERREUR ;
+
+end;
+
+function TOBEcriture.IsValidNat : boolean;
+var
+ lInCodeErreur : integer ;
+begin
+
+ lInCodeErreur := CIsValidNat(self,Info) ;
+ result        := lInCodeErreur = RC_PASERREUR ;
+
+ if not result then
+   NotifyError( lInCodeErreur , '' ) ;
+
+end;
+
+function TOBEcriture.IsValidEcrANouveau : boolean;
+var
+ lInCodeErreur : integer ;
+begin
+
+ CheckInfo ;
+
+ lInCodeErreur := CIsValidEcrANouveau(self,Info) ;
+ result        := lInCodeErreur = RC_PASERREUR ;
+
+ if not result then
+   NotifyError( lInCodeErreur , '' ) ;
+
+end;
+
+function TOBEcriture.IsValidModeSaisie : boolean ;
+var
+ lInCodeErreur : integer ;
+begin
+
+ CheckInfo ;
+
+ lInCodeErreur := CIsValidModeSaisie(self,Info) ;
+ result        := lInCodeErreur = RC_PASERREUR ;
+
+ if not result then
+   NotifyError( lInCodeErreur , '' ) ;
+
+end;
+
+function TOBEcriture.IsValidPeriodeSemaine : boolean;
+begin
+ Result := ( NumSemaine(GetValue('E_DATECOMPTABLE')) = GetValue('E_SEMAINE') ) and
+           ( GetPeriode(GetValue('E_DATECOMPTABLE')) = GetValue('E_PERIODE') ) ;
+ if not result then
+  NotifyError( RC_NUMPERIODE , '' ) ;
+
+end;
+
+
+function TOBEcriture.IsValidMontant( vRdMontant : double ) : boolean;
+begin
+ result := CIsValidMontant(vRdMontant) = RC_PASERREUR ;
+end;
+
+function TOBEcriture.IsValidCredit : boolean;
+begin
+ result := IsValidMontant( GetValue('E_CREDIT') ) ;
+end;
+
+function TOBEcriture.IsValidDebit : boolean;
+begin
+ result := IsValidMontant( GetValue('E_DEBIT') ) ;
+end;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent GENDREAU
+Créé le ...... : 02/10/2003
+Modifié le ... :   /  /    
+Description .. : - LG - 02/10/2003 - on ne pouvait pas saisir un montant du 
+Suite ........ : type 0.3
+Mots clefs ... : 
+*****************************************************************}
+function TOBEcriture.IsValidDebitCredit : boolean;
+begin
+ result := IsValidCredit and IsValidDebit and ( (GetValue('E_CREDIT') > 0 ) xor ( GetValue('E_DEBIT') > 0 ) ) ;
+end;
+
+procedure TOBEcriture.PutDefautEcr;
+begin
+ CPutDefautEcr(self) ;
+end;
+
+procedure TOBEcriture.RemplirInfoLettrage;
+begin
+ CRemplirInfoLettrage(self) ;
+end;
+
+procedure TOBEcriture.RemplirInfoPointage;
+begin
+ CRemplirInfoPointage(self) ;
+end;
+
+procedure TOBEcriture.SupprimerInfoLettrage;
+begin
+ CSupprimerInfoLettrage(self) ;
+end;
+
+
+procedure TOBEcriture.CheckInfo ;
+begin
+ if PInfo = nil then
+  begin
+    MessageAlerte('La variable Info n''est pas initialisée ! ') ;
+    raise EAbort.Create('') ;
+  end;
+end;
+
+
+procedure TOBEcriture.CompleteInfo ;
+begin
+
+ {$IFDEF TT}
+ AddEvenement('CompleteInfo');
+{$ENDIF}
+
+ CSetCotation(self) ;
+
+ if Info.Compte.InIndex = - 1 then exit ; // le ligne n'est pas finis, on ne compleyt pas les infos de lettrage
+
+ if ( AnsiUpperCase(Info.Aux_GetValue('T_LETTRABLE')) = 'X' ) or ( Info.Compte.IsLettrable ) then
+  begin
+   PutValue('E_LETTRAGE','X') ;
+   CRemplirInfoLettrage(self) ;
+  end
+   else
+    CSupprimerInfoLettrage(self) ;
+
+ if Info.compte.IsPointable then
+  CRemplirInfoPointage(self) ;
+
+ {$IFDEF COMPTA}
+ if IsValidDebitCredit then
+  begin
+   CGetEch(Self , Info ) ;
+   CGetTVA(Self,Info) ;
+  end ;
+  {$ENDIF}
+
+end;
+
+
+procedure TInfoEcriture.ClearSection;
+begin
+ FSection.Free ;
+ FSection := TZSections.Create( FDossier ) ;
+end;
+
+function TInfoEcriture.GetSection: string;
+begin
+  result := FSection.GetValue('S_SECTION') ;
+end;
+
+function TInfoEcriture.LoadSection(vStSection, vStAxe: string ): boolean;
+begin
+  result := ( FSection.GetCompte( vStSection, vStAxe ) <> - 1  ) ;
+end;
+
+function TInfoEcriture.Section_GetValue(vStNom: string): variant;
+begin
+
+  result := #0 ;
+
+  if ( FSection.InIndex = - 1 ) or ( trim(vStNom) = '' ) then
+   begin
+     NotifyError( RC_YSECTIONINEXIST, '' ) ;
+     exit ;
+   end; // if
+
+  result := FSection.GetValue( vStNom ) ;
+
+end;
+
+procedure TInfoEcriture.LoadOpti(vStCompte, vStAux: string ; vTobSource : Tob );
+begin
+  if ( vStCompte <> '' ) then
+    FCompte.GetCompteOpti( vStCompte , vTobSource ) ;
+  if ( vStAux <> '' ) then
+    FAux.GetCompteOpti( vStAux , vTobSource ) ;
+end;
+
+
+{ TOBEcritureSaisie }
+
+function TOBEcritureSaisie.IsValidCompte : boolean ;
+var
+ lStCompte   : string ;
+ lStAux      : string ;
+ lStJournal  : string ;
+begin
+
+ {$IFDEF TT}
+ AddEvenement('IsValidCompte');
+{$ENDIF}
+
+ result                := inherited IsValidCompte;
+
+ if result then
+  begin
+
+   lStCompte             := Info.StCompte ;
+   lStAux                := Info.StAux ;
+   lStJournal            := Info.StJournal ;
+
+   result := false ;
+
+   if ( lStCompte = GetParamsocSecur('SO_OUVREBIL','') ) then
+    begin
+     PutValue('E_GENERAL' , '' );
+     NotifyError(RC_COUVREBIL , '' ) ;
+     exit ;
+    end ;
+
+   if EstInterdit( PInfo.Journal.GetValue('J_COMPTEINTERDIT') , PInfo.StCompte , 0 ) > 0 then
+    begin
+     NotifyError(RC_CINTERDIT , '' ) ;
+     PutValue('E_GENERAL' , '' ) ;
+     exit;
+    end ;
+
+   result := ( FLastError.RC_Error = -1 ) ;
+
+  end ;
+  
+ case FLastError.RC_Error of
+  RC_PASCOLLECTIF ,
+  RC_NATAUX        : lStAux    := '' ;
+  RC_CINTERDIT ,
+  RC_CNATURE       : begin lStCompte := '' ; lStAux    := '' ; end ;
+ end ; // if
+
+ PutValue('E_GENERAL'    , lStCompte ) ;
+ PutValue('E_AUXILIAIRE' , lStAux ) ;
+ PutValue('E_JOURNAL'    , lStJournal ) ;
+
+
+
+end;
+
+function TOBEcritureSaisie.IsValidAux : boolean ;
+var
+ lStCompte : string ;
+ lStAux    : string ;
+begin
+
+{$IFDEF TT}
+ AddEvenement('IsValidAux');
+{$ENDIF}
+
+ result                := Inherited IsValidAux;
+
+ lStCompte             := Info.StCompte ;
+ lStAux                := Info.StAux ;
+
+ if Info.Aux_GetValue('T_FERME') = 'X' then
+  begin
+   if ( Arrondi(Info.Aux_GetValue('T_TOTALDEBIT') - Info.Aux_GetValue('T_TOTALCREDIT'), 2) = 0 ) then
+     begin
+      PutValue('E_AUXILIAIRE' , '' ) ;
+      NotifyError( RC_AUXFERME , '' ) ;
+      exit ;
+     end
+      else
+       begin
+        NotifyError( RC_AUXFERME , '' ) ;
+       end ;
+  end ; // if
+
+ if ( FLastError.RC_Error = RC_COMPTEINEXISTANT ) or ( FLastError.RC_Error = RC_NATAUX ) then
+  begin
+   lStCompte := Info.Aux_GetValue('T_COLLECTIF') ;
+   PutValue('E_GENERAL'    , lStCompte ) ;
+   PutValue('E_AUXILIAIRE' , lStAux ) ;
+   result    := IsValidCompte ;
+   if result then lStCompte := Info.StCompte ;
+   if not result then exit ;
+  end; // if
+
+ PutValue('E_GENERAL'    , lStCompte ) ;
+ PutValue('E_AUXILIAIRE' , lStAux ) ;
+
+end;
+
+
+
+{ TRechercheCompte }
+
+constructor TRechercheCompte.Create ( vInfo : TInfoEcriture ) ;
+begin
+
+ FEcr          := MakeTOB;
+
+ if Assigned( vInfo ) then
+  PInfo := vInfo
+   else
+    begin
+     PGIError('Contexte des création des écritures incorrect') ;
+     exit ;
+    end ;
+
+ FEcr.PInfo    := PInfo ;
+ FEcr.OnError  := OnErrorEcr ;
+ FTypeRech     := RechTous ;
+ FFocusControl := ControlGen ;
+ FStCarLookUp  := '' ;
+
+ Initialize ;
+
+end;
+
+destructor TRechercheCompte.Destroy;
+begin
+
+ if assigned( FEcr ) then FEcr.Free ;
+
+ FEcr := nil ;
+
+ inherited;
+
+end;
+
+function TRechercheCompte.MakeTOB : TOBEcriture;
+begin
+ result := TOBEcriture.Create('ECRITURE',nil,-1) ;
+end;
+
+procedure TRechercheCompte.SetCompte ( Value : string ) ;
+begin
+ FEcr.PutValue('E_GENERAL' , Value ) ;
+end;
+
+function  TRechercheCompte.GetCompte : string ;
+begin
+ result := FEcr.GetString('E_GENERAL') ;
+end;
+
+procedure TRechercheCompte.SetAux ( Value : string ) ;
+begin
+  FEcr.PutValue('E_AUXILIAIRE' , Value ) ;
+end;
+
+function  TRechercheCompte.GetAux : string ;
+begin
+ result := FEcr.GetString('E_AUXILIAIRE') ;
+end;
+
+procedure TRechercheCompte.SetJrn ( Value : string ) ;
+begin
+ FEcr.PutValue('E_JOURNAL' , Value ) ;
+end;
+
+function  TRechercheCompte.GetJrn : string ;
+begin
+ result := FEcr.GetString('E_JOURNAL') ;
+end;
+
+function TRechercheCompte.GetNature: string;
+begin
+ result := FEcr.GetValue('E_NATUREPIECE') ;
+end;
+
+procedure TRechercheCompte.SetNature(Value: string);
+begin
+ FEcr.PutValue('E_NATUREPIECE' , Value ) ;
+end;
+
+function TRechercheCompte.GetDevise : string ;
+begin
+ result := FEcr.GetValue('E_DEVISE') ;
+end;
+
+procedure TRechercheCompte.SetDevise ( Value : string ) ;
+begin
+ FEcr.PutValue('E_DEVISE' , Value ) ;
+end;
+
+function CIsCarRecherche ( vValues : string ) : boolean ;
+begin
+ result := (vValues=RC_CODEFOU) or (vValues=RC_CODECLI) or (vValues=RC_CODECLIN) or (vValues=RC_CODEFOUN);
+end;
+
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent gendreau
+Créé le ...... : 14/11/2002
+Modifié le ... :   /  /
+Description .. : -14/111/2002 - utilisation de l fct CQuelRecherche
+Mots clefs ... :
+*****************************************************************}
+{$IFNDEF NOVH}
+function TRechercheCompte.Execute : boolean;
+var
+ lStCar        : string ;
+ lStNat        : string ;
+ lBoCodeOnly   : boolean ;
+ lBoLibOnly    : boolean ;
+ lBoBourrage   : boolean ;
+ lStCompte     : string ;
+ lStAux        : string ;
+ lBoExisteAux  : boolean ;
+ lBoExisteGen  : boolean ;
+begin
+
+{$IFDEF TT}
+ AddEvenement('Execute');
+{$ENDIF}
+
+ result    := false ;
+
+ Initialize ;
+
+ {$IFNDEF EAGLSERVER}
+ CDecodeKeyForAux(FInKey,FShift,lBoCodeOnly,lBoLibOnly,lBoBourrage) ;
+ {$ENDIF}
+ Info.Aux.BoCodeOnly       := lBoCodeOnly ;
+ Info.Aux.BoLibelleOnly    := lBoLibOnly ;
+ Info.Aux.BoBourrageCode   := lBoBourrage ;
+ lStCompte                 := StCompte ;
+ lStAux                    := StAux ;
+ lStNat                    := FEcr.GetValue('E_NATUREPIECE') ;
+
+ if ( FTypeRech = RechTous ) or ( FTypeRech = RechGen) then
+  FFocusControl := ControlGen
+   else
+    FFocusControl := ControlAux ;
+
+ lBoExisteGen := Info.LoadCompte(StCompte) ;
+ lBoExisteAux := Info.LoadAux(StAux) ;
+
+ if ( FTypeRech = RechTous ) or ( FTypeRech = RechGen) then
+  begin
+
+   FStCarLookUp := UpperCase(Copy(StCompte,1,1)) ;
+
+   if not lBoExisteGen then
+    begin
+     FTypeRech    := CQuelRecherche(lStCompte,lStAux,StNature) ;
+     StCompte     := lStCompte ;
+     StAux        := lStAux ;
+     if FTypeRech = RechAux then
+      begin
+       result     := Execute ;
+       exit ;
+      end;
+    end ;
+
+   if ( not ( lBoExisteGen and lBoExisteAux ) and ( StCompte <> '' ) ) then
+    begin
+     if not ( isNumeric(StCompte) and not CIsCarRecherche(lStCar) ) and ( Info.LoadAux(StCompte) )then
+      begin
+       StAux     := Info.StAux ;
+       StCompte  := '' ;
+      end; // if
+    end;
+
+  if Info.Compte.InIndex <> - 1 then StCompte := Info.StCompte ;
+  if Info.Aux.InIndex    <> - 1 then StAux    := Info.StAux ;
+
+   if Info.Compte.InIndex > -1 then
+    begin
+
+      result := FEcr.IsValidJournal and FEcr.IsValidCompte ;
+      case FLastError.RC_Error of
+       RC_PASCOLLECTIF,RC_AUXOBLIG : FFocusControl:= ControlAux ;
+       else FFocusControl := ControlGen ;
+      end; // case
+    end // if
+    else
+     if Info.Aux.InIndex > -1 then
+      begin
+
+        result := FEcr.IsValidJournal and FEcr.IsValidAux ;
+        case FLastError.RC_Error of
+         RC_PARAMAUX,
+         RC_CINTERDIT,
+         RC_CNATURE,
+         RC_CFERMESOLDE : FFocusControl := ControlGen ;
+         else FFocusControl := ControlAux ;
+        end; // case
+
+      end
+       else
+        if ( StCompte='' ) and ( StAux='' ) then
+          begin
+           result         := false ;
+           FFocusControl  := ControlGen ;
+           NotifyError( RC_COMPTEINEXISTANT , '' ) ;
+          end;
+
+  end
+   else
+    begin
+      if lBoExisteGen or lBoExisteAux then
+       begin
+        if Info.Compte.InIndex <> - 1 then StCompte := Info.StCompte ;
+        if Info.Aux.InIndex    <> - 1 then StAux    := Info.StAux ;
+        result:= FEcr.IsValidJournal and Fecr.IsValidAux ;
+        case FLastError.RC_Error of
+          RC_PASERREUR  : FFocusControl := ControlSuiv ;
+          RC_PARAMAUX,
+          RC_CINTERDIT,
+          RC_CNATURE,
+          RC_CFERMESOLDE : begin StAux:='' ; FFocusControl := ControlGen ; end ;
+          else FFocusControl := ControlAux ;
+        end; // case
+        end
+        else
+         begin
+        //  NotifyError( RC_AUXINEXISTANT , '' ) ;
+          FFocusControl := ControlAux ;
+         end ;
+
+    end; // if
+
+end;
+{$ENDIF}
+
+procedure TRechercheCompte.SetOnError( Value : TErrorProc );
+begin
+ FOnError := Value ;
+end;
+
+procedure TRechercheCompte.OnErrorEcr (sender : TObject; Error : TRecError ) ;
+begin
+ NotifyError(Error.RC_Error , Error.RC_Message ) ;
+end;
+
+procedure TRechercheCompte.NotifyError( RC_Error : integer ; RC_Message : string ) ;
+begin
+ FLastError.RC_Error   := RC_Error ;
+ FLastError.RC_Message := RC_Message ;
+ if assigned(FOnError) then FOnError(self,FLastError) ;
+end;
+
+procedure TRechercheCompte.LookUpAux;
+begin
+ // rien ici
+end;
+
+procedure TRechercheCompte.LookUpGen;
+begin
+  // rien ici
+end;
+
+procedure TRechercheCompte.Initialize;
+begin
+ FLastError.RC_Error   := - 1 ;
+ FLastError.RC_Message := '' ;
+ FEcr.Initialize ;
+end;
+
+
+{$IFNDEF EAGLSERVER}
+procedure TRechercheCompte.GetEcran(FForm: TForm);
+begin
+ FEcr.GetEcran(FForm) ;
+end;
+{$ENDIF}
+
+{ TRechercheGrille }
+
+{$IFNDEF EAGLSERVER}
+{$IFNDEF ERADIO}
+function TRechercheGrille.MakeTOB : TOBEcriture;
+begin
+ result := TOBEcritureSaisie.Create('ECRITURE',nil,-1) ;
+end;
+
+
+procedure TRechercheGrille.NotifyError( RC_Error : integer ; RC_Message : string ) ;
+begin
+ if RC_Error in [RC_COMPTEINEXISTANT,RC_NATAUX, RC_AUXINEXISTANT, RC_AUXOBLIG , RC_PASCOLLECTIF] then
+  begin
+   FLastError.RC_Error   :=  RC_Error ;
+   FLastError.RC_Message :=  RC_Message ;
+  end
+   else
+    inherited;
+end;
+
+
+procedure TRechercheGrille.SetOnError( Value : TErrorProc );
+begin
+ if Info <> nil then
+  Info.OnError := OnErrorInfo ;
+ inherited;
+end;
+
+
+procedure TRechercheGrille.OnErrorInfo(sender: TObject; Error: TRecError);
+begin
+ NotifyError(Error.RC_Error,Error.RC_Message) ;
+end;
+
+
+procedure TRechercheGrille.LookUpAux;
+begin
+ {$IFDEF TT}
+ AddEvenement('LookUpAux');
+{$ENDIF}
+ inherited;
+ PostMessage(FGrille.Handle , WM_KEYDOWN , KEY_LOOKUP , 0) ;
+end;
+
+
+procedure TRechercheGrille.LookUpGen;
+begin
+ {$IFDEF TT}
+ AddEvenement('LookUpGen');
+{$ENDIF}
+ inherited ;
+ PostMessage(FGrille.Handle , WM_KEYDOWN , KEY_LOOKUP , 0) ;
+end;
+
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent Gendreau
+Créé le ...... : 28/10/2002
+Modifié le ... : 19/10/2005
+Description .. : - 28/10/2002 - on n'appelait pas la bonne fct
+Suite ........ : -28/11/2002 - sur F5 on ouvre systematiquement la fentre
+Suite ........ : lookup, on ne passe plus à la case suivante
+Suite ........ : -29/11/2002 - fiche 10859 - la gestion des caracteres ne fct
+Suite ........ : pas
+Suite ........ : - 01/07/2003 - qd on a choisit l'auxiliaire on passe a lo
+Suite ........ : colonne suivante
+Suite ........ : - 06/10/2003 - FB 11938 - 0 + F5 ne fct pas ds la case des
+Suite ........ : auxi
+Suite ........ : - 12/08/2004 - FB 13941 - sur F5 ds la case des auxi, on
+Suite ........ : recuperais les info du compte de la ligne supérieur
+Suite ........ : - 20/09/2005 - LG  - on bloque le deplacement si le compte 
+Suite ........ : choisit n'est aps correct ( les comptes vise apparaissent ds 
+Suite ........ : le lookup, mais on ne doit pas ce deplacer de la case des
+Suite ........ : generaux )
+Suite ........ : - le echap sur le lookup passait a la ligne suivante
+Mots clefs ... : 
+*****************************************************************}
+function TRechercheGrille.ElipsisClick(Sender: TObject ; vBoAvecDeplacement : boolean = true ) : boolean ;
+var
+ ARow          : integer ;
+ ACol          : integer ;
+ lStSelect     : string ;
+ lStColonne    : string ;
+ lStOrder      : string ;
+ lStWhere      : string ;
+ lStNatureGene : string ;
+ lStCompte     : string ;
+ lStAux        : string ;
+ lCancel       : boolean ;
+begin
+
+ {$IFDEF TT}
+ AddEvenement('ElipsisClick');
+{$ENDIF}
+
+ FGrille      := THGrid(Sender) ;
+ ARow         := FGrille.Row ;
+ ACol         := FGrille.Col ;
+ Result       := false ;
+
+ lStCompte    := FGrille.Cells[FCOL_GEN, ARow] ;
+ lStAux       := FGrille.Cells[FCOL_AUX, ARow] ;
+
+ // Comptes généraux
+ if FGrille.Col = FCOL_GEN then
+  begin
+   FStCarLookUp := Copy(lStCompte,1,1) ; // FB 11938
+   if CQuelRecherche(lStCompte,lStAux,StNature) = RechGen then
+    begin
+     FGrille.Cells[FCOL_GEN, ARow] := lStCompte ;
+     FGrille.Cells[FCOL_AUX, ARow] := lStAux ;
+     CMakeSQLLookupGen(lStWhere,lStColonne,lStOrder,lStSelect,PInfo.TypeExo) ;
+     result := LookupList(FGrille,TraduireMemoire('Comptes'),GetTableDossier(PInfo.Dossier, 'GENERAUX'),lStColonne,lStSelect,lStWhere,lStOrder,true, 1,'',tlLocate) ;
+     if result then
+         begin
+          CellExitGen(Sender,ACol, ARow,lCancel) ;
+          FGrille.Row := ARow ;
+          FGrille.Col := ACol ;
+          if not lCancel then
+           FGrille.Col := FGrille.Col + 1 ;
+         end
+          else
+           lCancel := true ;
+    end
+     else
+      begin
+       FGrille.Cells[FCOL_GEN, ARow] := lStCompte ;
+       FGrille.Cells[FCOL_AUX, ARow] := lStAux ;
+       FGrille.Col                   := FCOL_AUX ;
+       if Info.LoadCompte(lStCompte) then
+        lStNatureGene:=Info.Compte_GetValue('G_NATUREGENE')
+         else
+          lStNatureGene:='' ;
+         CMakeSQLLookupAuxGrid(lStWhere,lStColonne,lStOrder,lStSelect,FStCarLookUp,FEcr.GetValue('E_NATUREPIECE'),lStNatureGene) ;
+         result := LookupList(FGrille,TraduireMemoire('Auxiliaire'),GetTableDossier(PInfo.Dossier, 'TIERS'),lStColonne,lStSelect,lStWhere,lStOrder,true, 2,'',tlLocate) ;
+         if result then
+         begin
+          CellExitAux(Sender,ACol, ARow,lCancel) ;
+          FGrille.Row := ARow ;
+          FGrille.Col := ACol ;
+          if not lCancel then
+           FGrille.Col := FGrille.Col + 1 ;
+         end ; // if
+      end;
+  end // if
+   else
+    if FGrille.Col = FCOL_AUX then
+     begin
+       if Info.LoadCompte(lStCompte) then
+        lStNatureGene:=Info.Compte_GetValue('G_NATUREGENE')
+         else
+          lStNatureGene:='' ;
+       FStCarLookUp := Copy(FGrille.Cells[FCOL_AUX, ARow],1,1) ; // FB 11938
+       CMakeSQLLookupAuxGrid(lStWhere,lStColonne,lStOrder,lStSelect,FStCarLookUp,FEcr.GetValue('E_NATUREPIECE'),lStNatureGene);
+       result := LookupList(FGrille,TraduireMemoire('Auxiliaire'), GetTableDossier(PInfo.Dossier, 'TIERS') ,lStColonne,lStSelect,lStWhere,lStOrder,true, 2,'',tlLocate) ;
+       if result and vBoAvecDeplacement then
+        begin
+         CellExitAux(Sender,ACol, ARow,lCancel) ;
+         if not lCancel then
+         FGrille.Col := FGrille.Col + 1 ;
+        end ; // if
+     end; // if
+
+ result := not lCancel ;   
+
+end;
+
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent Gendreau
+Créé le ...... : 06/04/2004
+Modifié le ... :   /  /
+Description .. : - LG FB 13372 - 06/04/2004 - on ouvre pas le lookup qd on
+Suite ........ : va sur la gauche
+Mots clefs ... :
+*****************************************************************}
+procedure TRechercheGrille.CellExitGen(Sender: TObject; var ACol,ARow: integer; var Cancel: boolean);
+begin
+
+ {$IFDEF TT}
+ AddEvenement('CellExitGen');
+{$ENDIF}
+
+ ExecuteGen(Sender,ACol,ARow,Cancel) ;
+
+ if ( FLastError.RC_Error = RC_AUXINEXISTANT ) or ( FLastError.RC_Error = RC_AUXOBLIG ) then
+  Cancel := false ;
+
+ if ( FocusControl = ControlSuiv) and not Cancel then ACol := ACol + 1 ;
+
+ if length(trim(StCompte)) = 0 then StCompte := '' ;
+ if length(trim(StAux)) = 0    then StAux    := '' ;
+
+ FGrille.Cells[FCOL_GEN, ARow] := StCompte ;
+ FGrille.Cells[FCOL_AUX, ARow] := StAux ;
+
+ if Cancel then
+  begin
+   if ( FLastError.RC_Error = RC_AUXOBLIG ) and ( StAux = '' ) and ( CGetGridSens(FGrille,ACol,Arow) = RC_GAUCHE_DROITE ) then
+    begin
+     ACol := FCOL_AUX ;
+     exit ;
+    end;
+
+   if ( FLastError.RC_Error = RC_COMPTEINEXISTANT ) and ( StAux = '' ) and ( CGetGridSens(FGrille,ACol,Arow) = RC_GAUCHE_DROITE ) then
+    begin
+     ACol := FCOL_AUX ;
+     exit ;
+    end;
+
+   if FocusControl = ControlGen then
+    begin
+     ACol        := FCOL_GEN ;
+     if ( CGetGridSens(FGrille,ACol,Arow) = RC_GAUCHE_DROITE ) then
+      PostMessage(FGrille.Handle, WM_KEYDOWN, KEY_LOOKUP, 0) ;
+    end
+     else
+      if FocusControl = ControlAux then
+       begin
+        ACol        := FCOL_AUX ;
+       // FBoCellExit := true ;
+        PostMessage(FGrille.Handle, WM_KEYDOWN, KEY_LOOKUP, 0) ;
+       end;
+  end
+   else
+    if FocusControl = ControlAux then
+     begin
+      ACol         := FCOL_AUX ;
+      Cancel       := true ;
+     end
+      else
+       if FocusControl = ControlSuiv then
+        begin
+         ACol         := FCOL_AUX + 1 ;
+         Cancel       := true ;
+        end;
+end;
+
+
+procedure TRechercheGrille.CellExitAux(Sender: TObject; var ACol, ARow: integer; var Cancel: boolean);
+begin
+
+ {$IFDEF TT}
+ AddEvenement('CellExitAux');
+{$ENDIF}
+
+ ExecuteAux(Sender,ACol,ARow,Cancel) ;
+
+ if ( FocusControl = ControlSuiv) and not Cancel then ACol := ACol + 1 ;
+
+ if length(trim(StCompte)) = 0 then StCompte := '' ;
+ if length(trim(StAux)) = 0    then StAux    := '' ;
+
+ FGrille.Cells[FCOL_GEN, ARow] := StCompte ;
+ FGrille.Cells[FCOL_AUX, ARow] := StAux ;
+
+ if Cancel then
+  begin
+
+   if ( CGetGridSens(FGrille,ACol,Arow) = RC_DROITE_GAUCHE ) then
+    begin
+     ACol := FCOL_GEN ;
+     Cancel:= true ;
+     exit ;
+    end ;
+
+   if ( CGetGridSens(FGrille,ACol,Arow) = RC_GAUCHE_DROITE ) and FGrille.CanFocus then
+    begin
+     //FBoCellExit := true ;
+     PostMessage(FGrille.Handle, WM_KEYDOWN, KEY_LOOKUP, 0) ;
+    end; // if
+  end ; // if
+
+end;
+
+
+procedure TRechercheGrille.ExecuteGen(Sender: TObject; var ACol,ARow: integer; var Cancel: boolean);
+begin
+
+ {$IFDEF TT}
+ AddEvenement('ExecuteGen');
+{$ENDIF}
+
+ FGrille    := THGrid(Sender) ;
+ StCompte   := FGrille.Cells[FCOL_GEN , ARow ] ;
+ StAux      := FGrille.Cells[FCOL_AUX , ARow ] ;
+
+ TypeRech   := RechGen ;
+ FCol       := ACol ;
+ FRow       := ARow ;
+
+ Cancel     := not Execute ;
+
+end;
+
+
+procedure TRechercheGrille.ExecuteAux(Sender: TObject; var ACol, ARow: integer; var Cancel: boolean);
+begin
+
+ {$IFDEF TT}
+ AddEvenement('ExecuteAux');
+{$ENDIF}
+
+ FGrille    := THGrid(Sender) ;
+ StCompte   := FGrille.Cells[FCOL_GEN , ARow ] ;
+ StAux      := FGrille.Cells[FCOL_AUX , ARow ] ;
+ TypeRech   := RechAux ;
+
+ FCol       := ACol ;
+ FRow       := ARow ;
+
+ Cancel     := not Execute ;
+
+end;
+
+
+{$ENDIF !ERADIO}
+{$ENDIF}
+
+
+{ TMessageCompta }
+{***********A.G.L.***********************************************
+Auteur  ...... : Stéphane BOUSSERT
+Créé le ...... : 11/02/2003
+Modifié le ... :   /  /
+Description .. : Nouveau Paramètre :
+Suite ........ :   - vTypeMsg, indentifie le contexte concerné :
+Suite ........ :        msgSaisieBor :    Saisie bordereau
+Suite ........ :        msgSaisiePiece :  Saisie pièce
+Suite ........ :        msgSaisieLibre :  Saisie libre
+Suite ........ :        msgSaisieAnal :   Saisie Analityque
+Suite ........ :        ..... C.F. TTypeMessage  ...
+Mots clefs ... :
+*****************************************************************}
+constructor TMessageCompta.Create( vStTitre : string ; vTypeMsg : TTypeMessage ) ;
+begin
+ FStTitre      := vStTitre ;
+ FListeMessage := HTStringList.Create ;
+ case vTypeMsg of
+   msgSaisieBor     : CInitMessageBor(FListeMessage) ;
+   msgSaisiePiece   : CInitMessagePiece(FListeMessage) ;
+//   msgSaisieLibre
+//   msgSaisieAnal
+ end ;
+end;
+
+destructor TMessageCompta.Destroy;
+begin
+ FListeMessage.Clear ;
+ if assigned( FListeMessage ) then
+  begin
+   FListeMessage.Free ;
+   FListeMessage := nil ;
+  end; // if
+ inherited;
+end;
+
+function TMessageCompta.Execute( RC_Numero : integer ) : integer;
+begin
+ if RC_Numero = RC_PASERREUR then
+  result:=0
+   else
+    result := CPrintMessageRC(FStTitre,RC_Numero,FListeMessage ) ;
+end;
+
+function TMessageCompta.GetMessage(RC_Numero: integer) : string;
+begin
+ result := CGetMessageRC(RC_Numero,FListeMessage ) ;
+end;
+
+
+{ TZList }
+
+constructor TZList.Create( vDossier : String = '');
+begin
+ if vDossier <> '' then
+  FDossier := vDossier
+   else
+    FDossier := V_PGI.SchemaName ;
+ FTOB      := TOB.Create('',nil,-1) ;
+ FInIndex  := -1 ;
+ Initialize ;
+end;
+
+destructor TZList.Destroy;
+begin
+try
+ if assigned(FTOB) then FTOB.Free ;
+finally
+ FTOB := nil ;
+end;
+inherited;
+end;
+
+
+function TZList.MakeTOB : TOB;
+begin
+ result := TOB.Create(FStTable,FTOB,-1) ;
+ result.AddChampSup('CRIT',false) ;
+ result.AddChampSupValeur('TAG','',false) ;
+end;
+
+
+function TZList.GetCount: Integer;
+begin
+ result := FTOB.Detail.Count - 1 ;
+end;
+
+function TZList.GetTOB : TOB;
+begin
+ result:=GetTOBByIndex(FInIndex);
+end;
+
+function TZList.GetTOBByIndex(Index : integer) : TOB;
+begin
+ result:=nil ;
+ if (Index<>-1) and (Index<=GetCount) then begin result:=FTOB.Detail[Index] ; FInIndex:=Index ; end ;
+end;
+
+function TZList.GetValue(Name : string ; Index : integer=-1): Variant;
+begin
+ Result:=#0 ; if (Index<>-1) and (Index<=Count) then FInIndex:=Index ;
+ if (FTOB<>nil) and (FInIndex<>-1) then Result:=FTOB.Detail[FInIndex].GetValue(Name) ;
+end;
+
+function TZList.GetString(Name : string ; Index : integer=-1): string ;
+begin
+ result := GetValue(Name,Index) ;
+ if result = #0 then
+  result := '' ;
+end;
+
+procedure TZList.PutValue(Name: string; Value: Variant);
+begin
+ if (FTOB<>nil) and (FInIndex<>-1) then FTOB.Detail[FInIndex].PutValue(Name, Value) ;
+end;
+
+procedure TZList.PutValueByIndex(Name: string; Value: Variant;Index: integer);
+begin
+ if (Index<0) or (Index>Count) then exit ;
+ FInIndex:=Index ; PutValue(Name,Value) ;
+end;
+
+function TZList.Load(const Values : array of string) : integer;
+var
+ lStCode : string ;
+ i       : integer ;
+begin
+ Result:=-1 ; if (SizeOf(Values)=0) then exit ; lStCode:='' ;
+ for i:=low(Values) to High(Values) do lStCode:=lStCode+Values[i] ; lStCode:=UpperCase(lStCode) ;
+ if GetValue('CRIT')=lStCode then // on commence directement par l'index
+  Result:=FInIndex
+   else
+    for i:=0 to FTOB.Detail.Count-1 do
+     if FTOB.Detail[i].GetValue('CRIT')=lStCode then begin FInIndex:=i ; Result:=FInIndex ; Exit ; end ;
+end;
+
+procedure TZList.SetCrit(vTOB : TOB; const Values : array of string);
+var
+ lStCode : string ;
+ i : integer ;
+begin
+ for i:=low(Values) to High(Values) do lStCode:=lStCode+Values[i] ; lStCode:=UpperCase(lStCode) ;
+ vTOB.PutValue('CRIT',lStCode) ;
+end;
+
+
+
+{ TZScenario }
+constructor TZScenario.Create ( vDossier : String = '' ) ;
+begin
+ inherited ;
+  if vDossier <> '' then
+  FDossier := vDossier
+   else FDossier := V_PGI.SchemaName ;
+ FListe:= HTStringList.Create ;
+end;
+
+destructor TZScenario.Destroy;
+begin
+ try
+  if FMemo<>nil       then FMemo.Free ;
+  if assigned(FListe) then FListe.Free;
+ finally
+  FMemo:=nil ; FListe:=nil ;
+ end;
+ inherited;
+end;
+
+
+procedure TZScenario.Initialize;
+begin
+ FStTable :='SUIVCPTA' ;
+end;
+
+function TZScenario.GetMemo : HTStringList;
+begin
+// result:=nil ;
+ if FMemo=nil then FMemo:=HTStringList.Create ;
+ FMemo.Clear ;
+ FMemo.Add(Item.GetValue('SC_ATTRCOMP')) ;
+ result:=FMemo ;
+end;
+
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent GENDREAU
+Créé le ...... : 20/09/2002
+Modifié le ... : 04/11/2002
+Description .. : -20/09/2002- modif du fct de base. tous element qui 
+Suite ........ : n'existe pas et stocke. On commence la recherche par
+Suite ........ : rechercher dans la liste des elements inexistants
+Suite ........ : -04/11/2002- initlialisation de la stringlist
+Mots clefs ... : 
+*****************************************************************}
+function TZScenario.Load(const Values : array of string) : integer;
+var
+ lStJournal,lStNature,lStQualifpiece,lStEta,lStCrit : string ;
+ lTOB : TOB ;
+ lMemoComp : HTStringList;
+ i : integer;
+begin
+ result:=-1 ; if length(Values)<>4 then exit ;
+ lStJournal:=Values[0] ; lStNature:=Values[1] ; lStQualifpiece:=Values[2] ; lStEta:=Values[3] ;
+ lStCrit:=lStJournal+lStNature+lStQualifpiece+lStEta ;
+ for i:=0 to FListe.Count-1 do if FListe[i]=lStCrit then exit ; // le code n'existe pas
+ Result:= Inherited Load(Values) ; if result<>-1 then exit ; if length(Values)<>4 then exit ;
+ lTOB := MakeTOB ; lMemoComp:=nil ; // on n'utilise pas la stringlist
+ if not COuvreScenario(lStJournal,lStNature,lStQualifPiece,lStEta,lTOB,lMemoComp,FDossier) then
+  begin
+   FListe.Add(lStCrit) ; // on stocke le fait qu'il n'existe pas de scenario pour ce guide
+   lTOB.Free ;
+   exit ;
+  end ;
+ SetCrit(lTOB,Values) ;
+ result := FTOB.Detail.Count - 1 ; FInIndex := result ;
+end;
+
+
+{ TZListJournal }
+
+function TZListJournal.MakeTOB : TOB;
+begin
+ result := inherited MakeTOB ;
+ result.AddChampSupValeur('NBAUTO',-1,false) ;
+end;
+
+
+procedure TZListJournal.Initialize;
+begin
+ FStTable :='JOURNAL' ;
+end;
+
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent Gendreau
+Créé le ...... : 14/02/2002
+Modifié le ... : 14/02/2002
+Description .. : chargement des info du journal :
+Suite ........ : - soit depuis la tob journal s'ila déjà été charger
+Suite ........ : - soit depuis la base
+Suite ........ : et place le pointeur de ligne courant sur cette ligne
+Mots clefs ... :
+*****************************************************************}
+function TZListJournal.Load(const Values : array of string) : integer ;
+var
+lStCode : string ; lTOB : TOB ;
+Q : TQuery ;
+begin
+Result:=inherited Load(Values) ; if result<>-1 then exit ; if SizeOf(Values)=0 then exit ;
+lStCode:=Values[0] ; if Trim(lStCode)='' then exit ; Q:=nil ;
+try
+ Q:=OpenSelect('SELECT * FROM JOURNAL WHERE J_JOURNAL="'+UpperCase(lStCode)+'"',FDossier) ;
+ if not Q.EOF then
+  begin
+   lTOB:=MakeTOB ; lTOB.SelectDB('',Q) ; SetCrit(lTOB,Values) ;
+   FInIndex:=FTOB.Detail.Count-1 ; result:=FInIndex ;
+  end;
+finally
+ Ferme(Q) ;
+end; /// try
+end ;
+
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent Gendreau
+Créé le ...... : 14/02/2002
+Modifié le ... :   /  /
+Description .. : retourne le prochain numero de piece du journal en fonction
+Suite ........ : de la date comptable
+Mots clefs ... :
+*****************************************************************}
+function TZListJournal.GetNumJal(vDtDateComptable : TDateTime) : integer;
+begin
+ result:=GetNewNumJal(GetValue('J_JOURNAL'),true,vDtDateComptable,GetValue('J_COMPTEURNORMAL'),GetValue('J_MODESAISIE'));
+end;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent Gendreau
+Créé le ...... : 14/02/2002
+Modifié le ... :   /  /
+Description .. : Retourne le nom de la tablette pour la nature de piece ne
+Suite ........ : fonction du type de journal
+Mots clefs ... :
+*****************************************************************}
+function TZListJournal.GetTabletteNature : string;
+begin
+ case CaseNatJal(GetValue('J_NATUREJAL')) of
+  tzJVente       : result:='ttNatPieceVente' ;
+  tzJAchat       : result:='ttNatPieceAchat' ;
+  tzJBanque      : result:='ttNatPieceBanque' ;
+  tzJEcartChange : result:='ttNatPieceEcartChange' ;
+  tzJOD          : result:='ttNaturePiece' ;
+ end ; // case
+end;
+
+function TZListJournal.GetNatureParDefaut : string;
+begin
+ result := GetValue('J_NATDEFAUT') ;
+ if trim(result) <> '' then exit ;
+ case CaseNatJal(GetValue('J_NATUREJAL')) of
+  tzJVente       : Result:='FC' ;
+  tzJAchat       : Result:='FF' ;
+  tzJBanque      : Result:='OD' ;
+  tzJEcartChange : Result:='OD' ;
+  tzJOD          : Result:='OD' ;
+ end ; // case
+end;
+
+function TZListJournal.GetNombreDeCompteAuto : integer ;
+var
+ lStCompteAuto : string ;
+begin
+ if GetValue('NBAUTO') = - 1 then
+  begin
+   lStCompteAuto := GetValue('J_COMPTEAUTOMAT') ;
+   result        := 0 ;
+   while ReadTokenSt(lStCompteAuto) <> '' do Inc(result) ;
+   PutValue('NBAUTO',result) ;
+  end ;
+ result := GetValue('NBAUTO') ;
+end;
+
+function TZListJournal.isJalBqe : boolean;
+begin
+ result := UpperCAse(GetValue('J_NATUREJAL')) = 'BQE' ;
+end;
+
+function TZListJournal.GetCompteAuto : string;
+begin
+ result := GetValue('J_COMPTEAUTOMAT') ;
+ if length(trim(GetValue('J_CONTREPARTIE'))) <> 0 then
+  result := GetValue('J_CONTREPARTIE') + ';' ;
+end;
+
+{ TZDevise }
+
+function TZDevise.GetRecDevise : RDevise ;
+begin
+ FillChar(result,SizeOf(RDevise),#0) ;
+ if Item = nil then
+  begin
+   MessageAlerte('GetRecDevise : Devise inconnue ') ;
+   exit ;
+  end;
+ CTOBVersRDevise( Item , result ) ;
+end;
+
+function TZDevise.Load(const Values : array of string) : integer ;
+var lRecDevise : RDevise ; lTOB : TOB ; lStCode : string ;
+begin
+ FillChar(lRecDevise,Sizeof(lRecDevise),#0) ;
+ Result := Inherited Load(Values) ; if (result<>-1) then exit ;
+ lStCode:=Values[0] ; if trim(lStCode)='' then exit ;
+ lRecDevise.Code := lStCode ;
+ GETINFOSDEVISE( lRecDevise, FDossier ) ;
+ if lRecDevise.Code = V_PGI.DevisePivot then
+  lRecDevise.Taux := 1 ;
+ lTOB:=MakeTOB ;
+ CRDeviseVersTOB(lRecDevise,lTOB) ; SetCrit(lTOB,Values) ;
+ result:=FTOB.Detail.Count-1 ; FInIndex := result ;
+end ;
+
+procedure TZDevise.Initialize;
+begin
+ FStTable := 'DEVISE' ;
+end;
+
+procedure TZDevise.AffecteTaux( vDtDateComptable : TDateTime) ;
+var
+ lRecDevise : RDevise ;
+begin
+ if Item = nil then exit ;
+ CTOBVersRDevise(Item,lRecDevise) ;
+ lRecDevise.Taux :=  GetTaux(lRecDevise.Code,lRecDevise.DateTaux,vDtDateComptable) ;
+ CRDeviseVersTOB(lRecDevise,Item) ;
+end;
+
+function TZDevise.MakeTOB : TOB;
+begin
+ result := inherited MakeTOB ;
+ result.AddChampSup('TAUX'     , false) ;
+ result.AddChampSup('DATETAUX' , false) ;
+end;
+
+{ TZTier }
+
+procedure TZTier.Initialize;
+begin
+ FStTable        := 'TIERS' ;
+ FBoCodeOnly     := GetParamSocSecur('SO_CPCODEAUXIONLY',false) ;
+ FBoLibelleOnly  := false ;
+ FBoBourrageCode := true ;
+end;
+
+function TZTier.GetCompte(var NumCompte : string) : Integer;
+begin
+ result   := Load([NumCompte]) ;
+ FInIndex := result ;
+ if result <> -1 then
+  NumCompte := GetValue('T_AUXILIAIRE') ;
+end;
+
+function TZTier.MakeTOB : TOB;
+begin
+ result := inherited MakeTOB ;
+ result.AddChampSup('_SOLDED',false) ;
+ result.AddChampSup('_SOLDEC',false) ;
+end;
+
+function TZTier.LoadFromList(const Values : array of string) : integer;
+var
+ lStCode : string ;
+ i : integer ;
+begin
+ Result:=-1 ; if (SizeOf(Values)=0) then exit ; lStCode:='' ;
+ for i:=low(Values) to High(Values) do lStCode:=lStCode+Values[i] ; lStCode:=UpperCase(lStCode) ;
+ for i:=0 to FTOB.Detail.Count-1 do
+  if FTOB.Detail[i].GetValue('CRIT')=lStCode then begin FInIndex:=i ; Result:=FInIndex ; Exit ; end ;
+ if FBoCodeOnly then exit ;
+ for i:=0 to FTOB.Detail.Count-1 do
+  if (Pos(Values[0],FTOB.detail[i].GetValue('T_LIBELLE'))>0) or
+     (Pos(UpperCase(Values[0]),FTOB.detail[i].GetValue('T_LIBELLE'))>0) then
+      begin  FInIndex:=i ; result:=FInIndex ; exit ; end ;
+end;
+
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent gendreau
+Créé le ...... : 17/10/2002
+Modifié le ... : 18/05/2006
+Description .. : - 17/10/2002 - on fait une recherche approche pour le
+Suite ........ : libelle
+Suite ........ : - 18/05/2006 - changement du test pour deetcter els base 
+Suite ........ : oracle/db2
+Mots clefs ... : 
+*****************************************************************}
+function TZTier.Load(const Values : array of string) : integer;
+var
+ lAValues : array of string ;
+ i : integer ;
+ lQ : TQuery ;
+ lStSQL : string ;
+ lTOB : TOB ;
+begin
+
+ result:=-1 ; if trim(Values[0])='' then exit ; SetLength(lAValues,1) ; lAValues[0]:=Values[0] ;
+
+ try
+
+  if FBoBourrageCode then lAValues[0]:=BourreLaDonc(lAValues[0] , fbAux) ;
+
+  Result:=LoadFromList(lAValues) ; if result<>-1 then exit ;
+  // YM 02/09/2005 Prise en compte de DB2 FQ 16525
+  if isOracle or isDB2 then
+   lStSQL:= 'select TIERS.*,YTC_SCHEMAGEN,YTC_ACCELERATEUR FROM TIERS LEFT OUTER JOIN TIERSCOMPL ON T_AUXILIAIRE=YTC_AUXILIAIRE '
+    else
+     begin
+      lStSQL:=CGetSQLFromTable('TIERS',['T_EMAIL','T_BLOCNOTE','T_RVA'],true) ; // construit le texte de la requete sql sans les champs passe en parametre
+      lStSQL:=lStSQL+',YTC_SCHEMAGEN,YTC_ACCELERATEUR FROM TIERS LEFT OUTER JOIN TIERSCOMPL ON T_AUXILIAIRE=YTC_AUXILIAIRE ' ;
+     end ;
+
+  if not FBoLibelleOnly then
+   BEGIN
+    lQ:=nil ;
+    try
+     lQ:=OpenSelect(lStSQL+' WHERE T_AUXILIAIRE="'+lAValues[0]+'" ',FDossier) ;
+     if not lQ.EOF then
+      begin
+       lTOB:=MakeTOB ;
+       lTOB.SelectDB('',lQ) ;
+       SetCrit(lTOB,lAValues) ;
+       lTOB.PutValue('T_AUXILIAIRE',lQ.FindField('T_AUXILIAIRE').asString) ;
+       if (VarType(lQ.FindField('YTC_ACCELERATEUR').Asvariant) = VarNull) or (VarType(lQ.FindField('YTC_ACCELERATEUR').Asvariant) = VarEmpty) then
+        lTOB.PutValue('YTC_ACCELERATEUR','-') ;
+       lTOB.PutValue('_SOLDED',-1) ;
+       lTOB.PutValue('_SOLDEC',-1) ;
+       // Gestion des cumuls en multisoc
+       CChargeCumulsMS( fbAux, lTOB.GetString('T_AUXILIAIRE') , '', lTOB, FDossier ) ;
+       FInIndex:=FTOB.Detail.Count-1 ; result:=FInIndex ; exit ;
+      end;
+    finally
+     Ferme(lQ) ;
+    end; // try
+   END ; // not FBoLibelleOnly
+
+  if FBoCodeOnly then exit ; // on recherche par code uniquement -> on sort de la fonction
+
+  for i:=0 to FTOB.Detail.Count-1 do
+   if (Pos(Values[0],FTOB.detail[i].GetValue('T_LIBELLE'))>0) or
+      (Pos(UpperCase(Values[0]),FTOB.detail[i].GetValue('T_LIBELLE'))>0) then begin FInIndex:=i ; result:=FInIndex ; exit ; end ;
+  lQ:=nil ;
+  try
+   lQ:=OpenSelect(lStSQL+' WHERE T_LIBELLE LIKE "'+Values[0]+'%" ',FDossier) ;
+   if not lQ.EOF then
+   begin
+    lTOB:=MakeTOB ; lTOB.SelectDB('',lQ) ; SetCrit(lTOB,[lTOB.GetValue('T_AUXILIAIRE')]) ;
+    if (VarType(lQ.FindField('YTC_ACCELERATEUR').Asvariant) = VarNull) or (VarType(lQ.FindField('YTC_ACCELERATEUR').Asvariant) = VarEmpty) then
+     lTOB.PutValue('YTC_ACCELERATEUR','-') ;
+    lTOB.PutValue('_SOLDED',-1) ;
+    lTOB.PutValue('_SOLDEC',-1) ;
+    // Gestion des cumuls en multisoc
+    CChargeCumulsMS( fbAux, lTOB.GetString('T_AUXILIAIRE') , '', lTOB, FDossier ) ;
+    FInIndex:=FTOB.Detail.Count-1 ; result:=FInIndex ;
+   end;
+  finally
+   Ferme(lQ) ;
+  end; // try
+
+ finally
+  lAValues:=nil ;
+ end; // try
+
+end;
+
+procedure TZTier.RAZSolde ;
+var
+ i : integer ;
+begin
+  for i:=0 to FTOB.Detail.Count-1 do
+   begin
+    FTOB.Detail[i].PutValue('_SOLDED',-1) ;
+    FTOB.Detail[i].PutValue('_SOLDEC',-1) ;
+   end ;
+end;
+
+
+procedure TZTier.Solde(var D, C: double; vTypeExo: TTypeExo);
+var
+ lStLettre : string ;
+begin
+
+ case vTypeExo of
+  teEncours   : lStLettre := 'E' ;
+  teSuivant   : lStLettre := 'S' ;
+  tePrecedent : lStLettre := 'P' ;
+ end ;// case
+
+ D := GetValue('T_TOTDEB' + lStLettre) ;
+ C := GetValue('T_TOTCRE' + lStLettre) ;
+
+end;
+
+function TZTier.GetCompteOpti(var NumCompte: string ; vTobSource : tob ): Integer;
+var lTOB    : TOB ;
+    lStChp  : string ;
+    i       : integer ;
+begin
+
+  // recherche dans la liste
+  FInIndex := inherited Load( [NumCompte] ) ;
+
+  if ( FInIndex = -1 ) and ( Trim( NumCompte ) <> '' ) then
+    begin
+
+    if Assigned( vTobSource ) and ( vTobSource.GetString('T_AUXILIAIRE') = NumCompte ) then
+      begin
+      // Création nouvel objet
+      lTOB := MakeTOB ;
+
+      // Recopie des infos
+      for i:=1 to lTob.NbChamps do
+        begin
+        lStChp := lTob.GetNomChamp( i ) ;
+        if vTobSource.GetNumChamp( lstChp ) > 0 then
+          lTOB.PutValue( lStChp, vTobSource.GetValue( lStChp ) ) ;
+        end ;
+      SetCrit( lTOB, [NumCompte] ) ;
+
+      // indicateur
+      FInIndex := FTOB.Detail.Count-1 ;
+
+      end
+    // Ancienne méthode sinon
+    else result := GetCompte( NumCompte ) ;
+
+    end ;
+
+  if FInIndex <> -1 then
+    NumCompte := GetValue('T_AUXILIAIRE') ;
+
+  result := FInIndex ;
+
+end;
+
+{ TObjetCompta }
+
+constructor TObjetCompta.Create( vInfoEcr : TInfoEcriture );
+begin
+ FInfo := vInfoEcr ;
+end;
+
+procedure TObjetCompta.Initialize;
+begin
+ NotifyError(RC_PASERREUR,'');
+end;
+
+procedure TObjetCompta.NotifyError(RC_Error: integer; RC_Message: string ; RC_Methode : string = '' );
+begin
+ FLastError.RC_Error   := RC_Error ;
+ FLastError.RC_Message := RC_Message ;
+ FLastError.RC_Methode := RC_Methode ;
+ if assigned(FOnError) then FOnError(self,FLastError) ;
+end;
+
+procedure TObjetCompta.NotifyError( RC_Message, RC_MessageDelphi, RC_Methode : string ) ;
+begin
+ FLastError.RC_Error   := -1 ;
+ FLastError.RC_Methode := RC_Methode ;
+
+ if RC_MessageDelphi = '' then
+  FLastError.RC_Message := RC_Message
+   else
+    FLastError.RC_Message := RC_Message + #13#10 + RC_MessageDelphi + #13#10 + RC_Methode ;
+
+ if assigned(FOnError) then FOnError(self,FLastError) ;
+
+end;
+
+procedure TObjetCompta.SetInfo(Value: TInfoEcriture);
+begin
+ FInfo := Value ;
+end;
+
+procedure TObjetCompta.SetOnError(Value: TErrorProc);
+begin
+ FOnError := Value ;
+end;
+
+
+
+{ TZEtabliss }
+
+procedure TZEtabliss.Initialize;
+begin
+ FStTable :='ETABLISS' ;
+end;
+
+function TZEtabliss.Load (const Values : array of string ) : integer;
+var Q : TQuery ;
+lStCode : string ; lTOB : TOB ;
+begin
+Result:=inherited Load(Values) ; if result<>-1 then exit ; if SizeOf(Values)=0 then exit ;
+lStCode:=Values[0] ; if Trim(lStCode)='' then exit ; Q:=nil ;
+try
+  Q:=OpenSelect('SELECT * FROM ETABLISS WHERE ET_ETABLISSEMENT="'+UpperCase(lStCode)+'"',FDossier) ;
+ if not Q.EOF then
+  begin
+   lTOB:=MakeTOB ; lTOB.SelectDB('',Q) ; SetCrit(lTOB,Values) ;
+   FInIndex:=FTOB.Detail.Count-1 ; result:=FInIndex ;
+  end;
+finally
+ Ferme(Q) ;
+end; /// try
+end ;
+
+procedure TZEtabliss.LoadAll;
+var
+ Q : TQuery ;
+ lTOB : TOB ;
+begin
+ Q:=nil ;
+ try
+  Q:=OpenSelect('SELECT * FROM ETABLISS',FDossier) ;
+  while not Q.EOF do
+   begin
+    lTOB:=MakeTOB ;
+    lTOB.SelectDB('',Q) ;
+    SetCrit(lTOB,[Q.findField('ET_ETABLISSEMENT').asString] ) ;
+    Q.Next ;
+   end; // while
+  FInIndex:=FTOB.Detail.Count-1 ;
+ finally
+  Ferme(Q) ;
+ end; /// try
+end;
+
+{ TZNature }
+
+procedure TZNature.Initialize;
+begin
+ FStTable :='COMMUN' ;
+end;
+
+function TZNature.Load( const Values : array of string ): integer;
+var Q : TQuery ;
+lStCode : string ; lTOB : TOB ;
+begin
+Result:=inherited Load(Values) ; if result<>-1 then exit ; if SizeOf(Values)=0 then exit ;
+lStCode:=Values[0] ; if Trim(lStCode)='' then exit ; Q:=nil ;
+try
+ Q:=OpenSelect('SELECT * FROM COMMUN WHERE  CO_TYPE="NTP" AND CO_CODE="'+UpperCase(lStCode)+'"',FDossier) ;
+ if not Q.EOF then
+  begin
+   lTOB:=MakeTOB ; lTOB.SelectDB('',Q) ; SetCrit(lTOB,Values) ;
+   FInIndex:=FTOB.Detail.Count-1 ; result:=FInIndex ;
+  end;
+finally
+ Ferme(Q) ;
+end; /// try
+end ;
+
+procedure TZNature.LoadAll;
+var
+ Q : TQuery ;
+ lTOB : TOB ;
+begin
+ Q:=nil ;
+ try
+  Q:=OpenSelect('SELECT * FROM COMMUN WHERE CO_TYPE="NTP" ',FDossier) ;
+  while not Q.EOF do
+   begin
+    lTOB:=MakeTOB ;
+    lTOB.SelectDB('',Q) ;
+    SetCrit(lTOB,[Q.findField('CO_CODE').asString] ) ;
+    Q.Next ;
+   end; // while
+  FInIndex:=FTOB.Detail.Count-1 ;
+ finally
+  Ferme(Q) ;
+ end; /// try
+end;
+
+procedure TZNature.MakeTag ( vStNatureJal : string ) ;
+var
+ i : integer ;
+begin
+ for i := 0 to FTOB.Detail.Count - 1 do
+  if NATUREJALNATPIECEOK( vStNatureJal , FTOB.Detail[i].GetValue('CO_CODE') ) then
+   FTOB.Detail[i].PutValue('TAG','1')
+    else
+     FTOB.Detail[i].PutValue('TAG','0') ;
+end;
+
+
+
+function TZNature.NextNature : string;
+
+ function _n ( var vIndex : integer ) : string ;
+ var
+  i,d  : integer ;
+ begin
+  result := '' ; d := vIndex + 1 ;
+  for i := d to FTOB.Detail.Count - 1 do
+   begin
+    if FTOB.Detail[i].GetValue('TAG') = '1' then
+     begin
+      vIndex   := i ;
+      result   := FTOB.Detail[vIndex].GetValue('CO_CODE') ;
+      exit ;
+     end;
+   end; // for
+   vIndex := 0 ;
+ end;
+
+begin
+ result := _n(FInIndex) ;
+ if result = '' then   // on relance le test
+  result := _n(FInIndex) ;
+end;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Christophe Ayel
+Créé le ...... : 28/11/2005
+Modifié le ... :   /  /
+Description .. : - LG - 28/11/2005 - FB 17069 - correction de la mise ajour 
+Suite ........ : des soldes
+Mots clefs ... : 
+*****************************************************************}
+function _CEnregistrePiece( vTOBEcr : TOB ; vBoInsert : boolean = true ) : boolean;
+begin
+
+// CEquilibrePiece(vTOBEcr) ; // génération des ecart de conversion
+ //CAffectCompteContrePartie(vTOBEcr) ;
+ CNumeroPiece(vTOBEcr) ;
+
+ if vBoInsert then
+  result := vTOBEcr.InsertDBByNivel(false)
+   else
+    result := vTOBEcr.UpdateDb(false) ;
+
+end;
+
+
+procedure CNumeroLigneBor(vTOBPiece : TOB );
+var
+ lInNumGroupEcr     : integer;
+ lInNumLigne        : integer;
+ k                  : integer;
+ i                  : integer;
+ lNumAxe            : integer;
+ lInNumLignePrec    : integer;
+ lQ                 : TQuery;
+ lTOBLigneEcr       : TOB;
+ lTOBSection        : TOB;
+begin
+ if ( vTOBPiece.Detail = nil ) or ( vTOBPiece.Detail.Count = 0 ) then exit ; 
+ lInNumLignePrec:=0 ;
+ // on recherche le dernier numero  de ligne et de numgroupecr
+ lQ:=OpenSQL('select max(E_NUMLIGNE) as N ,max(E_NUMGROUPEECR) as M from ecriture where E_EXERCICE="'+vTOBPiece.Detail[0].GetValue('E_EXERCICE')+'" '+
+             'and E_NUMEROPIECE='+intToStr(vTOBPiece.Detail[0].GetValue('E_NUMEROPIECE'))+' and E_QUALIFPIECE="N" ' +
+             'and E_JOURNAL="'+vTOBPiece.Detail[0].GetValue('E_JOURNAL')+'" and E_PERIODE='+intToStr(vTOBPiece.Detail[0].GetValue('E_PERIODE')),true);
+ lInNumLigne:=lQ.FindField('N').asInteger ; Inc(lInNumLigne) ; lInNumGroupEcr:=lQ.FindField('M').asInteger ; Ferme(lQ) ;
+ // on parcourt l'ensemble des lignes de la piece et on numerote les lignes
+ for k:=0 to vTOBPiece.Detail.Count-1 do
+  BEGIN
+   lTOBLigneEcr := vTOBPiece.Detail[k];
+   lTOBLigneEcr.PutValue('E_NUMLIGNE',lInNumLigne) ;
+   // renumerotation de l'analytique
+   if assigned( lTOBLigneEcr.Detail ) and ( lTOBLigneEcr.detail.Count > 0 ) then
+    begin
+     for lNumAxe := 0 to 4 do
+      begin
+       lTOBSection := lTOBLigneEcr.detail[lNumAxe];
+       if assigned( lTOBSection.Detail ) and ( lTOBSection.detail.Count > 0 ) then
+         for i := 0 to lTOBSection.detail.Count - 1 do
+          lTOBSection.Detail[i].PutValue('Y_NUMLIGNE',lInNumLigne);
+      end; // for
+    end; // if
+   Inc(lInNumLigne) ;
+   if lTOBLigneEcr.GetValue('E_MODESAISIE')='BOR' then
+    BEGIN
+     if lTOBLigneEcr.GetValue('E_NUMGROUPEECR')<>lInNumLignePrec then
+      BEGIN
+       lInNumLignePrec:=lTOBLigneEcr.GetValue('E_NUMGROUPEECR') ; Inc(lInNumGroupEcr) ;
+      END;
+    END // if
+     else lInNumGroupEcr:=1;
+   // on supprime les eventuelles caractères speciaux du lettrages
+   if lTOBLigneEcr.GetValue('E_LETTRAGE')<>'' then
+    lTOBLigneEcr.PutValue('E_LETTRAGE',Copy(vTOBPiece.Detail[k].GetValue('E_LETTRAGE'),1,4));
+   lTOBLigneEcr.PutValue('E_NUMGROUPEECR',lInNumGroupEcr);
+  END;
+end;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent gendreau
+Créé le ...... : 28/11/2005
+Modifié le ... :   /  /    
+Description .. : - LG - 28/11/2005 - FB 17069 - correction de la mise ajour 
+Suite ........ : des soldes
+Mots clefs ... : 
+*****************************************************************}
+function _CEnregistreBordereau( vTOBEcr : TOB ; vAjouter : boolean = false ; vBoInsert : boolean = true ) : boolean ;
+begin
+
+ if CBlocageBor(
+                vTOBEcr.Detail[0].GetValue('E_JOURNAL'),
+                vTOBEcr.Detail[0].GetValue('E_DATECOMPTABLE'),
+                vTOBEcr.Detail[0].GetValue('E_NUMEROPIECE'),true) then
+    begin
+     try
+
+      //CEquilibrePiece(vTOBEcr) ; // génération des ecart de conversion
+      //CAffectCompteContrePartie(vTOBEcr) ;
+
+      if vAjouter then CNumeroLigneBor(vTOBEcr)
+       else
+        CNumeroPiece(vTOBEcr) ;
+      vTOBEcr.SetAllModifie(true) ;
+
+      if vBoInsert then
+       result := vTOBEcr.InsertDB(nil)
+        else
+         result := vTOBEcr.UpdateDB(false) ;
+
+     finally
+      CBloqueurBor(
+                   vTOBEcr.Detail[0].GetValue('E_JOURNAL'),
+                   vTOBEcr.Detail[0].GetValue('E_DATECOMPTABLE'),
+                   vTOBEcr.Detail[0].GetValue('E_NUMEROPIECE'), false);
+     end; //try
+
+    end
+     else
+      begin
+       result := false;
+       CAfficheLigneEcrEnErreur(vTOBEcr.Detail[0]) ;
+       V_PGI.IOError:=oeStock ;
+      end ;
+
+end;
+
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Christophe Ayel
+Créé le ...... : 09/09/2003
+Modifié le ... : 28/11/2005
+Description .. : Duplication de CEnregistreSaisie à fusionner dès le retour
+Suite ........ : de LG : problème de compatibilité de paramètres avec la
+Suite ........ : version existante.
+Suite ........ :
+Suite ........ : 14/01/2005  : on ne renumérote plus automatiquement en
+Suite ........ : mode pièce (SBO)
+Suite ........ : - LG - 28/11/2005 - FB 17069 - correction de la mise ajour
+Suite ........ : des soldes
+Mots clefs ... :
+*****************************************************************}
+function CEnregistreSaisie( vTOBEcr : TOB ; vNumerote : boolean ; vAjouter : boolean = false ; vBoInsert : boolean = true ; vInfo : TInfoEcriture = nil ; vBoEcrNormale : Boolean = True) : boolean ;
+var
+ lInNumFolio   : integer ;
+ j             : integer ;
+ i             : integer ;
+begin
+
+ result := false ;
+
+ if vTOBEcr =  nil then
+  begin
+   MessageAlerte('Enregistrement impossible, la TOB est vide ! ' );
+   exit ;
+  end;
+
+ if vTOBEcr.Detail.Count =  0 then
+  begin
+   MessageAlerte('Enregistrement impossible, Aucun enfant ! ' );
+   exit ;
+  end;
+
+// SBO 14/01/2005 on ne renumérote plus automatiquement en mode pièce
+// if vNumerote or ( vTOBEcr.Detail[0].GetValue('E_MODESAISIE') = '-' ) then
+ if vNumerote  then
+  begin // on genere un numero pour le nouveau bordereau/piece
+   lInNumFolio := GetNewNumJal( vTOBEcr.Detail[0].GetValue('E_JOURNAL') , vBoEcrNormale, vTOBEcr.Detail[0].GetValue('E_DATECOMPTABLE'));
+   for j := 0 to vTOBEcr.Detail.Count - 1 do
+   vTOBEcr.Detail[j].PutValue('E_NUMEROPIECE', lInNumFolio ) ;
+  end; // if
+
+ if ( vTOBEcr.Detail[0].GetValue('E_MODESAISIE')='BOR' ) or ( vTOBEcr.Detail[0].GetValue('E_MODESAISIE')='LIB' ) then
+  begin
+   if not _CEnregistreBordereau( vTOBEcr, vAjouter , vBoInsert) then exit ;
+  end
+   else
+    if not _CEnregistrePiece( vTOBEcr , vBoInsert ) then exit ;
+
+ MajSoldesEcritureTOB (vTOBEcr,true,vInfo) ;
+
+ // pour les tres grosses, on ne fait aps ce test 
+ if vTOBEcr.Detail.Count < 2000 then
+  for i := 0 to vTOBEcr.Detail.Count - 1 do
+   OnUpdateEcritureTOB(vTOBEcr.Detail[i],taCreat,[cEcrCompl]) ;
+
+ result := true ;
+
+end;
+
+
+function CIsValidEtabliss( vTOB : TOB ; vInfo : TInfoEcriture  ) : integer ;
+begin
+ if vInfo.Etabliss.Load([vTOB.GetValue('E_ETABLISSEMENT')]) <> - 1 then
+  result := RC_PASERREUR
+   else
+    result := RC_ETABLISSINEXISTANT ;
+end;
+
+function CIsValidNat ( vTOB : TOB ; vInfo : TInfoEcriture  ) : integer ;
+var
+ lStNat    : string ;
+ lStJal : string ;
+begin
+
+ vTOB.PutValue('E_NATUREPIECE',AnsiUpperCase(vTOB.GetValue('E_NATUREPIECE'))) ;
+
+ lStNat := vTOB.GetValue('E_NATUREPIECE') ;
+ lStJal := vTOB.GetValue('E_JOURNAL') ;
+
+ if ( lStNat = '' ) or ( ( CASENATP(lStNat) = 7 ) and ( AnsiUpperCase(lStNat) <>'OD' ) ) then
+  begin
+    result := RC_NATINEXISTANT ;
+    exit ;
+  end; // if
+
+ if ( vTOB.GetValue('E_GENERAL') = '' ) and ( lStJal = '' ) then
+  begin
+   result := RC_PASERREUR ;
+   exit ;
+  end; // if
+
+ // controle coherence journal / nature de piece
+ if ( lStJal <> '' ) and ( not NATUREJALNATPIECEOK(vInfo.Journal.Item.getValue('J_NATUREJAL'),lStNat) ) then
+  begin
+   result := RC_NATUREJAL ;
+   exit ;
+  end; // if
+
+ result := RC_PASERREUR;
+
+end;
+
+function CIsValidEcrANouveau ( vTOB : TOB ; vInfo : TInfoEcriture  ) : integer ;
+var
+ lStEcrANouveau : string ;
+ lBoResult : boolean ;
+begin
+
+ lStEcrANouveau := vTOB.GetValue('E_ECRANOUVEAU') ;
+
+ if ( vInfo.Journal.GetValue('J_NATUREJAL') = 'ANO') then
+  lBoResult := (lStEcrANouveau = 'O') or (lStEcrANouveau = 'H') or (lStEcrANouveau = 'OAN')
+   else
+    lBoResult := (lStEcrANouveau = 'N') ;
+
+ if not lBoResult then
+  result := RC_ECRANOUVEAU
+   else
+    result := RC_PASERREUR ;
+
+end;
+
+function CIsValidModeSaisie ( vTOB : TOB ; vInfo : TInfoEcriture  ) : integer ;
+var
+ lBoResult     : boolean ;
+ lStModeSaisie : string ;
+begin
+
+ result := RC_JALINEXISTANT ;
+
+ if not vInfo.LoadJournal( vTOB.GetValue('E_JOURNAL') ) then exit ;
+
+ lStModeSaisie := vTOB.GetValue('E_MODESAISIE') ;
+
+ if lStModeSaisie = '-' then
+  lBoResult := ( trim(vInfo.Journal.GetValue('J_MODESAISIE')) = '' ) or ( vInfo.Journal.GetValue('J_MODESAISIE') = '-' )
+   else
+    lBoResult := ( vInfo.Journal.GetValue('J_MODESAISIE') = lStModeSaisie) ;
+
+ if not lBoResult then
+  result := RC_MODESAISIE
+   else
+    begin
+     if ( ( lStModeSaisie = 'BOR' ) or ( lStModeSaisie = 'LIB' ) )
+        and ( ( vTOB.GetValue('E_QUALIFPIECE') <> 'N' ) and ( vTOB.GetValue('E_QUALIFPIECE') <> 'C' ) and ( vTOB.GetValue('E_QUALIFPIECE') <> 'L' )) then
+      result := RC_QUALIFPIECEMS
+       else
+        result := RC_PASERREUR ;
+    end ;
+
+end;
+
+function CIsValidPeriodeSemaine( vTOB : TOB ; vInfo : TInfoEcriture  ) : integer ;
+var
+ lBoResult : boolean ;
+begin
+ lBoResult:= ( NumSemaine(vTOB.GetValue('E_DATECOMPTABLE')) = vTOB.GetValue('E_SEMAINE') ) and
+             ( GetPeriode(vTOB.GetValue('E_DATECOMPTABLE')) = vTOB.GetValue('E_PERIODE') ) ;
+ if not lBoResult then
+  result := RC_NUMPERIODE
+   else
+    result := RC_PASERREUR ;
+
+end;
+
+
+function CIsValidMontant( vRdMontant : double ) : integer ;
+begin
+
+ result := RC_PASERREUR ;
+
+ if (not GetParamSocSecur('SO_MONTANTNEGATIF',false)) and ( vRdMontant < 0 ) then
+  begin
+   result :=  RC_NONEGATIF ;
+   exit ;
+  end ;
+
+ vRdMontant := Abs(vRdMontant) ;
+
+ if ( vRdMontant <> 0 )and
+    ( ( vRdMontant < GetGrpMontantMin ) or
+      ( vRdMontant > GetGrpMontantMax ) ) then
+  result := RC_NOGRPMONTANT ;
+
+end;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent GENDREAU
+Créé le ...... : 16/09/2004
+Modifié le ... : 22/03/2005
+Description .. : LG - 16/09/2004 - FB 14590 - pour le controle sur un 
+Suite ........ : compte pointable, il fait aussi qu'il soit de type bq ou caisse
+Suite ........ : - LG - 22/03/2005 - FB 15522 - on ne controlait pas le 
+Suite ........ : e_regimetva pour les tic ou tid
+Mots clefs ... :
+*****************************************************************}
+function _IsValidLigne( vTOB : TOB ; vInfo : TInfoEcriture  ) : integer ;
+var
+ lBoLettrable : boolean ;
+ lBoPointage  : boolean ;
+begin
+
+ result       := RC_PASERREUR ;
+
+ lBoLettrable := ( vInfo.Compte.IsLettrable or ( vInfo.Aux.GetValue('T_LETTRABLE') = 'X' ) )  ;
+
+ lBoPointage  := vInfo.Compte.IsPointable and  ( ( vInfo.Compte.GetValue('G_NATUREGENE') = 'BQE' ) or  ( vInfo.Compte.GetValue('G_NATUREGENE') = 'CAI' ) );
+
+ if ( lBoLettrable and ( UpperCase(vTOB.GetValue('E_ETATLETTRAGE')) = 'RI' ) )  then
+  result := RC_ERREURINFOLETT ;
+
+ if lBoPointage and ( vTOB.GetValue('E_NUMECHE') = 0 ) then
+  result := RC_ERREURINFOPOINTAGE ;
+
+  if lBoLettrable and ( vTOB.GetValue('E_NUMECHE') = 0 ) then
+  result := RC_ERREURINFOLETT ;
+
+ // SBO 25/07/2006 : tester le mode de paiement pour les comptes pointables aussi
+ if ( ( vInfo.Compte.IsCollectif and ( vInfo.Aux.GetValue('T_LETTRABLE')='X' ) ) // tiers lettrable
+      or ( vInfo.Compte.IsPointable )                                            // général pointable
+      or ( vInfo.Compte.IsTICTID and vInfo.Compte.IsLettrable )                  // Tic / Tic lettrable
+    ) and ( trim(vTOB.GetValue('E_MODEPAIE')) = '' ) then
+  result := RC_MODEPAIEINCORRECT ;
+
+ if ( vInfo.Compte.IsCollectif ) and ( vInfo.Aux.GetValue('T_LETTRABLE')='X' ) and ( vTOB.GetValue('E_DATEVALEUR') = iDate1900 )   then
+  result := RC_DATEVALEURINCORRECT ;
+
+ if vInfo.Compte.IsCollectif and ( vInfo.Aux.GetValue('T_NATUREAUXI') <> 'SAL' ) and ( length(trim( vTOB.GetValue('E_REGIMETVA') )) = 0 )   then
+  result := RC_REGIMETVAINCORRECT ;
+
+  if vInfo.Compte.IsTICTID and ( length(trim( vTOB.GetValue('E_REGIMETVA') )) = 0 )   then
+  result := RC_REGIMETVAINCORRECT ;
+
+ if ( vTOB.GetValue('E_TAUXDEV') = 0 )   then
+  result := RC_TAUXDEVINCORRECT ;
+
+end;
+
+
+
+function _IsValidPiece ( vTOB : TOB ; vInfo : TInfoEcriture ) : integer ;
+var
+ i               : integer ;
+ lStContrepartie : string ;
+ lTdc            : RecCalcul; // structure de retour de la fonction de calcul du solde
+ lStRegimeTva    : string ;
+ lStLastNat      : string ;
+begin
+
+// result := RC_PASERREUR ;
+
+ vInfo.LoadJournal( vTOB.Detail[0].GetValue('E_JOURNAL') ) ;
+
+ if vInfo.Journal.isJalBqe then
+  begin
+
+   result          := RC_TRESO ;
+   lStContrepartie := vInfo.Journal.GetValue('J_CONTREPARTIE') ;
+   i               := 0 ;
+
+   while ( i < vTOB.Detail.Count ) and ( vTOB.Detail[i].GetValue('E_GENERAL') <> lStContrepartie ) do inc(i) ;
+
+   if ( i < vTOB.Detail.Count ) then
+    begin
+     if vTOB.Detail[i].GetValue('E_GENERAL') <> lStContrepartie then exit ; // FQ16842 SBO 11/10/2005
+    end
+     else
+      exit ;
+
+  end; // if
+
+ lStRegimeTva := vTOB.Detail[0].GetValue('E_REGIMETVA') ;
+ lStLastNat   := vTOB.Detail[0].GetValue('E_NATUREPIECE') ;
+
+ for i := 0 to vTOB.Detail.Count - 1 do
+  begin
+   if ( ( lStRegimeTva <> '' ) and ( vTOB.Detail[i].GetValue('E_REGIMETVA') = '' ) ) or
+      ( ( lStRegimeTva = '' ) and ( vTOB.Detail[i].GetValue('E_REGIMETVA') <> '' ) )   then
+    begin
+     result  := RC_REGIMETVAINCORRECT ;
+     exit ;
+    end ;// if
+   if ( vTOB.Detail[i].GetValue('E_CONTREPARTIEGEN') = '' ) then
+    begin
+     result  := RC_CONTREINCORRECT ;
+     exit ;
+    end ;
+
+   if ( vInfo.Journal.GetValue('J_MODESAISIE') = '-' ) and ( lStLastNat <> vTOB.Detail[i].GetValue('E_NATUREPIECE')  ) then
+    begin
+     result  := RC_NATUREERR ;
+     exit ;
+    end ; // if
+
+  end ;
+
+ result  := RC_PASERREUR ;
+ lTDC    := CCalculSoldePiece (vTOB) ;
+
+ if not ( Arrondi ( ( lTDC.DD  - lTDC.CD )  , V_PGI.OkDecV ) = 0 ) then // SBO 27/05/2005 : test sur montant en devise
+  result := RC_NONSOLDER
+
+end ;
+
+function CIsValidJal( vStCodeJal : string ; vStCodeDev : string ; vInfo : TInfoEcriture ) : integer ;
+begin
+
+ if vStCodeDev = '' then
+  begin
+   if (vInfo.Devise.Dev.Code <> '') then
+    vStCodeDev := vInfo.Devise.Dev.Code
+     else
+      begin
+       result := RC_DEVISE ;
+       exit ;
+      end;
+  end; // if
+
+ if (vStCodeJal = '') or ( vInfo.Journal.Load(vStCodeJal)=-1) then
+  begin
+   result := RC_JALINEXISTANT ;
+   exit ;
+  end; // if
+
+ if (vInfo.Journal.GetValue('J_FERME') = 'X') then
+  begin
+   result := RC_JALFERME ;
+   exit ;
+  end; // if
+
+
+ if ( GetJalAutorises <> '' ) and ( Pos(';' + vStCodeJal + ';' , GetJalAutorises ) <=0 ) then
+  begin
+   result := RC_NOJALAUTORISE ;
+   exit;
+  end; // if
+
+ if ( vStCodeDev <> V_PGI.DevisePivot ) and (vInfo.Journal.GetValue('J_MULTIDEVISE') <> 'X') then
+  begin
+   result := RC_JALNONMULTIDEVISE ;
+   exit;
+  end; // if
+
+ result := RC_PASERREUR ;
+
+end;
+
+function CIsValidJournal( vTOB : TOB ; vInfo : TInfoEcriture  ) : integer ;
+begin
+ result := CIsValidJal(vTOB.GetValue('E_JOURNAL'),vTOB.GetValue('E_DEVISE'), vInfo ) ; 
+end;
+
+
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent Gendreau
+Créé le ...... : 25/08/2005
+Modifié le ... :   /  /    
+Description .. : - FB 16397 - LG  - 25/08/2005 - test de la revision 
+Suite ........ : uniquement pour l'exercice en cours
+Mots clefs ... : 
+*****************************************************************}
+function CIsValidCompte( vTOB : TOB ; vInfo : TInfoEcriture  ) : integer ;
+var
+ lStCompte     : string ;
+ lStAux        : string ;
+ lStJournal    : string ;
+begin
+
+ {$IFDEF TT}
+ AddEvenement('CIsValidCompte');
+{$ENDIF}
+
+ result                := RC_PASERREUR ;
+
+ lStCompte             := vTOB.GetString('E_GENERAL') ;
+ lStAux                := vTOB.GetString('E_AUXILIAIRE') ;
+ lStJournal            := vTOB.GetString('E_JOURNAL') ;
+
+ vInfo.Load( lStCompte , lStAux , lStJournal ) ;
+
+ lStCompte             := vInfo.StCompte ;
+ lStAux                := vInfo.StAux ;
+ lStJournal            := vInfo.StJournal ;
+
+ if ( lStCompte = '' ) or ( vInfo.Compte.InIndex = - 1 ) then
+  begin
+   result := RC_COMPTEINEXISTANT ;
+   exit ;
+  end;
+
+ if EstInterdit( vInfo.Journal.GetValue('J_COMPTEINTERDIT') , vInfo.StCompte , 0 ) > 0 then
+  begin
+   result := RC_CINTERDIT ;
+   exit;
+  end ;
+
+ if ( vInfo.Compte_GetValue('G_FERME') = 'X' ) then
+    begin
+      if (Arrondi( vInfo.Compte_GetValue('G_TOTALDEBIT') - vInfo.Compte_GetValue('G_TOTALCREDIT') , 2 ) = 0) then
+      begin
+       vTOB.PutValue('E_GENERAL' , '' ) ;
+       result :=  RC_CFERMESOLDE ;
+       exit;
+      end
+       else
+        begin
+         result :=  RC_CFERME ;
+         exit ;
+        end;
+    end ;
+
+ if not NaturePieceCompteOK( vTOB.GetValue('E_NATUREPIECE') , vInfo.Compte_GetValue('G_NATUREGENE') ) then
+  begin
+   result := RC_CNATURE ;
+   exit;
+  end ;
+
+  if ( Result = RC_PASERREUR ) and ( vInfo.TypeExo = teEnCours ) and ( vInfo.Compte_GetValue('G_VISAREVISION') = 'X' ) then
+  begin
+   vTOB.PutValue('E_GENERAL' , '' ) ;
+   result :=  RC_COMPTEVISA ;
+   exit;
+  end ;
+
+ if ( vInfo.Compte_GetValue('G_COLLECTIF') = 'X' )  then
+  begin
+   if vInfo.Aux.InIndex = -1 then
+    begin
+     if Trim( lStAux ) = '' then
+      result := RC_AUXOBLIG
+       else
+        result := RC_AUXINEXISTANT
+    end
+     else
+      begin
+       if not NATUREGENAUXOK( vInfo.Compte_GetValue('G_NATUREGENE') , vInfo.Aux_GetValue('T_NATUREAUXI') ) then
+        result := RC_NATAUX ;
+      end;
+  end // if
+   else
+    if Trim(lStAux) <> '' then
+     result := RC_PASCOLLECTIF ;
+
+ if ( Result = RC_PASERREUR ) and EstConfidentiel( vInfo.Compte_GetValue('G_CONFIDENTIEL') ) then
+  result := RC_COMPTECONFIDENT ;
+
+ if Result = RC_PASERREUR then
+  vTOB.PutValue('E_GENERAL'    , lStCompte ) ;
+
+end;
+
+function CEstBloqueLett (vStJournal : string ; vDtDateComptable : TDateTime ; vInNumeroPiece : integer ; Parle : boolean = true) : boolean ;
+var
+ lStSql  : string ;
+ lStUser : string ;
+ lQ      : TQuery ;
+begin
+ lStSql := 'select US_LIBELLE from COURRIER,UTILISAT ' +
+           ' where MG_UTILISATEUR="' + W_W + '" AND MG_TYPE=3000 AND MG_COMBO="' + EncodeKeyBordereau(vDtDateComptable,vStJournal,vInNumeroPiece) + '"' +
+           ' and US_UTILISATEUR=MG_EXPEDITEUR' ;
+
+ lQ     := OpenSql(lStSql,true) ;
+ result := not lQ.EOF ;
+ if result then lStUser := lQ.FindField('US_LIBELLE').AsString ;
+ Ferme(lQ) ;
+ if ( lStUser <> '' ) and  Parle then MessageAlerte('Lettrage en saisie utilisé par ' + lStUser) ;
+end ;
+
+function CEstBloqueLettrage ( Parle : boolean = false) : boolean ;
+var
+ lStSql  : string ;
+ lStUser : string ;
+ lQ      : TQuery ;
+begin
+ lStSql := 'select US_LIBELLE from COURRIER,UTILISAT ' +
+           ' where MG_UTILISATEUR="' + W_W + '" AND MG_TYPE=3000 and US_UTILISATEUR=MG_EXPEDITEUR and mg_expediteur = "' + V_PGI.User + '" ' ;
+
+ lQ     := OpenSql(lStSql,true) ;
+ result := not lQ.EOF ;
+ if result then lStUser := lQ.FindField('US_LIBELLE').AsString ;
+ Ferme(lQ) ;
+ if ( lStUser <> '' ) and  Parle then MessageAlerte('Lettrage en saisie utilisé par ' + lStUser) ;
+end ;
+
+function _BlocageLett (vStJournal : string ; vDtDateComptable : TDateTime ; vInNumeroPiece : integer ; Parle : boolean = true) : boolean ;
+var
+ lStSql : string ;
+begin
+ result := false ;
+ lStSql := 'insert into courrier(mg_utilisateur,mg_combo,mg_type,mg_dejalu,mg_date,mg_averti,mg_expediteur) ' +
+           'values("' + W_W + '","' + EncodeKeyBordereau(vDtDateComptable,vStJournal,vInNumeroPiece) + '",3000,"-","' +
+           USTime(vDtDateComptable) + '","-","' + V_PGI.User + '")';
+ try
+  ExecuteSQL(lStSQL);
+  result := true ;
+ except
+  on E : Exception do
+   begin
+    if Parle then MessageAlerte('Bordereau bloqué' + #10#13#10#13 + E.Message);
+   end;
+ end; // try
+end;
+
+function CBlocageLettrage(vStJournal : string ; vDtDateComptable : TDateTime ; vInNumeroPiece : integer ; Parle : boolean = true) : boolean ;
+begin
+ result := false;
+ if not CEstBloqueLett(vStJournal,vDtDateComptable,vInNumeroPiece,Parle) then
+  result := _BlocageLett(vStJournal,vDtDateComptable,vInNumeroPiece,Parle);
+end;
+
+{procedure CDeBlocageLettrageP (vStJournal : string ; vDtDateComptable : TDateTime ; vInNumeroPiece : integer ; Parle : boolean = true) ;
+begin
+ ExecuteSQL( 'delete from courrier ' +
+             'where mg_utilisateur = "' + W_W + '" and mg_type=3000 and mg_expediteur = "' + V_PGI.User + '"' +
+             ' and mg_combo="' + EncodeKeyBordereau(vDtDateComptable,vStJournal,vInNumeroPiece) + '" ' ) ;
+end; }
+
+procedure CDeBlocageLettrage ( Parle : boolean = false ) ;
+begin
+ ExecuteSQL( 'delete from courrier ' +
+             'where mg_utilisateur = "' + W_W + '" and mg_type=3000 and mg_expediteur = "' + V_PGI.User + '"' ) ;
+end;
+
+
+function CDetruitAncienPiece( vTOB : TOB ; vDossier : String = '' ) : boolean ;
+var
+ lStW          : string ;
+ lStSql        : string ;
+ lDtDateUnique : TDateTime ;
+ lBoMonoDate   : boolean ;
+ lTOB          : TOB ;
+ i             : integer ;
+ lInNb         : integer ;
+ lInExec       : integer ;
+begin
+
+ result := false ;
+
+ if ( vTOB = nil ) or ( vTOB.Detail = nil ) or ( vTOB.Detail.Count = 0 ) then exit ;
+
+ lTOB          := vTOB.Detail[0] ;
+ lInNb         := vTOB.Detail.Count ;
+ lBoMonoDate   := True ;
+ lDtDateUnique := 0 ;
+
+ lStW := ' E_JOURNAL="'              + lTOB.GetValue('E_JOURNAL')                   + '" ' +
+           ' AND E_EXERCICE="'         + lTOB.GetValue('E_EXERCICE')                  + '" ' +
+           ' AND E_DATECOMPTABLE="'    + UsDateTime(lTOB.GetValue('E_DATECOMPTABLE')) + '" ' +
+           ' AND E_NUMEROPIECE='       + InttoStr(lTOB.GetValue('E_NUMEROPIECE'))     +
+           ' AND E_QUALIFPIECE="'      + lTOB.GetValue('E_QUALIFPIECE')               + '" ' ;
+      //     ' AND E_NATUREPIECE="'      + lTOB.GetValue('E_NATUREPIECE')               + '" ' ;
+
+ for i := 0 to vTOB.Detail.Count - 1 do
+  begin
+   lTOB := vTOB.Detail[i] ;
+   if  i = 0 then
+    lDtDateUnique := lTOB.GetValue('E_DATEMODIF')
+     else
+      if lTOB.GetValue('E_DATEMODIF') <> lDtDateUnique then
+       begin
+        lBoMonoDate := false ;
+        break ;
+       end ; // if
+  end ; // for
+
+
+ if lBoMonoDate and  ( lDtDateUnique > 0 ) then
+  begin
+   lStSQL := lStW + ' AND E_DATEMODIF="' + UsTime(lDtDateUnique) + '" ' ;
+   lInExec := ExecuteSQL( 'DELETE FROM ' + GetTableDossier( vDossier, 'ECRITURE' ) + ' WHERE ' + lStSQL ) ;
+
+    if lInExec <> lInNb then
+    begin
+     V_PGI.IOError := oeSaisie ;
+     Exit ;
+    end ; // if
+  end
+   else
+    begin
+     for i := 0 to vTOB.Detail.Count - 1 do
+      begin
+       lTOB   := vTOB.Detail[i] ;
+       lStSQL := lStW + ' AND E_NUMLIGNE='    + IntToStr(lTOB.GetValue('E_NUMLIGNE'))
+                        + ' AND E_NUMECHE='     + InttoStr(lTOB.GetValue('E_NUMECHE'))
+                        + ' AND E_DATEMODIF="'  + UsTime(lTOB.GetValue('E_DATEMODIF')) + '"' ;
+
+       lInExec := ExecuteSQL('DELETE FROM ' + GetTableDossier( vDossier, 'ECRITURE' ) + ' WHERE ' + lStSQL ) ;
+
+       if lInExec <> 1 then
+        begin
+         V_PGI.IOError := oeSaisie ;
+         Exit ;
+        end ; // if
+      end ; // for
+    end ; // else
+
+ result := true ;
+
+end;
+
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Compta
+Créé le ...... : 20/12/2004
+Modifié le ... :   /  /
+Description .. : Supprime en base les lignes d'analytique de la pièce
+Suite ........ : comptable passée en paramètre.
+Mots clefs ... :
+*****************************************************************}
+function  CDetruitAncienAnaPiece( vTOB : TOB ; vDossier : String = '' ) : boolean ;
+var vBoAvecAna : Boolean ;
+    lTob       : TOB ;
+    i          : Integer ;
+begin
+  result := True ;
+  if ( vTOB = nil ) or ( vTOB.Detail = nil ) or ( vTOB.Detail.Count = 0 ) then exit ;
+
+  // Test présence d'analytique
+  vBoAvecAna := False ;
+  for i := 0 to (vTob.Detail.count - 1) do
+   begin
+   lTOB := vTOB.Detail[ i ] ;
+   if lTob.GetValue('E_ANA')='X' then
+     begin
+     vBoAvecAna := True ;
+     break ;
+     end ;
+   end ;
+
+  // Delete analytique si présence
+  if vBoAvecAna then
+    ExecuteSQL( 'DELETE FROM ' + GetTableDossier( vDossier, 'ANALYTIQ' ) + ' WHERE ' + WhereEcritureTOB( tsAnal, vTOB.Detail[0], False ) ) ;
+
+end ;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Compta
+Créé le ...... : 20/12/2004
+Modifié le ... :   /  /
+Description .. : Supprime en base les lignes d'analytique de l'écriture
+Suite ........ : comptable passée en paramètre.
+Mots clefs ... :
+*****************************************************************}
+function  CDetruitAncienAnaEcr( vTOB : TOB ) : boolean ;
+begin
+  result := True ;
+  if ( vTOB = nil ) then exit ;
+
+  // Delete analytique si présence
+  if ( vTob.GetValue('E_ANA') = 'X' ) then
+    ExecuteSQL( 'DELETE FROM ANALYTIQ WHERE ' + WhereEcritureTOB( tsAnal, vTOB, True ) ) ;
+
+end ;
+
+function CMAJSaisie( vTOBEcr : TOB ) : boolean ;
+begin
+
+ result := false ;
+
+ if vTOBEcr =  nil then
+  begin
+   MessageAlerte('Enregistrement impossible, la TOB est vide ! ' );
+   exit ;
+  end;
+
+ if vTOBEcr.Detail.Count =  0 then
+  begin
+   MessageAlerte('Enregistrement impossible, Aucun enfant ! ' );
+   exit ;
+  end;
+
+// result := _DetruitAncienPiece(vTOBEcr) ;
+
+ if ( vTOBEcr.Detail[0].GetValue('E_MODESAISIE')='BOR' ) or ( vTOBEcr.Detail[0].GetValue('E_MODESAISIE')='LIB' ) then
+  begin
+   if not _CEnregistreBordereau( vTOBEcr, true ) then exit ;
+  end
+   else
+    if not _CEnregistrePiece( vTOBEcr , true ) then exit ;
+
+ result := true ;
+
+end;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : SBO
+Créé le ...... : 15/03/2004
+Modifié le ... : 07/10/2005
+Description .. : 15/03/2004 : Externalisation de la fonction
+Suite ........ : TOBEcriture.IsValidAux.
+Suite ........ : - LG - FB 16482 - on interdit la saisie des tiers de nature
+Suite ........ : Prospect , Concurrent , Suspect .
+Mots clefs ... :
+*****************************************************************}
+function  CIsValidAux( vTOB : TOB ; vInfo : TInfoEcriture  ) : integer ;
+var
+ lStCompte : string ;
+ lStAux    : string ;
+ lStNat    : string ;
+begin
+
+  {$IFDEF TT}
+  AddEvenement('IsValidAux');
+  {$ENDIF}
+
+  result                := RC_PASERREUR ;
+
+  lStCompte             := vTob.GetValue('E_GENERAL') ;
+  lStAux                := vTob.GetValue('E_AUXILIAIRE') ;
+
+  vInfo.Load( lStCompte , lStAux , '' ) ;
+
+  if vInfo.StAux = #0 then
+   Showmessage( 'er' ) ;
+
+
+  vTob.PutValue('E_GENERAL'    , vInfo.StCompte ) ;
+  vTob.PutValue('E_AUXILIAIRE' , vInfo.StAux ) ;
+
+  if ( vInfo.Compte.InIndex <> -1 ) and ( vInfo.Aux.InIndex <> - 1 ) then
+  begin // contrôle si le compte est collectif
+    if ( vInfo.Compte_GetValue('G_COLLECTIF') = '-' ) then
+    begin
+      result := RC_PASCOLLECTIF ;
+      exit ;
+    end; // if
+  end;
+
+  if ( vInfo.Aux.InIndex = - 1 ) and ( vInfo.Compte_GetValue('G_COLLECTIF') = 'X' ) then
+  begin
+    Result := RC_AUXINEXISTANT ;
+    exit;
+  end; // if
+
+  if ( vInfo.Aux.InIndex <> - 1 ) and EstConfidentiel( vInfo.Aux_GetValue('T_CONFIDENTIEL') ) then
+   begin
+    result := RC_COMPTECONFIDENT ;
+    exit ;
+   end ;
+
+  // Refuser tiers en devise si pas celle de saisie et pas sur devise pivot ni opposée
+  if ( vTob.GetValue('E_DEVISE') <> '' ) and // vTob.GetValue('E_NATUREPIECE') <> 'ECC'
+     ( vTob.GetValue('E_DEVISE') <> V_PGI.DevisePivot ) and
+     ( vInfo.Aux_GetValue('T_MULTIDEVISE') = '-' ) and
+     ( vInfo.Aux_GetValue('T_DEVISE') <> vTob.GetValue('E_DEVISE') ) then
+   begin
+    result := RC_TMONODEVISE ;
+    exit ;
+   end ;
+
+
+ if ( vInfo.Aux.InIndex <> - 1 ) then
+  begin
+
+  lStNat := vInfo.Aux_GetValue('T_NATUREAUXI') ;
+
+  if ( lStNat = 'PRO' ) or ( lStNat = 'CON' ) or ( lStNat = 'SUS' ) then
+   begin
+    Result := RC_AUXINEXISTANT ;
+    exit ;
+   end ;
+
+  end ;
+
+ if result = RC_PASERREUR then
+  result := CIsValidCompte(vTob, vInfo) ;
+
+end;
+
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent GENDREAU
+Créé le ...... : 09/08/2004
+Modifié le ... :   /  /    
+Description .. : - 09/08/2004 - test diff pour le mode bor ou piece pour le 
+Suite ........ : controle de la date
+Mots clefs ... : 
+*****************************************************************}
+function CIsValidLigneSaisie( vTob : TOB ; vInfo : TInfoEcriture ; vBoPourSaisie : boolean = false ) : TRecError ;
+begin
+
+  // test la variable info
+  if vInfo = nil then
+  begin
+    MessageAlerte('La variable Info n''est pas initialisée ! ') ;
+    raise EAbort.Create('') ;
+  end;
+
+  // test la variable vTob
+  if (vTob = nil) then
+  begin
+    MessageAlerte('La variable vTob (tob de la pièce) ne contient aucune ligne ! ') ;
+    raise EAbort.Create('') ;
+  end;
+
+  // Mode de saisie
+  result.RC_Error := CIsValidModeSaisie ( vTob , vInfo ) ;
+
+  // Etablissement
+  if result.RC_Error = RC_PASERREUR then
+     result.RC_Error := CIsValidEtabliss( vTob , vInfo ) ;
+
+  // Date Comptable
+  if result.RC_Error = RC_PASERREUR then
+   begin
+    if ( vInfo.Journal.GetValue('J_MODESAISIE')='-' ) or ( vInfo.Journal.GetValue('J_MODESAISIE')='' ) then
+     begin
+      if ControleDate(vTOB.GetValue('E_DATECOMPTABLE')) <> 0 then
+       result.RC_Error := RC_DATEINCORRECTE ;
+     end
+     else
+      begin
+       if not CControleDateBor(vTOB.GetValue('E_DATECOMPTABLE'),vINfo.Exercice,false) then
+        begin
+         result.RC_Error := RC_DATEINCORRECTE ;
+         _CTestErreur(result,vInfo ) ;
+         exit ;
+        end ;
+      end ;
+   end ;
+
+  _CTestErreur(result,vInfo ) ;
+  
+  // Péridoe / Semaine
+  if result.RC_Error = RC_PASERREUR then
+     result.RC_Error := CIsValidPeriodeSemaine( vTob , vInfo ) ;
+
+  // Journal
+  _CTestErreur(result,vInfo ) ;
+  if result.RC_Error = RC_PASERREUR then
+    result.RC_Error := CIsValidJournal( vTob , vInfo ) ;
+
+  // Nature
+  if result.RC_Error = RC_PASERREUR then
+    result.RC_Error := CIsValidNat ( vTob , vInfo ) ;
+
+  // Comptes
+  if result.RC_Error = RC_PASERREUR then
+   begin
+    result.RC_Error := CIsValidCompte(vTob,vInfo) ;
+    _CTestErreur(result,vInfo ) ;
+    if ( result.RC_Error = RC_COMPTEVISA ) and not vBoPourSaisie then
+     result.RC_Error := RC_PASERREUR ;
+   end ;
+
+  // Auxiliaire
+  if result.RC_Error = RC_PASERREUR then
+    result.RC_Error := CIsValidAux(vTob,vInfo) ;
+
+  // DebitCredit
+  if result.RC_Error = RC_PASERREUR then
+    begin
+    result.RC_Error := CIsValidMontant( vTob.GetValue('E_DEBIT') ) ;
+    if result.RC_Error = RC_PASERREUR then
+      result.RC_Error := CIsValidMontant( vTob.GetValue('E_CREDIT') ) ;
+    if result.RC_Error = RC_PASERREUR then
+      if ( vTob.GetValue('E_DEBIT') = 0 ) and ( vTob.GetValue('E_CREDIT') = 0 ) then
+        result.RC_Error := RC_MONTANTINEXISTANT ;
+    end ;
+
+  // A-nouveaux
+  if result.RC_Error = RC_PASERREUR then
+    result.RC_Error := CIsValidEcrANouveau ( vTob , vInfo ) ;
+
+  // Autres tests sur la ligne
+  if result.RC_Error = RC_PASERREUR then
+    result.RC_Error := _IsValidLigne( vTob , vInfo ) ;
+
+  // Champs obligatoire
+  if result.RC_Error = RC_PASERREUR then
+   result.RC_Error := CControleChampsObligSaisie( vTob, result.RC_Message ) ;
+  _CTestErreur(result,vInfo ) ;
+
+end ;
+
+
+procedure TInfoEcriture.AjouteErrIgnoree(Value : array of Integer);
+var
+ i : integer ;
+begin
+ SetLength(FErreurIgnoree, SizeOf(Value));
+ for  i := low(Value) to High(Value) do
+  FErreurIgnoree[i] := Value[i] ;
+end;
+
+
+{***********A.G.L.***********************************************
+Auteur  ...... : SBO
+Créé le ...... : 19/03/2004
+Modifié le ... :   /  /
+Description .. : Valide une pièce sous forme de TOB, vInfo doit être
+Suite ........ : renseigné (cf CChargeTInfoEcr si besoin).
+Suite ........ :
+Suite ........ : Retourne un code erreur :
+Suite ........ :  RC_PASERREUR si ok,
+Suite ........ :  un autre code sinon.
+Mots clefs ... :
+*****************************************************************}
+Function CIsValidSaisiePiece( vTob : TOB ; vInfo : TInfoEcriture ; vBoPourSaisie : boolean = false ) : TRecError ;
+var
+ i : integer ;
+begin
+
+  // test la variable info
+  if vInfo = nil then
+  begin
+    MessageAlerte('La variable Info n''est pas initialisée ! ') ;
+    raise EAbort.Create('') ;
+  end;
+
+  // test la variable vTob
+  if (vTob = nil) or (vTob.Detail.Count = 0) then
+  begin
+    MessageAlerte('La variable vTob (tob de la pièce) ne contient aucune ligne ! ') ;
+    raise EAbort.Create('') ;
+  end;
+
+   // Test unitaire des écritures
+  for i := 0 to vTob.Detail.Count - 1 do
+   begin
+    result  := CIsValidLigneSaisie( vTob.Detail[i] , vInfo , vBoPourSaisie ) ;
+    _CTestErreur(result,vInfo ) ;
+    if  result.RC_Error <> RC_PASERREUR then exit ;
+   end ; // for
+
+   // Test le compte de contrepartie + l'équilibrage de la pièce
+  result.RC_Error := _IsValidPiece( vTob, vInfo ) ;
+  _CTestErreur(result,vInfo ) ;
+
+ end ;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : SBO
+Créé le ...... : 16/03/2004
+Modifié le ... :   /  /
+Description .. : Renseigne vInfo à partir des données de vTob.
+Suite ........ : vTob contient un pièce comptable :
+Suite ........ :  - Ecriture >> Axe >> Analytiq
+Mots clefs ... :
+*****************************************************************}
+procedure CChargeTInfoEcr( vTob : TOB ; var vInfo : TInfoEcriture ; vDossier : String = '' ) ;
+var i    : Integer ;
+    lTob : TOB ;
+begin
+
+  // instanciation du TInfoECriture
+  if vInfo= nil then
+    vInfo := TInfoEcriture.Create( vDossier ) ;
+
+  // pas de chargement si pas de ligne d'écriture dans la pièce
+  if vTob.Detail.count = 0 then Exit ;
+
+  // Données communes à la pièce
+  lTob := vTob.Detail[0] ;
+  vInfo.LoadJournal(    lTob.GetValue('E_JOURNAL')           ) ; // Journal
+  vInfo.Etabliss.load(  [ lTob.GetValue('E_ETABLISSEMENT') ] ) ; // Etablissement
+  vInfo.Devise.load(    [ lTob.GetValue('E_DEVISE') ]        ) ; // Devise
+
+  // Données pour chaques lignes
+  for i := 0 to vTob.Detail.count - 1 do
+    begin
+    lTob := vTob.Detail[i] ;
+    vInfo.LoadCompte( lTob.GetValue('E_GENERAL')    ) ; // Compte général
+    vInfo.LoadAux(    lTob.GetValue('E_AUXILIAIRE') ) ; // compte auxiliaire
+    end ;
+
+end ;
+
+
+{***********A.G.L.***********************************************
+Auteur  ...... : SBO
+Créé le ...... : 28/04/2004
+Modifié le ... : 21/07/2006
+Description .. : Equivalent de WhereEcriture définit dans Saiscomm, mais 
+Suite ........ : en prenant pour référence une TOB à la place du RMVT.
+Suite ........ : 
+Suite ........ : Retourne la condition SQL permettant permettant d'identifier 
+Suite ........ : la pièce dont la ligne d'écriture de référence vTobEcr est 
+Suite ........ : issue.
+Suite ........ : Si vBoLigneSeule est à True, alors la clause where
+Suite ........ : comprend la condition sur le numéro de ligne de vTobEcr.
+Suite ........ : 
+Suite ........ : 02/08/2004 : Prise en compte que la tob de référence ne 
+Suite ........ : pointe pas forcément sur la même table que la condition
+Suite ........ : générée (utiliser par ex. pour retrouver l'analytique d'une 
+Suite ........ : ligne d'écriture générale)
+Suite ........ : 
+Suite ........ : 21/02/05 : JP suppression de NaturePiece qui ne fait pas 
+Suite ........ : partie des clefs sur les écritures
+Suite ........ :
+Suite ........ : 21/07/06 : JP Ajout du paramètre facultatif "Prefix"
+Mots clefs ... : 
+*****************************************************************}
+function WhereEcritureTOB( vTS : TTypeSais ; vTobEcr : TOB ; vBoLigneSeule : boolean ; vBoBordereau : Boolean = FALSE; Prefix : string = '') : String ;
+var lStPref : String ; // Préfixe à utiliser sur la Tob passée en paramètres
+begin
+
+  Result := '' ;
+
+  // Détermination du préfixe utilisé par la tob contenant l'écriture de référence
+  {JP 21/07/06 : Ajout du paramètre facultatif Préfix}
+  if Prefix <> '' then lStPref := Prefix
+                  else lStPref := TableToPrefixe( vTobEcr.NomTable ) ;
+//  if (lStPref = '') and (vTobEcr.FieldExists('PREFIXE') ) then // Possibilité d'utilisé un champ supplémentaire pour les tobs virtuelles
+  //  lStPref := vTobEcr.GetValue('PREFIXE') ;
+  if lStPref = '' then                                         // Pas de préfixe on sort
+    Exit ;
+
+  // construction de la condition SQL suivant table de destination
+  case vTS of
+    tsGene,tsTreso,tsPointage,tsLettrage :
+              begin
+              if vBoBordereau then
+                begin
+                Result := 'E_JOURNAL="'     + vTobEcr.GetString( lStPref + '_JOURNAL')      + '"' +
+                     ' AND E_EXERCICE="'    + vTobEcr.GetString( lStPref + '_EXERCICE')     + '"' +
+                     ' AND E_PERIODE='      + vTobEcr.GetString( lStPref + '_PERIODE')      +
+                     ' AND E_NUMEROPIECE='  + vTobEcr.GetString( lStPref + '_NUMEROPIECE')  +
+                     ' AND E_QUALIFPIECE="' + vTobEcr.GetString( lStPref + '_QUALIFPIECE')  + '" ' ;
+                end else
+                begin
+                Result := 'E_JOURNAL="'         + vTobEcr.GetString( lStPref + '_JOURNAL')     + '"' +
+                       ' AND E_EXERCICE="'      + vTobEcr.GetString( lStPref + '_EXERCICE')    + '"' +
+                       ' AND E_DATECOMPTABLE="' + UsDateTime( vTobEcr.GetDateTime( lStPref + '_DATECOMPTABLE') ) + '"' +
+                       ' AND E_NUMEROPIECE='    + vTobEcr.GetString( lStPref + '_NUMEROPIECE') +
+                       ' AND E_QUALIFPIECE="'   + vTobEcr.GetString( lStPref + '_QUALIFPIECE') + '"';
+                end ;
+              if vBoLigneSeule then
+                Result := Result + ' AND E_NUMLIGNE=' + vTobEcr.GetString( lStPref + '_NUMLIGNE')
+                                 + ' AND E_NUMECHE='  + vTobEcr.GetString( lStPref + '_NUMECHE')  ;
+              end ;
+   tsBudget : begin
+              Result := 'BE_BUDJAL="'      + vTobEcr.GetValue( lStPref + '_BUDJAL')      + '"' +
+                   ' AND BE_NATUREBUD="'   + vTobEcr.GetValue( lStPref + '_NATUREBUD')   + '"' +
+                   ' AND BE_QUALIFPIECE="' + vTobEcr.GetValue( lStPref + '_QUALIFPIECE') + '"' +
+                   ' AND BE_NUMEROPIECE='  + IntToStr(vTobEcr.GetValue( lStPref + '_NUMEROPIECE')) ;
+              if vBoLigneSeule then
+                Result := Result + ' AND BE_BUDGENE="' + vTobEcr.GetValue( lStPref + '_BUDGENE') + '"'
+                                 + ' AND BE_BUDSECT="' + vTobEcr.GetValue( lStPref + '_BUDSECT') + '"'
+                                 + ' AND BE_AXE="'     + vTobEcr.GetValue( lStPref + '_AXE')     + '"' ;
+              end ;
+         else begin
+              {tsAnal, tsODA}
+              Result := 'Y_JOURNAL="'       + vTobEcr.GetString( lStPref + '_JOURNAL')     + '"' +
+                   ' AND Y_EXERCICE="'      + vTobEcr.GetString( lStPref + '_EXERCICE')    + '"' +
+                   ' AND Y_DATECOMPTABLE="' + UsDateTime(vTobEcr.GetDateTime( lStPref + '_DATECOMPTABLE')) + '"' +
+                   ' AND Y_NUMEROPIECE='    + vTobEcr.GetString( lStPref + '_NUMEROPIECE') +
+                   ' AND Y_QUALIFPIECE="'   + vTobEcr.GetString( lStPref + '_QUALIFPIECE') + '"' ;
+              if vTS = tsODA then
+                 begin
+                 Result := Result + ' AND Y_AXE="'     + vTobEcr.GetValue( lStPref + '_AXE')     + '"'
+                                  + ' AND Y_GENERAL="' + vTobEcr.GetValue( lStPref + '_GENERAL') + '"' ;
+                 if vTobEcr.GetValue( lStPref + '_NUMLIGNE') > 0 then
+                   Result := Result + ' AND Y_NUMLIGNE=' + vTobEcr.GetString( lStPref + '_NUMLIGNE') ;
+                 end
+              else if vBoLigneSeule then
+                   Result := Result + ' AND Y_NUMLIGNE=' + vTobEcr.GetString( lStPref + '_NUMLIGNE') ;
+              end ;
+   end ;
+
+end ;
+
+
+
+const MarquedIBANpourE_RIB = '*' ;
+{***********A.G.L.***********************************************
+Auteur  ...... : X.Maluenda
+Créé le ...... : 23/04/2004
+Modifié le ... :   /  /
+Description .. : Renvoie TRUE si le contenu de vE_RIB paraître un IBAN
+Mots clefs ... : E_RIB;IBAN
+*****************************************************************}
+function RIBestIBAN ( vE_Rib : String ) : Boolean ;
+Begin
+  Result:=(Copy(vE_RIB,1,length(MarquedIBANpourE_RIB))=MarquedIBANpourE_RIB) ;
+End ;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : X.Maluenda
+Créé le ...... : 23/04/2004
+Modifié le ... :   /  /
+Description .. : Fait les adaptation nécessaires pour signaler que le contenu
+Suite ........ : de E_RIB est un IBAN
+Mots clefs ... :
+*****************************************************************}
+Function IBANtoE_RIB( vIBan : String ) : String ;
+Begin
+   Result:='' ;
+   viban:=trim(vIban) ;
+   if vIban<>'' then
+      Result:=MarquedIBANpourE_RIB+vIban ;
+End ;
+
+procedure CGetEch ( vTOB : TOB ; vInfo : TInfoEcriture = nil ) ;
+var
+ lTOB                : TOB ;
+ lDtDateEch          : TDateTime ;
+ lModeR              : T_MODEREGL ;
+ lStModePaie         : string ;
+ lBoBqe              : boolean ;
+ lBoResult           : boolean ;
+ lStModeAux          : string ;
+ lRdSolde            : double ;
+ lStDeca             : string ;
+ lBoDetruireInfo     : boolean ;
+begin
+
+ if vInfo = nil then
+  begin
+   vInfo           := TInfoEcriture.Create ;
+   lBoDetruireInfo := true ;
+  end
+   else
+    lBoDetruireInfo := false ;
+
+ lBoBqe := false ;
+ lTOB   := vTOB ;
+ if not vInfo.LoadCompte(lTOB.GetValue('E_GENERAL')) then exit ;
+
+ if ( vInfo.Compte.GetValue('G_COLLECTIF') = 'X' ) then
+  begin
+   if not vInfo.LoadAux(lTOB.GetValue('E_AUXILIAIRE')) or
+    ( ( vInfo.Aux.InIndex > - 1 ) and  (vInfo.Aux.GetValue('T_LETTRABLE') = '-' ) ) then Exit ;
+  end
+   else
+    if ( vInfo.Compte.GetValue('G_POINTABLE')='X') and ( (vInfo.Compte.GetValue('G_NATUREGENE')='BQE') or (vInfo.Compte.GetValue('G_NATUREGENE')='CAI') ) then
+     begin
+      lBoBqe   := true ;
+     end
+      else
+       if ( vInfo.Compte.GetValue('G_LETTRABLE') = '-' ) then
+        begin
+         CSupprimerInfoLettrage(lTOB) ;
+         lTOB.PutValue('E_MODEPAIE', '') ;
+         exit ;
+        end ;
+
+ lStModePaie   := lTOB.GetValue('E_MODEPAIE') ;
+
+ vInfo.Devise.Load([lTOB.GetValue('E_DEVISE')]) ;
+ vInfo.Devise.AffecteTaux(lTOB.GetValue('E_DATECOMPTABLE')) ;
+ lDtDateEch             := lTOB.GetValue('E_DATECOMPTABLE') ;
+ lModeR.Action          := taCreat ;
+ lModeR.TotalAPayerP    := lTOB.GetValue('E_DEBIT')    + lTOB.GetValue('E_CREDIT') ;
+ lModeR.TotalAPayerD    := lTOB.GetValue('E_DEBITDEV') + lTOB.GetValue('E_CREDITDEV') ;
+ lModeR.CodeDevise      := vInfo.Devise.Dev.Code ;
+ lModeR.Symbole         := vInfo.Devise.Dev.Symbole ;
+ lModeR.Quotite         := vInfo.Devise.Dev.Quotite ;
+ lModeR.TauxDevise      := vInfo.Devise.Dev.Taux ;
+ lModeR.Decimale        := vInfo.Devise.Dev.Decimale ;
+ lModeR.DateFact        := lDtDateEch ;
+ lModeR.DateBL          := lDtDateEch ;
+ lModeR.DateFactExt     := lDtDateEch ;
+
+ if ( vInfo.Aux.InIndex > - 1 ) then
+  lModeR.ModeInitial := vInfo.Aux.GetValue('T_MODEREGLE') ;
+
+ if lStModeAux <> '' then
+  lModeR.Aux := lStModeAux
+   else
+    lModeR.Aux := lTOB.GetValue('E_AUXILIAIRE') ;
+
+ if lModeR.Aux ='' then
+  lModeR.Aux := lTOB.GetValue('E_GENERAL') ;
+
+ {$IFDEF COMPTA}
+ CalculModeregle(lModeR, false) ;
+ {$ELSE COMPTA}
+   {$IFDEF TRESO}
+   CalculModeregle(lModeR, false) ;
+   {$ENDIF TRESO}
+ {$ENDIF COMPTA}
+
+ lDtDateEch              := lModeR.TabEche[1].DateEche ;
+ lStModePaie             := lModeR.TabEche[1].ModePaie ;
+
+ lBoResult := true ;
+
+// if VH^.ZSaisieEche then
+ // lBoResult := SaisieZEch(lStModePaie, lDtDateEch, taModif ,lDtDateEcr) ;
+
+ lRdSolde  := Arrondi(lTOB.GetValue('E_DEBIT') - lTOB.GetValue('E_CREDIT') , V_PGI.OkDecV ) ;
+ if lRdSolde = 0 then lStDeca := ''
+  else
+   if lRdSolde > 0 then lStDeca := 'ENC'
+    else lStDeca := 'DEC' ;
+
+ if lBoResult or ( lTOB.GetValue('E_DATEECHEANCE') = iDate1900 ) then
+   begin
+    if lBoBqe then
+     begin
+      lTOB.PutValue('E_MODEPAIE'         , lStModePaie) ;
+      lTOB.PutValue('E_DATEECHEANCE'     , lDtDateEch) ;
+      lTOB.PutValue('E_ORIGINEPAIEMENT'  , lDtDateEch) ;
+      lTOB.PutValue('E_ECHE'             , 'X') ;
+      lTOB.PutValue('E_NUMECHE'          , 1) ;
+      lTOB.PutValue('E_ETATLETTRAGE'     , 'RI') ;
+      lTOB.PutValue('E_ENCAISSEMENT'     , lStDeca) ;
+      lTOB.PutValue('E_DATEVALEUR'       , lTOB.GetValue('E_DATECOMPTABLE')) ;
+    //  lTOB.PutValue('E_DATEPAQUETMIN'    , lModeR.DatePaquetMin) ;
+    //  lTOB.PutValue('E_DATEPAQUETMAX'    , lModeR.DatePaquetMax) ;
+     end
+      else
+       begin
+        lTOB.PutValue('E_MODEPAIE'       , lStModePaie ) ;
+        lTOB.PutValue('E_DATEECHEANCE'   , lDtDateEch ) ;
+        lTOB.PutValue('E_ORIGINEPAIEMENT', lDtDateEch ) ;
+        lTOB.PutValue('E_ECHE'           , 'X') ;
+        lTOB.PutValue('E_NUMECHE'        , 1) ;
+        lTOB.PutValue('E_ENCAISSEMENT'   , lStDeca) ;
+        lTOB.PutValue('E_DATEVALEUR'     , lTOB.GetValue('E_DATECOMPTABLE')) ;
+   //     lTOB.PutValue('E_DATEPAQUETMIN'  , lTOB.GetValue('E_DATECOMPTABLE')) ;
+   //     lTOB.PutValue('E_DATEPAQUETMAX'  , lTOB.GetValue('E_DATECOMPTABLE')) ;
+        if  ( lTOB.GetValue('E_ETATLETTRAGE')='RI' ) or ( lTOB.GetValue('E_ETATLETTRAGE')='' ) then
+         lTOB.PutValue('E_ETATLETTRAGE', 'AL') ;
+       end ; // if
+   end; // if
+
+ if lBoDetruireInfo then vInfo.Free ;
+
+end ;
+
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Stephane BOUSSERT
+Créé le ...... : 23/12/2004
+Modifié le ... :   /  /    
+Description .. : Renseigne le champ E_REGIMETVA dans la Tob Ecriture
+Suite ........ : passée en paramètre
+Mots clefs ... : 
+*****************************************************************}
+procedure CGetRegimeTVA ( vTOB : TOB ; vInfo : TInfoEcriture = nil ) ;
+var lStRegime       : String ;
+    lBoDetruireInfo : Boolean ;
+begin
+
+ if length(trim( vTOB.GetValue('E_REGIMETVA') )) <> 0 then exit ;
+
+  // === INSTANCIATION TINFOECRITURE ===
+  if vInfo = nil then
+    begin
+    vInfo           := TInfoEcriture.Create ;
+    lBoDetruireInfo := true ;
+    end
+  else
+    lBoDetruireInfo := false ;
+
+  try
+
+  // === DETERMINATION DU REGIME ===
+  // En priorité, régime de l'auxiliaire
+  if vTob.GetValue('E_AUXILIAIRE') <> '' then
+    begin
+    if vInfo.LoadAux( vTob.GetValue('E_AUXILIAIRE') ) then
+      lStRegime := vInfo.Aux_GetValue('T_REGIMETVA') ;
+    end
+  // finalement régime du général
+  else if vTob.GetValue('E_GENERAL') <> '' then
+    begin
+    if vInfo.LoadCompte( vTob.GetValue('E_GENERAL') ) then
+      lStRegime := vInfo.Compte_GetValue('G_REGIMETVA') ;
+    end ;
+  // Régime par défaut
+  if lStRegime=''
+    then lStRegime := GetParamSocSecur('SO_REGIMEDEFAUT','');
+
+  // === AFFECTATION DU REGIME ===
+  vTob.PutValue('E_REGIMETVA', lStRegime ) ;
+
+
+  finally
+   // === LIBERATION TINFOECRITURE ===
+   if lBoDetruireInfo then vInfo.Free ;
+  end ;
+
+end ;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Stephane BOUSSERT
+Créé le ...... : 23/12/2004
+Modifié le ... :   /  /
+Description .. : Renseigne les champs E_REGIMETVA, E_TVA et E_TPF
+Suite ........ : dans la Tob Ecriture passée en paramètre
+Mots clefs ... :
+*****************************************************************}
+procedure CGetTVA       ( vTOB : TOB ; vInfo : TInfoEcriture = nil ) ;
+var lBoDetruireInfo : Boolean ;
+begin
+
+  // === INSTANCIATION TINFOECRITURE ===
+  if vInfo = nil then
+    begin
+    vInfo           := TInfoEcriture.Create ;
+    lBoDetruireInfo := true ;
+    end
+  else
+    lBoDetruireInfo := false ;
+
+  // === AFFETATION DU REGIME TVA ===
+  CGetRegimeTva( vTOB, vInfo ) ;
+
+  // === AFFECTATION CODES TVA / TPF
+  vTob.PutValue( 'E_TVA', '' ) ;
+  vTob.PutValue( 'E_TPF', '' ) ;
+  if vInfo.LoadCompte( vTob.GetValue('E_GENERAL') ) then
+      begin
+      // Taxes
+      if vInfo.Compte.IsHT then
+        begin
+        vTob.PutValue( 'E_TVA', vInfo.Compte_GetValue('G_TVA') ) ;
+        vTob.PutValue( 'E_TPF', vInfo.Compte_GetValue('G_TPF') ) ;
+        end ;
+      end ;
+
+  // === LIBERATION TINFOECRITURE ===
+  if lBoDetruireInfo then vInfo.Free ;
+
+end ;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Stephane BOUSSERT
+Créé le ...... : 23/12/2004
+Modifié le ... :   /  /    
+Description .. : Renseigne le champ E_CONSO dans la Tob Ecriture
+Suite ........ : passée en paramètre
+Mots clefs ... : 
+*****************************************************************}
+procedure CGetConso     ( vTOB : TOB ; vInfo : TInfoEcriture = nil ) ;
+var lBoDetruireInfo : Boolean ;
+    lStConso        : String ;
+begin
+
+  // === INSTANCIATION TINFOECRITURE ===
+  if vInfo = nil then
+    begin
+    vInfo           := TInfoEcriture.Create ;
+    lBoDetruireInfo := true ;
+    end
+  else
+    lBoDetruireInfo := false ;
+
+  // === DETERMINATION DU CODE CONSO ===
+  if vTob.GetValue('E_AUXILIAIRE') <> '' then
+    begin
+    if vInfo.LoadAux( vTob.GetValue('E_AUXILIAIRE') ) then
+       lStConso := vInfo.Aux.GetValue('T_CONSO') ;
+    end
+  else if vTob.GetValue('E_GENERAL') <> '' then
+    begin
+    if vInfo.LoadCompte( vTob.GetValue('E_GENERAL') ) then
+       lStConso := vInfo.Compte.GetValue('G_CONSO') ;
+    end
+  else
+    lStConso := '' ;
+
+  // === AFFECTATION DU CODE CONSO ===
+  vTob.PutValue( 'E_CONSO', lStConso ) ;
+
+  // === LIBERATION TINFOECRITURE ===
+  if lBoDetruireInfo then vInfo.Free ;
+
+end ;
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Stephane BOUSSERT
+Créé le ...... : 23/12/2004
+Modifié le ... :   /  /
+Description .. : Renseigne le champ E_ANA dans la Tob Ecriture
+Suite ........ : passée en paramètre.
+Suite ........ : Ventile la ligne avec la ventilation par défaut ou sur la
+Suite ........ : section d'attente.
+Mots clefs ... :
+*****************************************************************}
+{procedure CGetAnalytique ( vTOB : TOB ; vInfo : TInfoEcriture = nil ) ;
+var lBoDetruireInfo : Boolean ;
+begin
+
+  // === INSTANCIATION TINFOECRITURE ===
+  if vInfo = nil then
+    begin
+    vInfo           := TInfoEcriture.Create ;
+    lBoDetruireInfo := true ;
+    end
+  else
+    lBoDetruireInfo := false ;
+
+  // TEST COMPTE VENTILABLE
+  if vInfo.LoadCompte( vTob.GetValue('E_GENERAL') ) and
+     ( vInfo.Compte.IsVentilable ) then
+    begin
+    vTob.PutValue('E_ANA', 'X') ;
+    AlloueAxe( vTob ) ;
+
+    // On ventile uniquement si le montant de l'écriture a été saisi :
+    if ( vTOB.GetValue('E_DEBIT') + vTOB.GetValue('E_CREDIT') ) <> 0 then
+      VentilerTOB( vTob, '', 0, V_PGI.OkDecV , False ) ; // Ventilation par defaut
+    end
+  else
+    begin
+    vTob.PutValue('E_ANA', '-') ;
+    if vTob.Detail.Count > 0 then
+      vTob.ClearDetail ;
+    end ;
+
+  // === LIBERATION TINFOECRITURE ===
+  if lBoDetruireInfo then vInfo.Free ;
+
+end ; }
+
+
+function EncodeDateBor ( vInAnnee , vInMois : integer ; vTExo : TExoDate ) : TDateTime ;
+begin
+ result := EncodeDate(vInAnnee,vInMois,1) ;
+ if result < vTExo.Deb then
+  result := vTExo.Deb ;
+end ;
+
+////////////////////////////////////////////////////////////////////////////////
+{***********A.G.L.***********************************************
+Auteur  ...... : Gilles COSTE
+Créé le ...... :   /  /
+Modifié le ... : 20/01/2005
+Description .. :
+Mots clefs ... :
+*****************************************************************}
+function CEstAutoriseDelettrage( vBoSelected : Boolean; vBoTestSelected : Boolean ) : Boolean;
+begin
+  Result := False;
+  if vBoTestSelected then
+  begin
+    if not vBoSelected then
+    begin
+      PGIInfo('Aucune ligne de selectionnée ! ', 'Selection impossible');
+      Exit;
+    end;
+  end;
+
+  if CEstBloqueBor('', -1, -1, True) then
+  begin
+    PGIError('Un bordereau est ouvert, vous ne pouvez pas utilisé ce traitement  ! ', 'Traitement impossible');
+    exit;
+  end;
+  Result := True;
+end;
+
+
+procedure CPutTOBCompl ( TheTOB : TOB ;  Valeur : TOB ) ;
+begin
+ TheTob.AddChampSupValeur('PCOMPL',longInt(Valeur),false) ;
+end ;
+
+function CGetTOBCompl ( TheTOB : TOB ) : TOB ;
+var
+ lP : Variant ;
+begin
+ result := nil ;
+ if TheTOB.FieldExists('PCOMPL') then
+  begin
+   lP     := TheTOB.GetValue('PCOMPL') ;
+   if ( VarAsType(lP, VarString) <> #0 ) and ( VarAsType(lP, VarInteger) <> - 1 ) then  //if Length(VarAsType(lP, VarString)) > 1 then
+   result := TOB(LongInt(lP)) ;
+  end ; // if
+end ;
+
+procedure CPutValueTOBCompl ( TheTOB : TOB ;  Nom : string ; Valeur : Variant ) ;
+var
+ lTOB : TOB ;
+begin
+ lTOB := CGetTOBCompl(TheTOB) ;
+ if lTOB <> nil then
+  lTOB.PutValue(Nom,Valeur) ;
+end ;
+
+function CGetValueTOBCompl ( TheTOB : TOB ; Nom : string ) : Variant ;
+var
+ lTOB : TOB ;
+begin
+ result := #0 ;
+ lTOB := CGetTOBCompl(TheTOB) ;
+ if lTOB <> nil then
+  result := lTOB.GetValue(Nom) ;
+end ;
+
+function CSelectDBTOBCompl( TheTOB : TOB ; TheParent : TOB ) : TOB ;
+var
+ lSt   : string ;
+ lQ    : TQuery ;
+begin
+  lSt := 'SELECT * FROM ECRCOMPL WHERE EC_JOURNAL="' + TheTOB.GetValue('E_JOURNAL')      + '" ' +
+        'AND EC_EXERCICE="'            + TheTOB.GetValue('E_EXERCICE')                  + '" ' +
+        'AND EC_DATECOMPTABLE="'       + usDateTime(TheTOB.GetValue('E_DATECOMPTABLE')) + '" ' +
+        'AND EC_EXERCICE="'            + TheTOB.GetValue('E_EXERCICE')                  + '" ' +
+        'AND EC_NUMEROPIECE='          + intToStr(TheTOB.GetValue('E_NUMEROPIECE'))     + ' '  +
+        'AND EC_NUMLIGNE='             + intToStr(TheTOB.GetValue('E_NUMLIGNE'))        + ' '  +
+        'AND EC_QUALIFPIECE="'         + TheTOB.GetValue('E_QUALIFPIECE')               + '" ' ;
+
+  lQ     := OpenSql( lSt , true ) ;
+  result := TOB.Create('ECRCOMPL',TheParent,-1) ;
+  result.SelectDB('',lQ) ;
+  CPutTOBCompl(TheTOB,result) ;
+  Ferme(lQ) ;
+end ;
+
+procedure CDeleteDBTOBCompl( vQ : TQuery ) ;
+begin
+  ExecuteSQL( 'DELETE FROM ECRCOMPL WHERE EC_JOURNAL="' + vQ.FindField('E_JOURNAL').asString           + '" ' +
+              'AND EC_EXERCICE="'            + vQ.FindField('E_EXERCICE').asString                     + '" ' +
+              'AND EC_DATECOMPTABLE="'       + usDateTime(vQ.FindField('E_DATECOMPTABLE').asDateTime)  + '" ' +
+              'AND EC_EXERCICE="'            + vQ.FindField('E_EXERCICE').asString                     + '" ' +
+              'AND EC_NUMEROPIECE='          + vQ.FindField('E_NUMEROPIECE').asString                  + ' '  +
+              'AND EC_NUMLIGNE='             + vQ.FindField('E_NUMLIGNE').asString                     + ' '  +
+              'AND EC_QUALIFPIECE="'         + vQ.FindField('E_QUALIFPIECE').asString                  + '" ' )
+end ;
+
+
+procedure CSupprimerEcrCompl( TheTOB : TOB ; vDossier : String = '' ) ;
+begin
+ if TheTOB.GetValue('E_NUMLIGNE') = 1 then
+   begin
+   ExecuteSQL( 'DELETE FROM ' + GetTableDossier( vDossier, 'ECRCOMPL' ) +
+               ' WHERE EC_JOURNAL="'        + THeTOB.GetValue('E_JOURNAL')                   + '" ' +
+                  'AND EC_EXERCICE="'       + TheTOB.GetValue('E_EXERCICE')                  + '" ' +
+                  'AND EC_DATECOMPTABLE="'  + usDateTime(TheTOB.GetValue('E_DATECOMPTABLE')) + '" ' +
+                  'AND EC_EXERCICE="'       + TheTOB.GetValue('E_EXERCICE')                  + '" ' +
+                  'AND EC_NUMEROPIECE='     + intToStr(TheTOB.GetValue('E_NUMEROPIECE'))     + ' '  +
+                  'AND EC_QUALIFPIECE="'    + TheTOB.GetValue('E_QUALIFPIECE')               + '" ' )
+   end ;
+end ;
+
+function CCreateDBTOBCompl( TheTOB : TOB ; TheParent : TOB ; Q : TQuery ) : TOB ;
+begin
+ result:= TOB.CreateDB('ECRCOMPL',TheParent,-1,Q) ;
+ CPutTOBCompl(TheTOB,result) ;
+end ;
+
+procedure CMAJTOBCompl( TheTOB : TOB ) ;
+var
+ lTOB : TOB ;
+begin
+ lTOB :=  CGetTOBCompl(TheTOB) ;
+ if lTOB = nil then exit ;
+ lTOB.PutValue('EC_EXERCICE'      , TheTOB.GetValue('E_EXERCICE') ) ;
+ lTOB.PutValue('EC_JOURNAL'       , TheTOB.GetValue('E_JOURNAL') ) ;
+ lTOB.PutValue('EC_DATECOMPTABLE' , TheTOB.GetValue('E_DATECOMPTABLE') ) ;
+ lTOB.PutValue('EC_NUMEROPIECE'   , TheTOB.GetValue('E_NUMEROPIECE') ) ;
+ lTOB.PutValue('EC_NUMLIGNE'      , TheTOB.GetValue('E_NUMLIGNE') ) ;
+ lTOB.PutValue('EC_QUALIFPIECE'   , TheTOB.GetValue('E_QUALIFPIECE') ) ;
+ lTOB.PutValue('EC_CLEECR'        , TheTOB.GetValue('E_EXERCICE')                  + ';' +
+                                    TheTOB.GetValue('E_JOURNAL')                   + ';' +
+                                    DateToStr(TheTOB.GetValue('E_DATECOMPTABLE'))  + ';' +
+                                    IntToStr(TheTOB.GetValue('E_NUMEROPIECE'))     + ';' +
+                                    IntToStr(TheTOB.GetValue('E_NUMLIGNE'))        + ';' +
+                                    TheTOB.GetValue('E_QUALIFPIECE')               + ';' ) ;
+end ;
+
+function CCreateTOBCompl( TheTOB : TOB ; TheParent : TOB ) : TOB ;
+begin
+ result:= TOB.Create('ECRCOMPL',TheParent,-1) ;
+ CPutTOBCompl(TheTOB,result) ;
+ CMAJTOBCompl(TheTOB) ;
+end ;
+
+procedure CFreeTOBCompl ( TheTob : TOB ) ;
+var
+ lTOB : TOB ;
+begin
+ lTOB := CGetTOBCompl(TheTob) ;
+ if Assigned(lTOB) then FreeAndNil(lTOB) ;
+ if TheTOB.FieldExists('PCOMPL') then
+   TheTob.PutValue('PCOMPL',-1) ;
+end ;
+
+
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent Gendreau
+Créé le ...... : 30/08/2005
+Modifié le ... :   /  /    
+Description .. : - FB - 15874 - ajout du calcul du trimestre, semestre et 
+Suite ........ : quadri
+Mots clefs ... : 
+*****************************************************************}
+procedure CCalculDateCutOff( vTOB : TOB ; G_CUTOFFPERIODE : string ; G_CUTOFFECHUE : string) ;
+var
+ lYear,lDay,lMonth : word ;
+ s : string ;
+ lDt1,lDt2 : TDateTime ;
+begin
+
+ lDT1 := iDate1900 ;
+ lDT2 := iDate1900 ;
+ s    := G_CUTOFFPERIODE ;
+
+ DecodeDate(vTOB.GetValue('EC_DATECOMPTABLE') , lYear, lMonth, lDay) ;
+
+ if G_CUTOFFECHUE = '-' then
+  begin // avance
+   lDT1 := vTOB.GetValue('EC_DATECOMPTABLE') ;
+   case s[2] of
+    'A' :  lDT2 := PlusDate(vTOB.GetValue('EC_DATECOMPTABLE') , 1 , 'A') - 1 ;//EncodeDate(lYear+1,lMonth, lDay) - 1 ;
+    'M' :  lDT2 := PlusDate(vTOB.GetValue('EC_DATECOMPTABLE') , 1 , 'M') - 1 ;
+    'S' :  lDT2 := PlusDate(vTOB.GetValue('EC_DATECOMPTABLE') , 6 , 'M') - 1 ;
+    'T' :  lDT2 := PlusDate(vTOB.GetValue('EC_DATECOMPTABLE') , 3 , 'M') - 1 ;
+    'Q' :  lDT2 := PlusDate(vTOB.GetValue('EC_DATECOMPTABLE') , 4 , 'M') - 1 ;
+   end ; // Case
+  end
+   else
+    begin
+     lDT2 := vTOB.GetValue('EC_DATECOMPTABLE') ;
+     case s[2] of
+      'A' :  lDT1 := PlusDate(vTOB.GetValue('EC_DATECOMPTABLE') , -1 , 'A') + 1 ; //EncodeDate(lYear-1,lMonth, lDay) + 1 ;
+      'M' :  lDT1 := PlusDate(vTOB.GetValue('EC_DATECOMPTABLE') , -1 , 'M') + 1;
+      'S' :  lDT1 := PlusDate(vTOB.GetValue('EC_DATECOMPTABLE') , -6 , 'M') + 1;
+      'T' :  lDT1 := PlusDate(vTOB.GetValue('EC_DATECOMPTABLE') , -3 , 'M') + 1;
+      'Q' :  lDT1 := PlusDate(vTOB.GetValue('EC_DATECOMPTABLE') , -4 , 'M') + 1;
+     end ; // Case
+    end ;
+
+ vTOB.PutValue( 'EC_CUTOFFDEB' , lDT1 ) ;
+ vTOB.PutValue( 'EC_CUTOFFFIN' , lDT2 ) ;
+
+end ;
+
+{$IFNDEF EAGLSERVER}
+{***********A.G.L.***********************************************
+Auteur  ...... : Laurent GENDREAU
+Créé le ...... : 25/08/2005
+Modifié le ... : 25/08/2005
+Description .. : - FB 16397 - LG  - 25/08/2005 - test de la revision 
+Suite ........ : uniquement pour l'exercice en cours
+Mots clefs ... : 
+*****************************************************************}
+function CControleVisa ( vStCompte : string ; vInfo : TInfoEcriture )  : boolean ;
+begin
+ result := true ;
+
+ if not vInfo.LoadCompte( vStCompte ) or ( vInfo.TypeExo <> teEnCours ) then exit ;
+
+ if ( vInfo.Compte_GetValue('G_VISAREVISION') = '-' ) then exit ;
+
+ if PGIAsk('Le compte est visé' + #10#13 + 'Voulez-vous supprimer le visa de révision ?')<> idYes then
+  begin
+   result := false ;
+   exit ;
+  end ; // if
+
+ ExecuteSQL('update GENERAUX set G_VISAREVISION="-" where G_GENERAL="'+ vStCompte + '" ') ;
+ vInfo.ClearCompte ;
+
+end ;
+{$ENDIF}
+
+{***********A.G.L.***********************************************
+Auteur  ...... : SBO
+Créé le ...... : 23/08/2005
+Modifié le ... :   /  /
+Description .. :
+Suite ........ : Renseigne le champ E_TYPEMVT dans la ligne d'écriture.
+Mots clefs ... :
+*****************************************************************}
+{$IFNDEF NOVH}
+procedure CGetTypeMvt    ( vTOB : TOB ; vInfo : TInfoEcriture = nil ) ;
+var lBoDetruireInfo : Boolean ;
+    lStNatCpt       : String ;
+    lStCpt          : String ;
+    lStNatPiece     : String ;
+    lStTypeMvt      : String ;
+    lBoTiers        : Boolean ;
+begin
+
+  // === INSTANCIATION TINFOECRITURE ===
+  if vInfo = nil then
+    begin
+    vInfo           := TInfoEcriture.Create ;
+    lBoDetruireInfo := true ;
+    end
+  else
+    lBoDetruireInfo := false ;
+
+  // === DETERMINATION DE LA NATURE DE LA PIECE ===
+  lStNatPiece := vTob.GetString('E_NATUREPIECE') ;
+
+  // === DETERMINATION DE LA NATURE DU COMPTE ===
+  lBoTiers := False ;
+  if vTob.GetValue('E_AUXILIAIRE') <> '' then
+    begin
+    lBoTiers := True ;
+    lStCpt   := vTob.GetValue('E_AUXILIAIRE') ;
+    if vInfo.LoadAux( lStCpt ) then
+      lStNatCpt := vInfo.Aux.GetValue('T_NATUREAUXI') ;
+    end
+  else if vTob.GetValue('E_GENERAL') <> '' then
+    begin
+    lStCpt   := vTob.GetValue('E_GENERAL') ;
+    if vInfo.LoadCompte( lStCpt ) then
+      lStNatCpt := vInfo.Compte.GetValue('G_NATUREGENE') ;
+    end ;
+
+  // === DETERMINATION DU TYPE DE MVT ===
+  lStTypeMvt := 'DIV' ; // par défaut
+  if ( lStNatCpt <> '' ) and ( lStNatPiece <> '' ) and
+     not ( ( VH^.PaysLocalisation<>CodeISOES ) and // XVI 24/02/2005
+           ( (lStNatPiece<>'FC') and (lStNatPiece<>'AC') and
+             (lStNatPiece<>'FF') and (lStNatPiece<>'AF') ) ) then
+    begin
+    if ( (lStNatCpt='TID') or (lStNatCpt='TIC') or (lStNatCpt='CLI') or
+         (lStNatCpt='FOU') or (lStNatCpt='AUD') or (lStNatCpt='AUC')) then lStTypeMvt:='TTC'
+    else if EstChaPro( lStNatCpt )     then lStTypeMvt:='HT'
+    else if EstTVATPF( lStCpt, True )  then lStTypeMvt:='TVA'
+    else if EstTVATPF( lStCpt, False ) then lStTypeMvt:='TPF'
+    else if (lStNatCpt='DIV') then
+        // Spécif compte lettrable divers
+        if lBoTiers then lStTypeMvt:='TTC' ; // Point 62 FFF
+    end ;
+
+  // === AFFECTATION DU TYPEMVT ===
+  vTob.PutValue( 'E_TYPEMVT', lStTypeMvt ) ;
+
+  // === LIBERATION TINFOECRITURE ===
+  if lBoDetruireInfo then vInfo.Free ;
+
+end ;
+{$ENDIF}
+
+
+{***********A.G.L.***********************************************
+Auteur  ...... : SBO
+Créé le ...... : 27/11/2003
+Modifié le ... : 27/11/2003
+Description .. :
+Suite ........ : Permet la mise en place de traitements sur une ligne
+Suite ........ : d'écriture comptable avant la maj en base de données.
+Suite ........ :
+Suite ........ : Utilisation de V_PGI.IoError pour gestion des erreurs
+Mots clefs ... :
+*****************************************************************}
+(*
+Function  OnUpdateEcriture( vEcr : TQuery ; vAction : TActionFiche ; vListeAction : TOnUpdateEcritures ) : Boolean ;
+begin
+  Result := True ;
+  // Si la tréso est sérialisé (on se contente d'un IFDEF pour le moment), maj des infos de synchro
+{$IFNDEF TRESO}
+ if EstComptaTreso then
+  Result := MajTresoEcriture( vEcr , vAction ) ;
+{$ENDIF}
+end ;
+*)
+{***********A.G.L.***********************************************
+Auteur  ...... : SBO
+Créé le ...... : 27/11/2003
+Modifié le ... : 27/11/2003
+Description .. :
+Suite ........ : Permet la mise en place de traitements sur une ligne
+Suite ........ : d'écriture comptable avant la maj en base de données.
+Suite ........ :
+Suite ........ : Utilisation de V_PGI.IoError pour gestion des erreurs
+Mots clefs ... :
+*****************************************************************}
+function  OnUpdateEcritureTOB( vEcr : TOB ; vAction : TActionFiche ; vListeAction : TOnUpdateEcritures ; vInfo : TInfoEcriture = nil  ) : boolean ;
+var lTOB     : TOB ;
+    lDossier : String ;
+begin
+ result := true ;
+{$IFNDEF PGIIMMO}
+ if cEcrCompl in vListeAction then
+  begin
+   if EstMultiSoc and Assigned( vInfo ) then
+    lDossier := vInfo.Dossier
+     else
+      lDossier := '' ;
+   CSupprimerEcrCompl( vEcr, lDossier ) ;
+   lTOB := CGetTOBCompl(vEcr) ;
+   if lTOB <> nil then
+    begin
+     CMAJTOBCompl(vEcr) ;
+     if lDossier <> '' then InsertTobMS( lTob, lDossier )
+       else
+        lTOB.InsertDB(nil) ;
+    end ;
+  end ;
+{$ENDIF}
+  // Si la tréso est sérialisé (on se contente d'un IFDEF pour le moment), maj des infos de synchro
+{$IFNDEF TRESO}
+  {JP 14/06/06 : FQ TRESO 10365 : Pour le moment on désactive la saisie bordereau, car il faut repenser
+                 la constitution du numéro de transaction en Treso : un même numéro de pièce (id Folio)
+                 pouvant exister pour chaque mois, on se retrouve avec un violation de clef}
+  if EstComptaTreso and not (cEcrBor in vListeAction) then
+     Result := MajTresoEcritureTOB( vEcr , vAction, vInfo ) ;
+{$ENDIF}
+end ;
+
+
+{***********A.G.L.***********************************************
+Auteur  ...... : SBO
+Créé le ...... : 27/11/2003
+Modifié le ... : 27/11/2003
+Description .. :
+Suite ........ : Permet la mise en place de traitements sur une ligne
+Suite ........ : d'écriture comptable avant sa suppression en base de
+Suite ........ : données.
+Suite ........ :
+Suite ........ : Utilisation de V_PGI.IoError pour gestion des erreurs
+Mots clefs ... :
+*****************************************************************}
+(*
+Function  OnDeleteEcriture( vEcr : TQuery ; vListeAction : TOnUpdateEcritures) : Boolean ;
+begin
+  Result := True ;
+  {$IFNDEF PGIIMMO}
+  if cEcrCompl in vListeAction then CDeleteDBTOBCompl(vEcr) ;
+  {$ENDIF}
+  // Si la tréso est sérialisé (on se contente d'un IFDEF pour le moment), maj des infos de synchro
+  if EstComptaTreso then
+    Result := MajTresoSupprEcriture( vEcr ) ;
+end ;
+*)
+Function  OnDeleteEcritureTOB( vEcr : TOB ; vAction : TActionFiche ; vListeAction : TOnUpdateEcritures ) : Boolean ;
+begin
+  Result := True ;
+  {$IFNDEF PGIIMMO}
+  if cEcrCompl in vListeAction then CSupprimerEcrCompl(vEcr) ;
+  {$ENDIF}
+  // Si la tréso est sérialisé (on se contente d'un IFDEF pour le moment), maj des infos de synchro
+  {JP 14/06/06 : FQ TRESO 10365 : Pour le moment on désactive la saisie bordereau, car il faut repenser
+                 la constitution du numéro de transaction en Treso : un même numéro de pièce (id Folio)
+                 pouvant exister pour chaque mois, on se retrouve avec un violation de clef}
+  if EstComptaTreso and not (cEcrBor in vListeAction) then
+    Result := MajTresoSupprEcritureTOB( vEcr ) ;
+end ;
+
+
+
+
+
+{ TZSections }
+
+function TZSections.GetCompte(var NumCompte: string ; NumAxe : string ): integer;
+begin
+ result   := Load([NumCompte,NumAxe]) ;
+ FInIndex := result ;
+ if result <> -1 then
+  NumCompte := GetValue('S_SECTION') ;
+end;
+
+function TZSections.GetNumAxe: integer;
+var lStAxe : string ;
+begin
+  result := 0 ;
+  lStAxe := GetValue('S_AXE') ;
+  if length( lStAxe ) = 2 then
+    result := ValeurI( lStAxe[2] ) ;
+end;
+
+function TZSections.GetStAxe: string;
+begin
+  result := GetValue('S_AXE') ;
+end;
+
+procedure TZSections.Initialize;
+begin
+  FStTable := 'SECTION' ;
+end;
+
+function TZSections.Load(const Values: array of string): integer;
+var lStCode : string ;
+    lStAxe  : string ;
+    lTOB    : TOB ;
+    Q       : TQuery ;
+begin
+
+  // recherche dans la liste
+  Result := inherited Load(Values) ;
+  if result<>-1 then exit ;
+  if SizeOf(Values)=0 then exit ;
+
+  // Vérif code
+  lStCode := Values[0] ;
+  if Trim(lStCode)='' then exit ;
+
+  lStAxe := Values[1] ;
+  if Trim(lStAxe)='' then exit ;
+
+  // Chargement dans la base
+  Q := nil ;
+  try
+    Q := OpenSelect('SELECT * FROM SECTION WHERE S_SECTION="' + UpperCase(lStCode) + '" AND S_AXE="' + lStAxe + '"' , FDossier ) ;
+    if not Q.EOF then
+      begin
+      lTOB := MakeTOB ;
+      lTOB.SelectDB( '', Q ) ;
+      SetCrit( lTOB, Values ) ;
+      FInIndex := FTOB.Detail.Count-1 ;
+      result   := FInIndex ;
+      end;
+  finally
+    Ferme(Q) ;
+  end;
+
+end;
+
+end.
+
+
+

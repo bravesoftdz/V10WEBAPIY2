@@ -1,0 +1,258 @@
+object FSaisVisu: TFSaisVisu
+  Left = 262
+  Top = 175
+  Width = 575
+  Height = 290
+  HelpContext = 7244800
+  BorderIcons = [biSystemMenu, biMaximize]
+  Caption = 'Liste des derni'#232'res pi'#232'ces cr'#233#233'es'
+  Color = clBtnFace
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -11
+  Font.Name = 'MS Sans Serif'
+  Font.Style = []
+  OldCreateOrder = True
+  Position = poScreenCenter
+  OnClose = FormClose
+  OnCreate = FormCreate
+  OnShow = FormShow
+  PixelsPerInch = 96
+  TextHeight = 13
+  object PPied: TPanel
+    Left = 0
+    Top = 228
+    Width = 567
+    Height = 35
+    Align = alBottom
+    BevelInner = bvLowered
+    TabOrder = 0
+    object H_DATEENTREE: TLabel
+      Left = 4
+      Top = 10
+      Width = 157
+      Height = 13
+      AutoSize = False
+      Caption = 'Date entr'#233'e :'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clBlack
+      Font.Height = -11
+      Font.Name = 'MS Sans Serif'
+      Font.Style = []
+      ParentFont = False
+    end
+    object H_NBPIECES: TLabel
+      Left = 168
+      Top = 10
+      Width = 137
+      Height = 13
+      AutoSize = False
+      Caption = 'Nb pi'#232'ces cr'#233#233'es :'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clBlack
+      Font.Height = -11
+      Font.Name = 'MS Sans Serif'
+      Font.Style = []
+      ParentFont = False
+    end
+    object BValide: THBitBtn
+      Tag = 1
+      Left = 472
+      Top = 4
+      Width = 28
+      Height = 27
+      Hint = 'Valider'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clBlack
+      Font.Height = -11
+      Font.Name = 'MS Sans Serif'
+      Font.Style = [fsBold]
+      ModalResult = 1
+      ParentFont = False
+      ParentShowHint = False
+      ShowHint = True
+      TabOrder = 1
+      OnClick = OnClickBValide
+      Glyph.Data = {
+        BE060000424DBE06000000000000360400002800000024000000120000000100
+        0800000000008802000000000000000000000001000000010000000000000000
+        80000080000000808000800000008000800080800000C0C0C000C0DCC000F0C8
+        A400000000000000000000000000000000000000000000000000000000000000
+        0000000000000000000000000000000000000000000000000000000000000000
+        0000000000000000000000000000000000000000000000000000000000000000
+        0000000000000000000000000000000000000000000000000000000000000000
+        0000000000000000000000000000000000000000000000000000000000000000
+        0000000000000000000000000000000000000000000000000000000000000000
+        0000000000000000000000000000000000000000000000000000000000000000
+        0000000000000000000000000000000000000000000000000000000000000000
+        0000000000000000000000000000000000000000000000000000000000000000
+        0000000000000000000000000000000000000000000000000000000000000000
+        0000000000000000000000000000000000000000000000000000000000000000
+        0000000000000000000000000000000000000000000000000000000000000000
+        0000000000000000000000000000000000000000000000000000000000000000
+        0000000000000000000000000000000000000000000000000000000000000000
+        0000000000000000000000000000000000000000000000000000000000000000
+        0000000000000000000000000000000000000000000000000000000000000000
+        0000000000000000000000000000000000000000000000000000000000000000
+        0000000000000000000000000000000000000000000000000000000000000000
+        0000000000000000000000000000000000000000000000000000000000000000
+        0000000000000000000000000000000000000000000000000000000000000000
+        0000000000000000000000000000000000000000000000000000000000000000
+        0000000000000000000000000000000000000000000000000000000000000000
+        0000000000000000000000000000000000000000000000000000000000000000
+        0000000000000000000000000000000000000000000000000000000000000000
+        0000000000000000000000000000000000000000000000000000000000000000
+        0000000000000000000000000000000000000000000000000000000000000000
+        0000000000000000000000000000000000000000000000000000000000000000
+        0000000000000000000000000000000000000000000000000000000000000000
+        0000000000000000000000000000000000000000000000000000000000000000
+        000000000000000000000000000000000000F0FBFF00A4A0A000808080000000
+        FF0000FF000000FFFF00FF000000FF00FF00FFFF0000FFFFFF00030303030303
+        0303030303030303030303030303030303030303030303030303030303030303
+        03030303030303030303030303030303030303030303FF030303030303030303
+        03030303030303040403030303030303030303030303030303F8F8FF03030303
+        03030303030303030303040202040303030303030303030303030303F80303F8
+        FF030303030303030303030303040202020204030303030303030303030303F8
+        03030303F8FF0303030303030303030304020202020202040303030303030303
+        0303F8030303030303F8FF030303030303030304020202FA0202020204030303
+        0303030303F8FF0303F8FF030303F8FF03030303030303020202FA03FA020202
+        040303030303030303F8FF03F803F8FF0303F8FF03030303030303FA02FA0303
+        03FA0202020403030303030303F8FFF8030303F8FF0303F8FF03030303030303
+        FA0303030303FA0202020403030303030303F80303030303F8FF0303F8FF0303
+        0303030303030303030303FA0202020403030303030303030303030303F8FF03
+        03F8FF03030303030303030303030303FA020202040303030303030303030303
+        0303F8FF0303F8FF03030303030303030303030303FA02020204030303030303
+        03030303030303F8FF0303F8FF03030303030303030303030303FA0202020403
+        030303030303030303030303F8FF0303F8FF03030303030303030303030303FA
+        0202040303030303030303030303030303F8FF03F8FF03030303030303030303
+        03030303FA0202030303030303030303030303030303F8FFF803030303030303
+        030303030303030303FA0303030303030303030303030303030303F803030303
+        0303030303030303030303030303030303030303030303030303030303030303
+        0303}
+      Margin = 2
+      NumGlyphs = 2
+      Spacing = -1
+      IsControl = True
+    end
+    object BAbandon: THBitBtn
+      Tag = 1
+      Left = 504
+      Top = 4
+      Width = 28
+      Height = 27
+      Hint = 'Fermer'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clBlack
+      Font.Height = -11
+      Font.Name = 'MS Sans Serif'
+      Font.Style = [fsBold]
+      ModalResult = 2
+      ParentFont = False
+      ParentShowHint = False
+      ShowHint = True
+      TabOrder = 2
+      OnClick = OnClickBAbandon
+      Margin = 2
+      Spacing = -1
+      GlobalIndexImage = 'Z0021_S16G1'
+      IsControl = True
+    end
+    object BAide: THBitBtn
+      Tag = 1
+      Left = 536
+      Top = 4
+      Width = 28
+      Height = 27
+      Hint = 'Aide'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clBlack
+      Font.Height = -11
+      Font.Name = 'MS Sans Serif'
+      Font.Style = [fsBold]
+      ParentFont = False
+      ParentShowHint = False
+      ShowHint = True
+      TabOrder = 3
+      OnClick = OnClickBAide
+      Margin = 2
+      Spacing = -1
+      GlobalIndexImage = 'Z1117_S16G1'
+      IsControl = True
+    end
+    object BZoomPiece: THBitBtn
+      Tag = 1
+      Left = 440
+      Top = 4
+      Width = 28
+      Height = 27
+      Hint = 'Voir l'#39#233'criture'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clBlack
+      Font.Height = -11
+      Font.Name = 'MS Sans Serif'
+      Font.Style = [fsBold]
+      ParentFont = False
+      ParentShowHint = False
+      ShowHint = True
+      TabOrder = 0
+      OnClick = OnDblClickGV
+      Margin = 2
+      Spacing = -1
+      GlobalIndexImage = 'Z0061_S16G1'
+      IsControl = True
+    end
+  end
+  object GV: THGrid
+    Left = 0
+    Top = 0
+    Width = 567
+    Height = 228
+    Align = alClient
+    ColCount = 10
+    DefaultRowHeight = 18
+    RowCount = 2
+    Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRangeSelect, goRowSizing, goColSizing, goRowSelect]
+    TabOrder = 1
+    OnDblClick = OnDblClickGV
+    SortedCol = -1
+    Titres.Strings = (
+      ''
+      'Jal'
+      'Date'
+      'N'#176
+      'G'#233'n'#233'ral'
+      'Auxiliaire'
+      'R'#233'f'#233'rence'
+      'D'#233'bit'
+      'Credit'
+      'Libell'#233)
+    Couleur = False
+    MultiSelect = False
+    TitleBold = True
+    TitleCenter = True
+    ColCombo = 0
+    SortEnabled = False
+    SortRowExclude = 0
+    TwoColors = True
+    AlternateColor = 13224395
+    DBIndicator = True
+    ColWidths = (
+      10
+      64
+      64
+      64
+      64
+      64
+      64
+      64
+      64
+      64)
+  end
+  object HMTrad: THSystemMenu
+    Caption = '&Personnalisation'
+    Separator = True
+    Traduction = True
+    Left = 496
+    Top = 180
+  end
+end

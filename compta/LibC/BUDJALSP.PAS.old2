@@ -1,0 +1,164 @@
+{***********UNITE*************************************************
+Auteur  ...... : Vincent Laroche
+Créé le ...... : 18/01/2005
+Modifié le ... :   /  /    
+Description .. : Passage en eAGL
+Mots clefs ... : 
+*****************************************************************}
+unit BUDJALSP;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
+  Vierge, ImgList, hmsgbox, ComCtrls, HSysMenu, HTB97, HEnt1, Ent1, HCtrls;
+
+function ChoisirSousSectionBudget(LaCatBud : TUneCatBud; ValSousPlan : String) : String ;
+
+type
+  TBudJalSP = class(TFVierge)
+    Tv: TTreeView;
+    HM: THMsgBox;
+    Image: TImageList;
+    procedure FormShow(Sender: TObject);
+    procedure TvChange(Sender: TObject; Node: TTreeNode);
+    procedure TvDblClick(Sender: TObject);
+    procedure BValiderClick(Sender: TObject);
+    procedure BFermeClick(Sender: TObject);
+  private
+    LaCatBud : TUneCatBud ;
+    ValSousPlan : String ;
+    LeResultat : String ;
+    procedure ChargeSousPlanBudget;
+  end;
+
+implementation
+
+{$R *.DFM}
+
+function ChoisirSousSectionBudget(LaCatBud : TUneCatBud; ValSousPlan : String) : String ;
+var
+  FBudJalSP : TBudJalSP;
+begin
+  Result := '';
+  FBudJalSP := TBudJalSP.Create(Application);
+  try
+    FBudJalSP.LaCatBud := LaCatBud;
+    FBudJalSP.ValSousPlan := ValSousPlan;
+    FBudJalSP.ShowModal;
+    Result := FBudJalSP.LeResultat;
+  finally
+    FBudJalSP.Free;
+  end;
+  SourisNormale;
+end;
+
+procedure TBudJalSP.FormShow(Sender: TObject);
+begin
+  inherited;
+  ChargeSousPlanBudget;
+end;
+
+procedure TBudJalSP.ChargeSousPlanBudget;
+var
+  Tn,Tn1,Tn2 : TTReeNode ;
+  i,j,k,l : Integer ;
+  St,St2,Code,Lib,StSousPlan : String ;
+  SousPlan : TSousPlan ;
+begin
+  Tn:=Nil;
+  Tn := Tv.Items.AddObject(Tn,HM.Mess[0],Nil);
+
+  for l:=1 to MaxSousPlan do begin
+    St := LaCatBud.SurJal[l];
+    if St<>'' then begin
+      j := 0;
+      for i:=1 to MaxSousPlan do
+        if VH^.SousPlanAxe[LaCatBud.fb,i].Code=St then j:=i;
+      if j<>0 then begin
+        SousPlan := VH^.SousPlanAxe[LaCatBud.fb,j];
+        Tn1 := Tv.Items.AddChildObject(Tn,SousPlan.Lib,Nil);
+        Tn1.ImageIndex := 1;
+        Tn1.SelectedIndex := Tn1.ImageIndex;
+        StSousPlan := ReadTokenSt(ValSousPlan);
+        for k:=0 to SousPlan.ListeSP.Count-1 do begin
+          St2 := SousPlan.ListeSP.Strings[k];
+          Code := ReadTokenSt(St2);
+          Lib := ReadTokenSt(St2);
+          Tn2 := Tv.Items.AddChildObject(Tn1,Code+' - '+Lib,Nil);
+          if Code=StSousPlan then Tn2.ImageIndex:=3
+                             else Tn2.ImageIndex:=2;
+          Tn2.SelectedIndex := Tn2.ImageIndex;
+        end;
+      end;
+    end;
+  end;
+  Tv.Items.GetFirstNode.Expand(True);
+  Tv.Selected := Tv.Items.GetFirstNode.GetNext;
+end;
+
+procedure TBudJalSP.TvChange(Sender: TObject; Node: TTreeNode);
+begin
+  if Tv.Selected.Text=HM.Mess[0] then
+    if Tv.Items.GetFirstNode.GetNext<>Nil then Tv.Selected := Tv.Items.GetFirstNode.GetNext;
+end;
+
+procedure TBudJalSP.TvDblClick(Sender: TObject);
+var
+  Code : String;
+  Tn1,Tn2  : TTreeNode;
+  i,NoImage : Integer;
+begin
+  if (Tv.Selected.Level=2) then begin
+    Code := Tv.Selected.Text;
+    Tn1 := Tv.Selected.Parent;
+    for i:=0 to Tn1.Count-1 do begin
+      Tn2 := Tn1.Item[i];
+      if Tn2.Text<>Code then NoImage := 2
+                        else NoImage := 3;
+      Tn2.ImageIndex := NoImage;
+      Tn2.SelectedIndex := Tn2.ImageIndex;
+    end;
+  end;
+  Tv.Refresh;
+end;
+
+procedure TBudJalSP.BValiderClick(Sender: TObject);
+var
+  St,St1 : String;
+  Tn : TTreeNode;
+  i,j,k,Lg : Integer;
+begin
+  inherited;
+
+  Tn := tv.Items.GetFirstNode;
+  if Tn<>nil then Tn := Tn.GetNext;
+  St := '';
+  i := 0;
+  while (Tn<>NIL) do begin
+    if Tn.Level=1 then Inc(i);
+    if i>MaxSousPlan then Break;
+    if (Tn.Level=2) And (Tn.ImageIndex=3) then begin
+      j := 0;
+      St1 := LaCatBud.SurJal[i];
+      for k:=1 to MaxSousPlan do
+        if VH^.SousPlanAxe[LaCatBud.fb,k].Code=St1 then j := k;
+      if j<>0 then begin
+        Lg := VH^.SousPlanAxe[LaCatBud.fb,j].Longueur;
+        St := St+Copy(Tn.Text,1,Lg)+';';
+      end;
+    end;
+    Tn := Tn.GetNext;
+  end;
+  LeResultat := St;
+
+end;
+
+procedure TBudJalSP.BFermeClick(Sender: TObject);
+begin
+  inherited;
+  LeResultat := '';
+end;
+
+end.
+
