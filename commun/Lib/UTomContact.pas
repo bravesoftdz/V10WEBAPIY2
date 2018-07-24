@@ -64,29 +64,30 @@ type
        CodeTiers : string; // pr MAJ c_tiers en création de contact
        Origin : string;
        IsModify : Boolean;
-{$ifdef GIGI}
+       CanCreate : boolean;
+       {$ifdef GIGI}
        CodeAuxiliaire : string; // mcd 07/09/2006 12599
-         TobValTiers:tob;
-{$endif}
+       TobValTiers:tob;
+       {$endif}
        LaToc : Toc;
-{$IFDEF CTI}
-         AppelCtiOk,SerieCTI,ContexteCti,CtiCCA : Boolean;
-         CtiHeureDebCom,CtiHeureFinCom : TDateTime;
-         WhereUpdate : String;
-         BPHONE,BTELBUR,BTELDOM,BTELPORT,BAttente,BStop : TToolBarButton97;
-    		procedure SetEtatBoutonCti;
-        procedure FindContactBTP(TypeContact, Auxiliaire: string;Numero: integer);
-    procedure ChangeInfoSUp(Sender: Tobject);
-    procedure SetEvents(Etat: boolean);
-    procedure DeleteContactBTP(TypeContact, Auxiliaire: string;Numero: integer);
-{$ENDIF}
+       {$IFDEF CTI}
+       AppelCtiOk,SerieCTI,ContexteCti,CtiCCA : Boolean;
+       CtiHeureDebCom,CtiHeureFinCom : TDateTime;
+       WhereUpdate : String;
+       BPHONE,BTELBUR,BTELDOM,BTELPORT,BAttente,BStop : TToolBarButton97;
+       procedure SetEtatBoutonCti;
+       procedure FindContactBTP(TypeContact, Auxiliaire: string;Numero: integer);
+       procedure ChangeInfoSUp(Sender: Tobject);
+       procedure SetEvents(Etat: boolean);
+       procedure DeleteContactBTP(TypeContact, Auxiliaire: string;Numero: integer);
+       {$ENDIF}
       private
        TF : TTableFiltre;
        AlerteInitTob : tob; // tob valeurs initiales pour gestion des alertes (tables complémentaires)
       TOBCONTACTBTP : TOB;
-{$IFDEF BTP}
+      {$IFDEF BTP}
        procedure FLISTE_OnDblClick( Sender: TObject );
-{$ENDIF}
+      {$ENDIF}
        procedure SetArguments(StSQL : string);
        procedure AddRemoveItemFromPopup(stPopup,stItem : string; bVisible : boolean);     //PCS
        procedure SetLastError (Num : integer; ou,valeur : string );
@@ -94,30 +95,31 @@ type
        procedure FermeContact(Sender: TObject);
        function ExisteContact (NomTable, NomChamp1, NomChamp2, TypeRech: string ; NumErr : integer) : boolean;
        function ExisteContact_InfosCompl (Prefixe, NoDesc : string ; NumErr : integer) : boolean;
-{$IFDEF CTI}
-         procedure RTCTIDecrocheAppelContact ;
-         procedure RTCTIRaccrocheAppelContact ;
-         procedure RTCTINumeroterContact ;
-         procedure RTCTIAppelAttenteContact ;
-         procedure RTCTIRepriseAppelContact ;
-{$ENDIF}
-{$IFDEF GRC}
-      procedure RTAppelParamCLContact;
-{$ENDIF}
+       {$IFDEF CTI}
+       procedure RTCTIDecrocheAppelContact ;
+       procedure RTCTIRaccrocheAppelContact ;
+       procedure RTCTINumeroterContact ;
+       procedure RTCTIAppelAttenteContact ;
+       procedure RTCTIRepriseAppelContact ;
+       {$ENDIF}
+       {$IFDEF GRC}
+       procedure RTAppelParamCLContact;
+       {$ENDIF}
       function TestAlerteContact (CodeA : String) : boolean;
       procedure ListAlerte_OnClick_C(Sender: TObject);
       procedure Alerte_OnClick_C(Sender: TObject);
+      {$IFDEF GCGC}
+      procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+      {$ENDIF}
+      procedure GereIsoflex;
+      procedure BContactClick     (Sender : TObject);
+      {$IFDEF GIGI}
+      procedure AffectValTiers (CodeTiers: string) ;
+      procedure AFAffectVal(Champ: string;QQ:Tquery) ;
+      procedure ChargeTobValTiers ;
+      {$ENDIF}
+      procedure SetButtonEna;
 
-{$IFDEF GCGC}
-         procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
-{$ENDIF}
-         procedure GereIsoflex;
-        procedure BContactClick     (Sender : TObject);
-{$IFDEF GIGI}
-        procedure AffectValTiers (CodeTiers: string) ;
-        procedure AFAffectVal(Champ: string;QQ:Tquery) ;
-        procedure ChargeTobValTiers ;
-{$ENDIF}
       public
 {$IFDEF CTI}
          procedure RTCTIAfficheMessageCTI;
@@ -171,29 +173,44 @@ const
 
 implementation
 
-Uses SysUtils, HCtrls, HEnt1,HDB,
-{$IFDEF EAGLCLIENT}
-     MaineAGL,
-{$ELSE}
-     dbctrls,Fe_Main,
-{$ENDIF}
-     M3FP, HMsgBox, UtilPGI,SaisieList,TiersUtil,UtofContact
-{$IFDEF AFFAIRE}
-     ,Dicobtp,CalcOleGenericAff
-{$ENDIF AFFAIRE}
-{$IFDEF DP}
-     ,entDP
-{$ENDIF}
-  	 ,CtiAlerte
-     ,UtilAlertes,YAlertesConst,Entpgi,BtpUtil,HrichOle
-   ,CbpMCD
-   ,CbpEnumerator
-   , HPanel
-;
+Uses
+  SysUtils
+  , HCtrls
+  , HEnt1
+  , HDB
+  {$IFDEF EAGLCLIENT}
+  , MaineAGL
+  {$ELSE}
+  , dbctrls
+  , Fe_Main
+  {$ENDIF}
+  , M3FP
+  , HMsgBox
+  , UtilPGI
+  , SaisieList
+  , TiersUtil
+  , UtofContact
+  {$IFDEF AFFAIRE}
+  , Dicobtp
+  , CalcOleGenericAff
+  {$ENDIF AFFAIRE}
+  {$IFDEF DP}
+  , entDP
+  {$ENDIF}
+  , CtiAlerte
+  , UtilAlertes
+  , YAlertesConst
+  , Entpgi
+  , BtpUtil
+  , HrichOle
+  , CbpMCD
+  , CbpEnumerator
+  , HPanel
+  , CommonTools
+  , HSysMenu
+  ;
 function GetAllSelectFields(TableN : String) : String ;
 var
-   Pref : String ;
-   NumTable, i : Integer ;
   Mcd : IMCDServiceCOM;
   Table     : ITableCOM ;
   FieldList : IEnumerator ;
@@ -286,212 +303,225 @@ until  Critere='';
 end;
 
 procedure TOM_CONTACT.OnArgument (Arguments : String );
-var Critere : string ;
-    ChampMul,ValMul,Range,CodeAuxi,S : string;
-    x,wi : integer ;
-    bComplement,bAnnuaire : boolean;
-    pop : TPopupMenu;
-
+var
+  Critere : string ;
+  ChampMul,ValMul,Range,CodeAuxi,S : string;
+  x,wi : integer ;
+  bComplement,bAnnuaire : boolean;
+  pop : TPopupMenu;
+  CanInsertChoixCod : boolean;
 begin
-inherited ;
+  inherited ;
   TOBCONTACTBTP := TOB.Create ('BCONTACT',nil,-1);
-  
-AppliqueFontDefaut (THRichEditOle(GetControl('C_BLOCNOTE')));
-S := Arguments;
-{$IFDEF CTI}
-WhereUpdate:='';
-ContexteCti:=False;
-CtiCCA:=False;
-{$ENDIF}
 
-{$ifdef GIGI}
-chargeTobValTiers;	//mcd 11/07/06
-{$ENDIF}
-IsAnnuaire :=False; //mcd 14/09/07 11677
-x := pos('MODIFLOT',Arguments);
-ModifLot := x<>0;
-if ModifLot then
-  begin
-//  TFSaisieList(Ecran).MonoFiche:=true;
-  StSQL := copy(Arguments,x+9,length(Arguments));
-  end;
+  AppliqueFontDefaut (THRichEditOle(GetControl('C_BLOCNOTE')));
+  S := Arguments;
+  {$IFDEF CTI}
+  WhereUpdate:='';
+  ContexteCti:=False;
+  CtiCCA:=False;
+  {$ENDIF}
 
-LibTitre := TraduireMemoire('Contacts : ');
-{récup des arguments }
-Type_contact := 'T';
-type_tiers := '';
-GUidPer:=''; //mcd 12/2005
-Particulier := False;
-InfoParticulier := False;
-FromSaisie:=False;
-StTiers:='';
-bComplement:=false;
-bAnnuaire:=false;
-Origin := GetArgumentString(Arguments, 'ORIGIN');
-Repeat
-   Critere:=uppercase(Trim(ReadTokenSt(Arguments))) ;
-   if Critere<>'' then
-      begin
-      x:=pos('=',Critere);
-      if x<>0 then
-         begin
-         ChampMul:=copy(Critere,1,x-1);
-         ValMul:=copy(Critere,x+1,length(Critere));
-         end else
-         begin
-         ChampMul:=Critere; ValMul:='';
-         end;
+  {$ifdef GIGI}
+  chargeTobValTiers;	//mcd 11/07/06
+  {$ENDIF}
+  IsAnnuaire :=False; //mcd 14/09/07 11677
+  x := pos('MODIFLOT',Arguments);
+  ModifLot := x<>0;
+  if ModifLot then
+    begin
+  //  TFSaisieList(Ecran).MonoFiche:=true;
+    StSQL := copy(Arguments,x+9,length(Arguments));
+    end;
 
-       if (ChampMul='TYPE') then Type_contact := ValMul
-       else if (ChampMul='GUIDPER') then
-          BEGIN //mcd 12/2005
-          Guidper:=ValMul;
-          if Assigned(GetControl('C_GUIDPER')) then SetField ('C_GUIDPER',GuidPer);
-          END
-       else if (ChampMul='ANNUAIRE') then begin if ValMul = 'TRUE' then Isannuaire:=True;end //mcd 14/09/07
-       else if (ChampMul='TYPE2') then  type_tiers := ValMul
-       else if (ChampMul='TITRE') then LibTitre   := ValMul
-       else if (ChampMul='PART') then
-            begin
-              InfoParticulier := True;
-              if (ValMul='X')  then Particulier := True;
-            end
-       else if (ChampMul='TIERS') then  StTiers := ValMul
-       else if (ChampMul='ANNUAIRE') then
-            begin
-              SetControlVisible ('BZOOM',True);
-              if (ValMul = 'PRO') or (ValMul='CLI') then
-                bComplement:=true;
-              if (ValMul = 'FOU') then
-                bAnnuaire:=true;
-            end
-       else if (ChampMul='COMPLEMENT') then
-              bComplement:=true
-       else if (ChampMul='ALLCONTACT') then SetControlVisible ('BALLCONTACT',True)
-       else if (ChampMul='FROMSAISIE') then begin FromSaisie:=True; SaisieNom:=ValMul end
-       ;
-{$IFDEF CTI}
-       if (critere='DECROCHE') and (CtiHeureDeb<>0) then
-           begin
-           AppelCtiOk:=True;
-           CtiHeureDebCom:=CtiHeureDeb;
-           end;
-       if (critere='COUPLAGE') or (critere='NUMEROTER') then
-           RTFormCti:=Ecran;
-       if (critere='CTI') then ContexteCti:=True;
-       if critere='CCA' then
-          CtiCCA:=true;
-{$ENDIF}
-      end;
-until  Critere='';
-
-if Ecran <> nil then 
-  if InfoParticulier = False then
-     begin
-     CodeAuxi := TiersAuxiliaire(GetArgumentValue(S, 'TIERS'));
-     if CodeAuxi = '' then
+  LibTitre := TraduireMemoire('Contacts : ');
+  {récup des arguments }
+  Type_contact := 'T';
+  type_tiers := '';
+  GUidPer:=''; //mcd 12/2005
+  Particulier := False;
+  InfoParticulier := False;
+  FromSaisie:=False;
+  StTiers:='';
+  bComplement:=false;                                                           
+  bAnnuaire:=false;
+  Origin := GetArgumentString(Arguments, 'ORIGIN');
+  Repeat
+     Critere:=uppercase(Trim(ReadTokenSt(Arguments))) ;
+     if Critere<>'' then
         begin
+        x:=pos('=',Critere);
+        if x<>0 then
+           begin
+           ChampMul:=copy(Critere,1,x-1);
+           ValMul:=copy(Critere,x+1,length(Critere));
+           end else
+           begin
+           ChampMul:=Critere; ValMul:='';
+           end;
+
+         if (ChampMul='TYPE') then Type_contact := ValMul
+         else if (ChampMul='GUIDPER') then
+            BEGIN //mcd 12/2005
+            Guidper:=ValMul;
+            if Assigned(GetControl('C_GUIDPER')) then SetField ('C_GUIDPER',GuidPer);
+            END
+         else if (ChampMul='ANNUAIRE') then begin if ValMul = 'TRUE' then Isannuaire:=True;end //mcd 14/09/07
+         else if (ChampMul='TYPE2') then  type_tiers := ValMul
+         else if (ChampMul='TITRE') then LibTitre   := ValMul
+         else if (ChampMul='PART') then
+              begin
+                InfoParticulier := True;
+                if (ValMul='X')  then Particulier := True;
+              end
+         else if (ChampMul='TIERS') then  StTiers := ValMul
+         else if (ChampMul='ANNUAIRE') then
+              begin
+                SetControlVisible ('BZOOM',True);
+                if (ValMul = 'PRO') or (ValMul='CLI') then
+                  bComplement:=true;
+                if (ValMul = 'FOU') then
+                  bAnnuaire:=true;
+              end
+         else if (ChampMul='COMPLEMENT') then
+                bComplement:=true
+         else if (ChampMul='ALLCONTACT') then SetControlVisible ('BALLCONTACT',True)
+         else if (ChampMul='FROMSAISIE') then begin FromSaisie:=True; SaisieNom:=ValMul end
+         ;
+  {$IFDEF CTI}
+         if (critere='DECROCHE') and (CtiHeureDeb<>0) then
+             begin
+             AppelCtiOk:=True;
+             CtiHeureDebCom:=CtiHeureDeb;
+             end;
+         if (critere='COUPLAGE') or (critere='NUMEROTER') then
+             RTFormCti:=Ecran;
+         if (critere='CTI') then ContexteCti:=True;
+         if critere='CCA' then
+            CtiCCA:=true;
+  {$ENDIF}
+        end;
+  until  Critere='';
+
+  if Ecran <> nil then
+  begin
+    if InfoParticulier = False then
+    begin
+      CodeAuxi := TiersAuxiliaire(GetArgumentValue(S, 'TIERS'));
+      if CodeAuxi = '' then
+      begin
         Range := TFsaisieList(ecran).FRange;
         CodeAuxi := ReadTokenSt(Range);      // Type de contact
         CodeAuxi := ReadTokenSt(Range);      // code Auxiliaire
-        end;
-     Particulier := ExisteSQL('SELECT T_PARTICULIER FROM TIERS WHERE T_AUXILIAIRE = "' + CodeAuxi + '" AND T_PARTICULIER = "X"');
-     end;
-if (Type_contact = 'T') and (Type_tiers = '') then Type_tiers := GetField ('C_NATUREAUXI');
-
-if FromSaisie then begin SetControlChecked('FROMSAISIE',true); SetControlProperty('BVALIDER','ModalResult',mrOK); end;;
-FirstTime:=true;
-
-{ mng 18-02-04 : on vient de l'annuaire clients/prospects, on peut consulter les données complémentaires }
-if ((ctxGRC in V_PGI.PGIContexte) and
-    (((StTiers <> '') and ((type_tiers = 'CLI') or (type_tiers = 'PRO'))) or (bComplement=true)) )
-        or ( bAnnuaire=true ) or (type_tiers = 'FOU')
-{$IFDEF CTI}
-        or (ContexteCti)
-{$ENDIF}
-   then
-   begin
-   if (StTiers <> '') or (type_tiers = 'FOU') then
-      SetControlVisible ('BACTION',True);
-   SetControlVisible ('BCOMPLGRC',True);
-   SetControlText ('TIERS',StTiers);
-
-   if (GetParamSocSecur('SO_RTPROJGESTION',False) = False) or (type_tiers = 'FOU') or (bAnnuaire )
-{$IFDEF GRCLIGHT}
-     or ( not GetParamsocSecur('SO_CRMACCOMPAGNEMENT',False) )
-{$ENDIF GRCLIGHT}
-   then
-      AddRemoveItemFromPopup ('POPM2','MNPROJETS',False);
-
-{$IFNDEF CCS3}
-   if (type_tiers = 'FOU') or (bAnnuaire ) then
-{$ENDIF}
-      begin
-      AddRemoveItemFromPopup ('POPM2','MNPROPOSITIONS',False);
-{$IFNDEF CCS3}
-{$IFDEF GCGC}
-      if VH_GC.GRFSeria = false then
-{$ENDIF}
-{$ENDIF}
-{CRM_GRF10049_CD}
-         begin
-         AddRemoveItemFromPopup ('POPM2','MNACTIONS',False);
-{CRM_GRF10049_CD_DEB}
-         SetControlVisible ('BACTION',False);
-         end;
-{CRM_GRF10049_CD_FIN}
       end;
-{$IFDEF GRC}
-   if (GetParamSocSecur('SO_RTGESTINFOS006',False) = False) or (type_tiers = 'FOU') or (bAnnuaire ) then
-     AddRemoveItemFromPopup ('POPM2','MNFICHEINFOS',False);
-{$ENDIF}
-   end;
-{$IFDEF CTI}
-	if Assigned(GetControl('BPHONE')) then
-  begin
-    BPhone := TToolbarButton97(GetControl('BPHONE'));
-		TToolbarButton97(GetControl('BPHONE')).OnClick := BPhoneClick;
+      Particulier := ExisteSQL('SELECT T_PARTICULIER FROM TIERS WHERE T_AUXILIAIRE = "' + CodeAuxi + '" AND T_PARTICULIER = "X"');
+    end;
+    if Type_tiers = 'CLI' then
+      CanCreate := Tools.CanInsertedInTable('CONTACT'{$IFDEF APPSRV}, '', '' {$ENDIF APPSRV})
+    else
+      CanCreate := True;
+    if not CanCreate then
+    begin
+      FicheReadOnly(TFSaisieList(ecran));
+      TFSaisieList(ecran).TypeAction := taConsult;
+    end;
+    SetButtonEna;
   end;
+  if (Type_contact = 'T') and (Type_tiers = '') then Type_tiers := GetField ('C_NATUREAUXI');
 
-	if Assigned(GetControl('BSTOP')) then
-  begin
-		BStop := TToolbarButton97(GetControl('BSTOP'));
-		TToolbarButton97(GetControl('BSTOP')).OnClick := BStopClick;
-  end;
+  if FromSaisie then begin SetControlChecked('FROMSAISIE',true); SetControlProperty('BVALIDER','ModalResult',mrOK); end;;
+  FirstTime:=true;
 
-	if Assigned(GetControl('BATTENTE')) then
-  begin
-		BAttente := TToolbarButton97(GetControl('BATTENTE'));
-		TToolbarButton97(GetControl('BATTENTE')).OnClick := BAttenteClick;
-  end;
+  { mng 18-02-04 : on vient de l'annuaire clients/prospects, on peut consulter les données complémentaires }
+  if ((ctxGRC in V_PGI.PGIContexte) and
+      (((StTiers <> '') and ((type_tiers = 'CLI') or (type_tiers = 'PRO'))) or (bComplement=true)) )
+          or ( bAnnuaire=true ) or (type_tiers = 'FOU')
+  {$IFDEF CTI}
+          or (ContexteCti)
+  {$ENDIF}
+     then
+     begin
+     if (StTiers <> '') or (type_tiers = 'FOU') then
+        SetControlVisible ('BACTION',True);
+     SetControlVisible ('BCOMPLGRC',True);
+     SetControlText ('TIERS',StTiers);
 
-  if Assigned(GetControl('BTELPORT')) then
-  BEGIN
-		BTELPORT := TToolbarButton97(GetControl('BTELPORT'));
-		TToolbarButton97(GetControl('BTELPORT')).OnClick := BTELPORT_OnClick;
-  END;
+     if (GetParamSocSecur('SO_RTPROJGESTION',False) = False) or (type_tiers = 'FOU') or (bAnnuaire )
+  {$IFDEF GRCLIGHT}
+       or ( not GetParamsocSecur('SO_CRMACCOMPAGNEMENT',False) )
+  {$ENDIF GRCLIGHT}
+     then
+        AddRemoveItemFromPopup ('POPM2','MNPROJETS',False);
 
-  if Assigned(GetControl('BTELBUR')) then
-  begin
-		BTELBUR := TToolbarButton97(GetControl('BTELBUR'));
-		TToolbarButton97(GetControl('BTELBUR')).OnClick := BTELBUR_OnClick;
-  end;
+  {$IFNDEF CCS3}
+     if (type_tiers = 'FOU') or (bAnnuaire ) then
+  {$ENDIF}
+        begin
+        AddRemoveItemFromPopup ('POPM2','MNPROPOSITIONS',False);
+  {$IFNDEF CCS3}
+  {$IFDEF GCGC}
+        if VH_GC.GRFSeria = false then
+  {$ENDIF}
+  {$ENDIF}
+  {CRM_GRF10049_CD}
+           begin
+           AddRemoveItemFromPopup ('POPM2','MNACTIONS',False);
+  {CRM_GRF10049_CD_DEB}
+           SetControlVisible ('BACTION',False);
+           end;
+  {CRM_GRF10049_CD_FIN}
+        end;
+  {$IFDEF GRC}
+     if (GetParamSocSecur('SO_RTGESTINFOS006',False) = False) or (type_tiers = 'FOU') or (bAnnuaire ) then
+       AddRemoveItemFromPopup ('POPM2','MNFICHEINFOS',False);
+  {$ENDIF}
+     end;
+  {$IFDEF CTI}
+    if Assigned(GetControl('BPHONE')) then
+    begin
+      BPhone := TToolbarButton97(GetControl('BPHONE'));
+      TToolbarButton97(GetControl('BPHONE')).OnClick := BPhoneClick;
+    end;
 
-  if Assigned(GetControl('BTELDOM')) then
-  begin
-		BTELDOM := TToolbarButton97(GetControl('BTELDOM'));
-  	TToolbarButton97(GetControl('BTELDOM')).OnClick := BTELDOM_OnClick;
-  end;
+    if Assigned(GetControl('BSTOP')) then
+    begin
+      BStop := TToolbarButton97(GetControl('BSTOP'));
+      TToolbarButton97(GetControl('BSTOP')).OnClick := BStopClick;
+    end;
 
-{$ENDIF CTI}
+    if Assigned(GetControl('BATTENTE')) then
+    begin
+      BAttente := TToolbarButton97(GetControl('BATTENTE'));
+      TToolbarButton97(GetControl('BATTENTE')).OnClick := BAttenteClick;
+    end;
 
-if Not (CtxGrc in V_PGI.PGIContexte) then //mcd 03/02/2005 10287 on cache option GRC
-  begin
-  AddRemoveItemFromPopup ('POPM2','MNPROPOSITIONS',False);
-  AddRemoveItemFromPopup ('POPM2','MNPROJETS',False);
-  AddRemoveItemFromPopup ('POPM2','MNACTIONS',False);
-  AddRemoveItemFromPopup ('POPM2','MNFICHEINFOS',False);
-  end;
+    if Assigned(GetControl('BTELPORT')) then
+    BEGIN
+      BTELPORT := TToolbarButton97(GetControl('BTELPORT'));
+      TToolbarButton97(GetControl('BTELPORT')).OnClick := BTELPORT_OnClick;
+    END;
+
+    if Assigned(GetControl('BTELBUR')) then
+    begin
+      BTELBUR := TToolbarButton97(GetControl('BTELBUR'));
+      TToolbarButton97(GetControl('BTELBUR')).OnClick := BTELBUR_OnClick;
+    end;
+
+    if Assigned(GetControl('BTELDOM')) then
+    begin
+      BTELDOM := TToolbarButton97(GetControl('BTELDOM'));
+      TToolbarButton97(GetControl('BTELDOM')).OnClick := BTELDOM_OnClick;
+    end;
+
+  {$ENDIF CTI}
+
+  if Not (CtxGrc in V_PGI.PGIContexte) then //mcd 03/02/2005 10287 on cache option GRC
+    begin
+    AddRemoveItemFromPopup ('POPM2','MNPROPOSITIONS',False);
+    AddRemoveItemFromPopup ('POPM2','MNPROJETS',False);
+    AddRemoveItemFromPopup ('POPM2','MNACTIONS',False);
+    AddRemoveItemFromPopup ('POPM2','MNFICHEINFOS',False);
+    end;
 
 { mng 15-09-04 : en S3, pas de GRF }
 {$IFDEF CCS3}
@@ -502,31 +532,32 @@ if Not (CtxGrc in V_PGI.PGIContexte) then //mcd 03/02/2005 10287 on cache option
      end;
 {$ENDIF}
 
-if (Type_contact = 'T') then
-begin
-  if LibTitre <> 'Contacts : ' then
+  if (Type_contact = 'T') then
   begin
-    if (type_tiers = 'SAL') then LibTitre := TraduireMemoire('Contacts du salarié : ')     + LibTitre ;
-    if (type_tiers = 'CLI') then LibTitre := TraduireMemoire('Contacts du client : ')      + LibTitre;
-    if (type_tiers = 'FOU') then LibTitre := TraduireMemoire('Contacts du fournisseur : ') + LibTitre;
+    if LibTitre <> 'Contacts : ' then
+    begin
+      if (type_tiers = 'SAL') then LibTitre := TraduireMemoire('Contacts du salarié : ')     + LibTitre ;
+      if (type_tiers = 'CLI') then LibTitre := TraduireMemoire('Contacts du client : ')      + LibTitre;
+      if (type_tiers = 'FOU') then LibTitre := TraduireMemoire('Contacts du fournisseur : ') + LibTitre;
+    end
   end
-end
-else if (Type_contact = 'ET') then
-begin
-  LibTitre := TraduireMemoire('Contacts de la Société : ') + LibTitre ;
-  type_tiers := 'ET';
-end
-else if (Type_contact = 'GCL') then
-begin
-  LibTitre := TraduireMemoire('Contacts du commercial : ') + LibTitre ;
-  type_tiers := 'GCL';
-end;
+  else if (Type_contact = 'ET') then
+  begin
+    LibTitre := TraduireMemoire('Contacts de la Société : ') + LibTitre ;
+    type_tiers := 'ET';
+  end
+  else if (Type_contact = 'GCL') then
+  begin
+    LibTitre := TraduireMemoire('Contacts du commercial : ') + LibTitre ;
+    type_tiers := 'GCL';
+  end;
 
-{$IFDEF GCGC}
-//¨Paramétrage des libellés des zones libres
-if Ecran <> nil then 
-  if (TFSaisieList(Ecran).name = 'YYCONTACT') then
-      BEGIN
+  {$IFDEF GCGC}
+  //¨Paramétrage des libellés des zones libres
+  if Ecran <> nil then
+  begin
+    if (TFSaisieList(Ecran).name = 'YYCONTACT') then
+    begin
       setcontrolVisible('Page2',true) ;  // avt P_INFO
       x := 0;
       if (GCMAJChampLibre(TForm (Ecran), False, 'COMBO', 'C_LIBRECONTACT', 10, '') = 0) then
@@ -541,38 +572,45 @@ if Ecran <> nil then
         SetControlVisible('GB_TEXTES', False) else inc(x);
       if (x = 0) then
         SetControlVisible('Page2', False);
-      END;
-if Ecran <> nil then 
-  TFSaisieList(Ecran).OnKeyDown:=FormKeyDown ;
-{$ENDIF}
-{$IFDEF BTP}
-if Assigned(GetControl('FLISTE')) then
-    THGrid(GetControl('FLISTE' )).OnDblClick := FLISTE_OnDblClick;
-{$ENDIF}
+      if (type_tiers = 'CLI') or (type_tiers = 'PRO') then
+        CanInsertChoixCod := Tools.CanInsertedInTable('CHOIXEXT'{$IFDEF APPSRV}, '', '' {$ENDIF APPSRV})
+      else
+        CanInsertChoixCod := True;
+      for x := 1 to 9 do
+        SetControlProperty('C_LIBRECONTACT' + IntToStr(x), 'DataTypeParametrable', CanInsertChoixCod);
+      SetControlProperty('C_LIBRECONTACTA', 'DataTypeParametrable', CanInsertChoixCod);
+    end;
+    TFSaisieList(Ecran).OnKeyDown:=FormKeyDown ;
+  end;
+  {$ENDIF}
+  {$IFDEF BTP}
+  if Assigned(GetControl('FLISTE')) then
+      THGrid(GetControl('FLISTE' )).OnDblClick := FLISTE_OnDblClick;
+  {$ENDIF}
 
 
-{$IFDEF GRC} // provisoirement uniquement si GRC
-{$IFDEF CTI}
-SetControlVisible('BZOOM',(ctxGRC in V_PGI.PGIContexte));
-{$ENDIF}
-if (ctxGRC in V_PGI.PGIContexte)
-{$IFDEF GCGC}
-    or (VH_GC.GRFSeria = true)
-{$ENDIF}
-then SetControlVisible('BOUTLOOK',True );
-//SetControlVisible('C_LIENTIERS',(ctxGRC in V_PGI.PGIContexte));
-//SetControlVisible('TC_LIENTIERS',(ctxGRC in V_PGI.PGIContexte));
-//SetControlVisible('TC_LIENTIERS_',(ctxGRC in V_PGI.PGIContexte));
-{$ENDIF}
+  {$IFDEF GRC} // provisoirement uniquement si GRC
+  {$IFDEF CTI}
+  SetControlVisible('BZOOM',(ctxGRC in V_PGI.PGIContexte));
+  {$ENDIF}
+  if (ctxGRC in V_PGI.PGIContexte)
+  {$IFDEF GCGC}
+      or (VH_GC.GRFSeria = true)
+  {$ENDIF}
+  then SetControlVisible('BOUTLOOK',True );
+  //SetControlVisible('C_LIENTIERS',(ctxGRC in V_PGI.PGIContexte));
+  //SetControlVisible('TC_LIENTIERS',(ctxGRC in V_PGI.PGIContexte));
+  //SetControlVisible('TC_LIENTIERS_',(ctxGRC in V_PGI.PGIContexte));
+  {$ENDIF}
 
-SetActiveTabSheet('Page1');  // avt PGeneral
-if Ecran <> nil then 
-  TCheckBox(GetControl('C_FERME')).OnClick := FermeContact;
-CodeTiers := stTiers;
-{$ifdef GIGI}
-CodeAuxiliaire:=TiersAuxiliaire(CodeTiers,false); //mcd 07/09/2006 12599
-{$endif}
-GereIsoflex;
+  SetActiveTabSheet('Page1');  // avt PGeneral
+  if Ecran <> nil then 
+    TCheckBox(GetControl('C_FERME')).OnClick := FermeContact;
+  CodeTiers := stTiers;
+  {$ifdef GIGI}
+  CodeAuxiliaire:=TiersAuxiliaire(CodeTiers,false); //mcd 07/09/2006 12599
+  {$endif}
+  GereIsoflex;
 
 // gm 15/10/04 pour eviter en S3 , sans  options d'avoir un bouton sans popup
   pop := TPopupMenu(GetControl('POPM2'));
@@ -596,7 +634,7 @@ GereIsoflex;
 {$ENDIF}
   //mcd 14/09/07 11677 bureau: si appel depuis fiche annauire, il ne faut pas voir le bouton pour accéder au contact tiers
 //if (ctxscot in V_PGI.PgiContexte) and (Guidper <>'' ) and (Not IsAnnuaire) then      //mcd 28/03/2007 13847 ajout test guiper pour avoir bouton que si appel depuis tiers
-if (ctxscot in V_PGI.PgiContexte) and (Guidper <>'' ) then      //md 26/09/2007 FQ 13847 revue => le bouton est de nouveau accessible
+  if (ctxscot in V_PGI.PgiContexte) and (Guidper <>'' ) then      //md 26/09/2007 FQ 13847 revue => le bouton est de nouveau accessible
   begin //mcd 22/02/2006 12599 GAGI
   if Assigned (GetControl('BCONTACT'))  then
     begin
@@ -822,32 +860,26 @@ if (not V_Pgi.SilentMode) and AlerteActive('C') and (not AfterInserting) then
 end;
 
 procedure TOM_CONTACT.OnLoadRecord  ;
-var //TA :THTable;
-    i,NoRec : integer;
+var
+  i,NoRec : integer;
 begin
   SetEvents (false);
-{$IFDEF CTI}
-if StTiers = '' then
-  begin
-  StTiers:=TiersAuxiliaire (GetField('C_AUXILIAIRE'), True);
-  SetControlText ('TIERS',StTiers);
-  end;
-if (RTFormCti=Ecran) and (AppelCtiOk=True) then
-   // cas du 'decroche;COUPLAGE' = Bouton Appel Sortant
-   CtiNumAct:=RTCTIGenereAction(True,StTiers,GetField('C_AUXILIAIRE'),CtiHeureDeb,0,'',CtiModeAppel,GetField('C_NUMEROCONTACT'));
-{$ENDIF}
-{$ifdef GIGI}
-if CodeAuxiliaire =''  then CodeAuxiliaire :=getcontrolText ('C_AUXILIAIRE'); //mcd 21/05/2007 14077 pas OK si acces depuis mul contact
-{$endif}
-if FromSaisie and FirstTime then
+  {$IFDEF CTI}
+  if StTiers = '' then
+    begin
+    StTiers:=TiersAuxiliaire (GetField('C_AUXILIAIRE'), True);
+    SetControlText ('TIERS',StTiers);
+    end;
+  if (RTFormCti=Ecran) and (AppelCtiOk=True) then
+     // cas du 'decroche;COUPLAGE' = Bouton Appel Sortant
+     CtiNumAct:=RTCTIGenereAction(True,StTiers,GetField('C_AUXILIAIRE'),CtiHeureDeb,0,'',CtiModeAppel,GetField('C_NUMEROCONTACT'));
+  {$ENDIF}
+  {$ifdef GIGI}
+  if CodeAuxiliaire =''  then CodeAuxiliaire :=getcontrolText ('C_AUXILIAIRE'); //mcd 21/05/2007 14077 pas OK si acces depuis mul contact
+  {$endif}
+  if FromSaisie and FirstTime then
    BEGIN
    FirstTime:=false;
-{   TA:=TFFicheliste(Ecran).ta ;
-   if TA.State=dsBrowse then
-      begin
-      TA.Locate('C_NOM',SaisieNom,[loCaseInsensitive, loPartialKey]) ;
-      //while not TRIB.EOF do if TRIB.FindField('R_NUMEROCOMPTE').AsString=NumCompte then Break else TRIB.Next ;
-      end ;    }
    TF := TFSaisieList(Ecran).LeFiltre;
    if TF.state=dsBrowse then
       begin
@@ -864,83 +896,71 @@ if FromSaisie and FirstTime then
       end;
    END ;
 
-inHerited;
-
-if GetField ('C_RVA') <>'' then
-   begin
-   SetControlEnabled ('BNEWMAIL',true);
-//   SetControlProperty ('C_RVA','Cursor', -21);
-   end
-else
-   begin  
-   SetControlEnabled ('BNEWMAIL',false);
-//   SetControlProperty ('C_RVA','Cursor', -4);
-   end;
-
-SetControlText ('DATECREATION',FormatDateTime('dd mmmm yyyy',GetField ('C_DATECREATION')));
-SetControlText ('DATEMODIF',FormatDateTime('dd mmmm yyyy',GetField ('C_DATEMODIF')));
-AffContactIndisponible() ;                // Gestion des affichages relatifs à C_FERME
-
-if (GetField ('C_NUMEROCONTACT') = 1) and (Particulier = True) then
-    begin
-    SetControlEnabled('C_CIVILITE',False);
-    SetControlEnabled('C_NOM',False);
-    SetControlEnabled('C_PRENOM',False);
-    SetControlEnabled('C_JOURNAIS',False);
-    SetControlEnabled('C_MOISNAIS',False);
-    SetControlEnabled('C_ANNEENAIS',False);
-    SetControlEnabled('C_SEXE',False);
-    SetControlEnabled('C_RVA',False);
-    SetControlEnabled('C_TELEPHONE',False);
-    SetControlEnabled('C_FAX',False);
-    SetControlEnabled('C_TELEX',False);
-    SetControlEnabled('C_PRINCIPAL',False);
-    SetControlVisible('BDelete',False);
-    end else
-    begin
-    if TFSaisieList(ecran).TypeAction <> TaConsult then
-       begin
-       SetControlEnabled('C_CIVILITE',True);
-       SetControlEnabled('C_NOM',True);
-       SetControlEnabled('C_PRENOM',True);
-       SetControlEnabled('C_JOURNAIS',True);
-       SetControlEnabled('C_MOISNAIS',True);
-       SetControlEnabled('C_ANNEENAIS',True);
-       SetControlEnabled('C_SEXE',True);
-       SetControlEnabled('C_RVA',True);
-       SetControlEnabled('C_TELEPHONE',True);
-       SetControlEnabled('C_FAX',True);
-       SetControlEnabled('C_TELEX',True);
-       SetControlEnabled('C_PRINCIPAL',True);
-       SetControlVisible('BDelete',True);
-       end;
-    end;
-
-if ModifLot then SetArguments(StSQL);
-
-{$IFDEF EAGLCLIENT}
-//TFFicheListe(ecran).FListe.ColWidths[0] := 0;
-{$ELSE}
-//TFFicheListe(ecran).FListe.Columns[0].Width := 0;
-{$ENDIF}
-If (Ecran<>nil) and (LibTitre<>'') then Ecran.Caption:= TraduireMemoire(LibTitre) ;
-if (Type_contact = 'GCL') then SetControlText ('TC_SERVICE', TraduireMemoire('&Société')) ;
-{$IFDEF GCGC}
-{$IFNDEF CCS3}
-AppliquerConfidentialite(Ecran,'');
-{$ENDIF}
-{$ENDIF}
-if (ctxscot in V_PGI.PgiContexte) and (ecran<>Nil)and (Guidper <>'' )then      //mcd 28/03/2007 13847 ajout test guiper pour avoir bouton que si appel depuis tiers
-    begin //mcd 22/02/2006 12599 GAGI
-    if Assigned (GetControl('BCONTACT'))  then
-     if ds.state = DsBrowse then
-		  begin
-      SetControlVisible ('BCONTACT',true);
-			SetcontrolEnabled('BCONTACT',true);
-			end
-      else SetControlVisible ('BCONTACT',false);
-    end;
-  //
+  inHerited;
+  if GetField ('C_RVA') <>'' then
+     begin
+     SetControlEnabled ('BNEWMAIL',true);
+     end
+  else
+     begin
+     SetControlEnabled ('BNEWMAIL',false);
+     end;
+  SetControlText ('DATECREATION',FormatDateTime('dd mmmm yyyy',GetField ('C_DATECREATION')));
+  SetControlText ('DATEMODIF',FormatDateTime('dd mmmm yyyy',GetField ('C_DATEMODIF')));
+  AffContactIndisponible() ;                // Gestion des affichages relatifs à C_FERME
+  if (GetField ('C_NUMEROCONTACT') = 1) and (Particulier = True) then
+      begin
+      SetControlEnabled('C_CIVILITE',False);
+      SetControlEnabled('C_NOM',False);
+      SetControlEnabled('C_PRENOM',False);
+      SetControlEnabled('C_JOURNAIS',False);
+      SetControlEnabled('C_MOISNAIS',False);
+      SetControlEnabled('C_ANNEENAIS',False);
+      SetControlEnabled('C_SEXE',False);
+      SetControlEnabled('C_RVA',False);
+      SetControlEnabled('C_TELEPHONE',False);
+      SetControlEnabled('C_FAX',False);
+      SetControlEnabled('C_TELEX',False);
+      SetControlEnabled('C_PRINCIPAL',False);
+      SetControlVisible('BDelete',False);
+      end else
+      begin
+      if TFSaisieList(ecran).TypeAction <> TaConsult then
+         begin
+         SetControlEnabled('C_CIVILITE',True);
+         SetControlEnabled('C_NOM',True);
+         SetControlEnabled('C_PRENOM',True);
+         SetControlEnabled('C_JOURNAIS',True);
+         SetControlEnabled('C_MOISNAIS',True);
+         SetControlEnabled('C_ANNEENAIS',True);
+         SetControlEnabled('C_SEXE',True);
+         SetControlEnabled('C_RVA',True);
+         SetControlEnabled('C_TELEPHONE',True);
+         SetControlEnabled('C_FAX',True);
+         SetControlEnabled('C_TELEX',True);
+         SetControlEnabled('C_PRINCIPAL',True);
+         SetControlVisible('BDelete',True);
+         end;
+      end;
+  if ModifLot then SetArguments(StSQL);
+  If (Ecran<>nil) and (LibTitre<>'') then Ecran.Caption:= TraduireMemoire(LibTitre) ;
+  if (Type_contact = 'GCL') then SetControlText ('TC_SERVICE', TraduireMemoire('&Société')) ;
+  {$IFDEF GCGC}
+  {$IFNDEF CCS3}
+  AppliquerConfidentialite(Ecran,'');
+  {$ENDIF}
+  {$ENDIF}
+  if (ctxscot in V_PGI.PgiContexte) and (ecran<>Nil)and (Guidper <>'' )then      //mcd 28/03/2007 13847 ajout test guiper pour avoir bouton que si appel depuis tiers
+      begin //mcd 22/02/2006 12599 GAGI
+      if Assigned (GetControl('BCONTACT'))  then
+       if ds.state = DsBrowse then
+        begin
+        SetControlVisible ('BCONTACT',true);
+        SetcontrolEnabled('BCONTACT',true);
+        end
+        else SetControlVisible ('BCONTACT',false);
+      end;
+    //
   FindContactBTP (GetField('C_TYPECONTACT'),GetField('C_AUXILIAIRE'),GetField('C_NUMEROCONTACT'));
   TOBCONTACTBTP.PutEcran(ecran);
   SetEvents (true);
@@ -949,6 +969,7 @@ if (ctxscot in V_PGI.PgiContexte) and (ecran<>Nil)and (Guidper <>'' )then      /
     THGrid(GetControl('FLISTE')).Enabled := False;
     SetControlVisible('BDelete', False);
   end;
+  SetButtonEna;
 end;
 
 procedure TOM_CONTACT.OnClose ;
@@ -1886,10 +1907,9 @@ begin
 end;
 
 procedure TOM_Contact.DeleteContactBTP(TypeContact, Auxiliaire: string; Numero: integer);
-var QQ : TQuery;
-    SQl : string;
+var
+  SQl : string;
 begin
-
   SQl := 'DELETE FROM BCONTACT WHERE '+
          'BC1_TYPECONTACT="'+ TypeContact +'" AND '+
          'BC1_AUXILIAIRE="'+Auxiliaire+'" AND '+
@@ -1945,6 +1965,12 @@ begin
   TOBCONTACTBTP.PutEcran(ecran);
   SetEvents (true);
 
+end;
+
+procedure TOM_Contact.SetButtonEna;
+begin
+  TtoolbarButton97(GetControl('bInsert')).Visible := CanCreate;
+  TtoolbarButton97(GetControl('bDelete')).Visible := CanCreate;
 end;
 
 Initialization

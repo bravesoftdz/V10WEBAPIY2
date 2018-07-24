@@ -21,7 +21,8 @@ Uses HEnt1, HCtrls, UTOB, Ent1, LookUp, Controls, ComCtrls, StdCtrls, ExtCtrls,
       Factrgpbesoin,
 {$ENDIF}
      TiersPayeur, Paramsoc,VentilCpta, EcrPiece_TOF,ULibEcriture,UtilIntercompta,
-     TiersUtil,uEntCommun;
+     TiersUtil,uEntCommun
+     , UConnectWSConst;
 
 Type T_RetCpta = (rcOk,rcRef,rcPar,rcMaj) ;
 
@@ -88,10 +89,12 @@ function VerifEcriturePieceModifiable (TOBPiece : TOB) : boolean;
 Procedure SuiteVentilLigne ( RefA : String ; LaTV,TOBAna,TOBL : TOB ; Ecr : boolean ) ;
 function TraitementVOuvrage (TOBEcr,TOBPieceinterv,TOBAFFInterv,TOBPiece,TOBL,TOBOuvrages,TOBOuvragesP,TOBTiers,TOBArticles,TOBCpta,TOBPorcs: TOB;MM : RMVT ; NbDec : integer; EnHt : boolean; DEV : Rdevise) : T_RetCpta;
 function TraitementVLigne (TOBEcr,TOBAFFInterv,TOBPieceinterv,TOBA,TOBPiece,TOBL,TOBTiers,TOBArticles,TOBCpta,TOBPorcs : TOB ; MM : RMVT ; NbDec : integer; EnHt : boolean ;DEV : Rdevise; TOBMereLigne : TOb=nil ) : T_RetCpta;
-Procedure GCCreerPiecePayeur(TOBECR, TOBTiers : TOB; DocType : string; DocNumber : integer) ;
+Procedure GCCreerPiecePayeur(TOBECR, TOBTiers : TOB; DocInfo : T_WSDocumentInf);//DocType : string; DocNumber : integer) ;
 Function  EnregistreReglSSTrait ( TOBPiece,TOBClient,TOBFournisseur : TOB ; LeAcc : T_GCAcompte ; Quiet : boolean = false ) : TOB ;
 Procedure DetruitLesCompta ( TOBlistPiece : TOB ; DateSupp : TdateTime; Var OldEcr,OldStk : RMVT;ForModif : boolean=false ) ;
 Function TraiteFamilleAffaire ( CodeAffaire:string;  TobAffaire : TOB) : string;
+function GetWSDocumentInfFromTob(TobGP : TOB) : T_WSDocumentInf;
+function GetWSDocumentInfFromRmvt(lRmvt : RMVT) : T_WSDocumentInf;
 
 implementation
 Uses
@@ -106,7 +109,6 @@ Uses
   , ULiquidTva2014
   , UCumulCollectifs
   , UConnectWSCEGID
-  , UConnectWSConst
   {$IFDEF MODE}
   , FactCptaMode
   {$ENDIF}
@@ -180,18 +182,18 @@ const TexteMessage: array[1..22] of string 	= (
          {22} ,''
               );
 
-procedure CallWSCegid(WseT : T_WSEntryType; TobEcr : TOB; DocType : string; DocNumber : integer);
+procedure CallWSCegid(WseT : T_WSEntryType; TobEcr : TOB; DocInfo : T_WSDocumentInf);
 var
   SendEntry : TSendEntryY2;
 begin
   if TGetParamWSCEGID.ConnectToY2 then
-  begin
-    SendEntry := TSendEntryY2.Create;
+  begin                                          
+    SendEntry := TSendEntryY2.Create;         
     try
       SendEntry.ServerName := '';
       SendEntry.DBName     := '';
       {$IF not defined(APPSRV)}
-      SendEntry.SendEntryCEGID(WseT, TobEcr, DocType, DocNumber);
+      SendEntry.SendEntryCEGID(WseT, TobEcr, DocInfo);
       {$IFEND !APPSRV}
     finally
       SendEntry.Free;
@@ -927,13 +929,23 @@ Mots clefs ... : LIAISON;COMPTABILITE;PONT;PASSATION;
 *****************************************************************}
 Procedure DetruitEcritureFromMM ( var MM : RMVT ; InTrans : Boolean ; DateAnnul : TDateTime; ForModif : boolean=false ) ;
 Var
-  Q  : TQuery ;
-  Ax : String ;
-  Nb,i,k,NumL,NumA, Indice : integer ;
-  TOBEcr,TOBAna,TOBE,TOBA,TOBAxe,TOBECREX,TOBTiers : TOB ;
-  okok : boolean;
-  SendCegid : boolean;
-  SendEntry : TSendEntryY2;
+  Q         : TQuery;
+  Ax        : String;
+  Nb        : integer;
+  i         : integer;
+  k         : integer;
+  NumL      : integer;
+  NumA      : integer;
+  Indice    : integer;
+  TOBEcr    : TOB;
+  TOBAna    : TOB;
+  TOBE      : TOB;
+  TOBA      : TOB;
+  TOBAxe    : TOB;
+  TOBECREX  : TOB;
+  TOBTiers  : TOB;
+  okok      : boolean;
+  DocInfo   : T_WSDocumentInf;
 begin
   {Mise à jour inverse des soldes des comptes}
   if MM.Simul = 'N' then
@@ -1028,6 +1040,7 @@ begin
             on E: Exception do
               PgiError('Erreur SQL : ' + E.Message, 'Extourne pièce');
           end;
+          DocInfo := GetWSDocumentInfFromRmvt(MM);
           if not Okok then
           begin
             V_PGI.IoError := oeLettrage;
@@ -1043,10 +1056,10 @@ begin
             begin
               V_PGI.IoError := oeLettrage;
             end else
-              CallWSCegid(wsetExtourne, TOBEcrEx, MM.DocType, MM.DocNumber);
+              CallWSCegid(wsetExtourne, TOBEcrEx, DocInfo);
           end;
           {Ecriture sur tiers payeur de l'écriture extournée}
-          GCCreerPiecePayeur(TOBEcrEx, TOBTiers, MM.DocType, MM.DocNumber);
+          GCCreerPiecePayeur(TOBEcrEx, TOBTiers, DocInfo); //MM.DocType, MM.DocNumber);
           {Update ecritures principales}
           try
             TOBEcr.UpdateDB(false);
@@ -1170,13 +1183,13 @@ Var
   RefCptaStock : String ;
   DD           : TDateTime ;
 begin
+  FillChar(OldEcr,Sizeof(OldEcr),#0) ;
+  FillChar(OldStk,Sizeof(OldStk),#0) ;
   if Assigned(TOBPiece) then
   begin
     RefComptable := TOBPiece.GetString('GP_REFCOMPTABLE') ;
     RefCptaStock := TOBPiece.GetString('GP_REFCPTASTOCK') ;
     if ((RefComptable='') and (RefCptaStock='')) then Exit ;
-    FillChar(OldEcr,Sizeof(OldEcr),#0) ;
-    FillChar(OldStk,Sizeof(OldStk),#0) ;
     if RefComptable='DIFF' then
     begin
       DD := TOBPiece.GetValue('GP_DATEPIECE');
@@ -2081,6 +2094,7 @@ BEGIN
   Achat:=((MM.Nature='AF') or (MM.Nature='FF')) ;
 
   GetMontantRGReliquat(TOBPIeceRG, XD, XP,True);
+  TheMontantRGTTC := XD;
   //
   {#TVAENC}
   TvaEnc:=(TOBPiece.GetValue('GP_TVAENCAISSEMENT')='TE') or (TOBPiece.GetValue('GP_TVAENCAISSEMENT')='TM') ;
@@ -2795,7 +2809,7 @@ BEGIN
     if (TestReglementArticleFi(TOBH)=true) then Continue;
     {$ENDIF}
   	if (TOBH.GetString('GPE_FOURNISSEUR') <> '') and (not GetparamSocSecur('SO_BTREGLSTTIERS',true)) then continue;
-    if (pos(MM.Nature,'FC;AC')>0) and (TOBH.GetString('GPE_FOURNISSEUR') = '') and (getparamSocSecur('SO_BTVENTCOLLECTIF',false)) and (TOBVTECOLL <> nil)  then
+    if (((pos(MM.Nature,'FC;AC')>0) and (TOBH.GetString('GPE_FOURNISSEUR') = '')) or (pos(MM.Nature,'FF;AF')>0)) and (getparamSocSecur('SO_BTVENTCOLLECTIF',false)) and (TOBVTECOLL <> nil)  then
     begin
       ReajusteCollectifs (TOBVTECOLL,TOBH.GetDouble('GPE_MONTANTECHE'),TOBH.GetDouble('GPE_MONTANTDEV'));
       for II := 0 to TOBVTECOLL.detail.count -1 do
@@ -4241,11 +4255,17 @@ BEGIN
 
     XP := TOBP.getDouble('GPT_TOTALTTC') ;
     XD := TOBP.getDouble('GPT_TOTALTTCDEV');
-    if (XP =0) and (XD = 0) then continue; 
-    CPteRD := TOBP.GEtString('GPT_COLLECTIF');
+    if (XP =0) and (XD = 0) then continue;
+    CPteRD := '';
+    if getparamSocSecur('SO_BTVENTCOLLECTIF',false) then
+    begin
+      CPteRD := FindCollectifRDPlus (TOBP,TObpiece);
+    end;
+    //
     if CPteRD = '' then
     begin
-    end; 
+      CPteRD := TOBP.GEtString('GPT_COLLECTIF');
+    end;
     // Erreur sur Compte retenues de garanties
     if CPteRD='' then BEGIN Result:=rcPar ; LastMsg:=12 ; Exit ; END ;
     {Etude du compte général }
@@ -4329,72 +4349,82 @@ Var CPteRG   : String ;
     DP,CP,DD,CD,XD,XP,XXp,XXD,TheMontantRGTTC : Double ;
     DEV : Rdevise;
 BEGIN
-Result:=rcOk ;
-if GetParamSocSecur ('SO_BTOPTRGCOLLTIE',false) then exit;
-TOBTTC:=Nil ; if TOBEcr.Detail.Count>0 then TOBTTC:=TOBEcr.Detail[0] ;
-if TOBPieceRg = nil then exit;
-if TOBPieceRg.detail.count = 0 then exit;
-DEV.Code:=TOBPiece.GetValue('GP_DEVISE') ; GetInfosDevise(DEV) ;
-{Montants}
-GetMontantRGReliquat(TOBPIeceRG, XD, XP,True);
-TheMontantRGTTC := XD;
-if ((MM.Nature='FC') or (MM.Nature='AC')) then CpteRg:=GetParamSoc('SO_GCCPTERGVTE')
-else if ((MM.Nature='FF') or (MM.Nature='AF')) then CpteRg:=GetParamSoc('SO_GCCPTERGACH');
+  Result:=rcOk ;
+  if GetParamSocSecur ('SO_BTOPTRGCOLLTIE',false) then exit;
+  TOBTTC:=Nil ; if TOBEcr.Detail.Count>0 then TOBTTC:=TOBEcr.Detail[0] ;
+  if TOBPieceRg = nil then exit;
+  if TOBPieceRg.detail.count = 0 then exit;
+  DEV.Code:=TOBPiece.GetValue('GP_DEVISE') ; GetInfosDevise(DEV) ;
+  {Montants}
+  GetMontantRGReliquat(TOBPIeceRG, XD, XP,True);
+  TheMontantRGTTC := XD;
+  CpteRg := '';
+  
+  if getparamSocSecur('SO_BTVENTCOLLECTIF',false) then
+  begin
+    CpteRg := FindCollectifRGPlus (TOBBasesRG,TObpiece);
+  end;
+  
+  if CpteRg = '' then
+  begin
+    if ((MM.Nature='FC') or (MM.Nature='AC')) then CpteRg:=GetParamSoc('SO_GCCPTERGVTE')
+    else if ((MM.Nature='FF') or (MM.Nature='AF')) then CpteRg:=GetParamSoc('SO_GCCPTERGACH');
+  end;
+  
+  // Erreur sur Compte retenues de garanties
+  if CpteRG='' then BEGIN Result:=rcPar ; LastMsg:=12 ; Exit ; END ;
+  {Etude du compte général }
+  TOBG:=CreerTOBGeneral(CpteRG) ;
+  // Erreur sur Compte RG
+  if TOBG=Nil then
+     BEGIN
+     if VH_GC.GCPontComptable='ATT' then Result:=rcPar else
+      if VH_GC.GCPontComptable='REF' then Result:=rcRef else
+         BEGIN
+         if Not CreerCompteGC(TOBG,CpteRg,'','',ccpRG) then Result:=rcPar ;
+         END ;
+     if Result<>rcOk then BEGIN LastMsg:=2 ; Exit ; END ;
+     END ;
+  OkVent:=(TOBG.GetValue('G_VENTILABLE')='X') ;
+  {Ligne d'écriture}
+  TOBE:=TOB.Create('ECRITURE',TOBEcr,-1) ;
+  PieceVersECR(MM,TOBPiece,TOBTiers,TOBE,False) ;
+  {Général}
+  TOBE.PutValue('E_GENERAL',CpteRG) ;
+  TOBE.PutValue('E_CONSO',TOBG.GetValue('G_CONSO')) ;
+  {Divers}
+  TOBE.PutValue('E_TYPEMVT','TTC') ;
+  {Client}
+  TOBE.PutValue('E_AUXILIAIRE',TOBTiers.GetValue('T_AUXILIAIRE')) ;
+  AlimLibEcr(TobE,TobPiece,TobTiers,'Retenue Garantie',tecRG,True,(MM.Simul='S'));
+  {Eche+Vent}
+  NumL:=TOBEcr.Detail.Count-NbEches+1 ; TOBE.PutValue('E_NUMLIGNE',NumL) ;
+  if OkVent then TOBE.PutValue('E_ANA','X') ;
 
-// Erreur sur Compte retenues de garanties
-if CpteRG='' then BEGIN Result:=rcPar ; LastMsg:=12 ; Exit ; END ;
-{Etude du compte général }
-TOBG:=CreerTOBGeneral(CpteRG) ;
-// Erreur sur Compte RG
-if TOBG=Nil then
-   BEGIN
-   if VH_GC.GCPontComptable='ATT' then Result:=rcPar else
-    if VH_GC.GCPontComptable='REF' then Result:=rcRef else
-       BEGIN
-       if Not CreerCompteGC(TOBG,CpteRg,'','',ccpRG) then Result:=rcPar ;
-       END ;
-   if Result<>rcOk then BEGIN LastMsg:=2 ; Exit ; END ;
-   END ;
-OkVent:=(TOBG.GetValue('G_VENTILABLE')='X') ;
-{Ligne d'écriture}
-TOBE:=TOB.Create('ECRITURE',TOBEcr,-1) ;
-PieceVersECR(MM,TOBPiece,TOBTiers,TOBE,False) ;
-{Général}
-TOBE.PutValue('E_GENERAL',CpteRG) ;
-TOBE.PutValue('E_CONSO',TOBG.GetValue('G_CONSO')) ;
-{Divers}
-TOBE.PutValue('E_TYPEMVT','TTC') ;
-{Client}
-TOBE.PutValue('E_AUXILIAIRE',TOBTiers.GetValue('T_AUXILIAIRE')) ;
-AlimLibEcr(TobE,TobPiece,TobTiers,'Retenue Garantie',tecRG,True,(MM.Simul='S'));
-{Eche+Vent}
-NumL:=TOBEcr.Detail.Count-NbEches+1 ; TOBE.PutValue('E_NUMLIGNE',NumL) ;
-if OkVent then TOBE.PutValue('E_ANA','X') ;
-
-if TOBG.GetValue('G_LETTRABLE')='X' then
-BEGIN
-  TOBE.PutValue('E_ECHE','X') ; TOBE.PutValue('E_NUMECHE',1) ; TOBE.PutValue('E_ETATLETTRAGE','AL') ;
-  TOBE.PutValue('E_ETAT','0000000000') ;
-  if TOBTTC <> nil then
-  if TOBTTC<>Nil then
+  if TOBG.GetValue('G_LETTRABLE')='X' then
   BEGIN
-    TOBE.PutValue('E_MODEPAIE',TOBTTC.GetValue('E_MODEPAIE')) ;
-    TOBE.PutValue('E_DATEECHEANCE',TOBTTC.GetValue('E_DATEECHEANCE')) ;
+    TOBE.PutValue('E_ECHE','X') ; TOBE.PutValue('E_NUMECHE',1) ; TOBE.PutValue('E_ETATLETTRAGE','AL') ;
+    TOBE.PutValue('E_ETAT','0000000000') ;
+    if TOBTTC <> nil then
+    if TOBTTC<>Nil then
+    BEGIN
+      TOBE.PutValue('E_MODEPAIE',TOBTTC.GetValue('E_MODEPAIE')) ;
+      TOBE.PutValue('E_DATEECHEANCE',TOBTTC.GetValue('E_DATEECHEANCE')) ;
+    END ;
   END ;
-END ;
-TOBE.PutValue('E_EMETTEURTVA','X') ;
-{Montants}
-//GetSommeRG(TOBPieceRG,XP,XD,XE) ;
+  TOBE.PutValue('E_EMETTEURTVA','X') ;
+  {Montants}
+  //GetSommeRG(TOBPieceRG,XP,XD,XE) ;
 
-DP:=0 ; CP:=0 ; DD:=0 ; CD:=0 ;
-if MM.Nature='FC' then BEGIN DD:=XD ; DP:=XP ; CD:=0 ; CP:=0 ; END else
-if MM.Nature='FF' then BEGIN CD:=XD ; CP:=XP ; DD:=0 ; DP:=0 ; END else
-if MM.Nature='AC' then BEGIN CD:=-XD ; CP:=-XP ; DD:=0 ; DP:=0 ; END else
-if MM.Nature='AF' then BEGIN DD:=-XD ; DP:=-XP ; CD:=0 ; CP:=0 ; END ;
-TOBE.PutValue('E_DEBIT',DP)     ; TOBE.PutValue('E_CREDIT',CP) ;
-TOBE.PutValue('E_DEBITDEV',DD)  ; TOBE.PutValue('E_CREDITDEV',CD) ;
-if ((DP=0) and (CP=0)) then TOBE.Free else TheTOBRG := TOBE;
-TOBG.Free ;
+  DP:=0 ; CP:=0 ; DD:=0 ; CD:=0 ;
+  if MM.Nature='FC' then BEGIN DD:=XD ; DP:=XP ; CD:=0 ; CP:=0 ; END else
+  if MM.Nature='FF' then BEGIN CD:=XD ; CP:=XP ; DD:=0 ; DP:=0 ; END else
+  if MM.Nature='AC' then BEGIN CD:=-XD ; CP:=-XP ; DD:=0 ; DP:=0 ; END else
+  if MM.Nature='AF' then BEGIN DD:=-XD ; DP:=-XP ; CD:=0 ; CP:=0 ; END ;
+  TOBE.PutValue('E_DEBIT',DP)     ; TOBE.PutValue('E_CREDIT',CP) ;
+  TOBE.PutValue('E_DEBITDEV',DD)  ; TOBE.PutValue('E_CREDITDEV',CD) ;
+  if ((DP=0) and (CP=0)) then TOBE.Free else TheTOBRG := TOBE;
+  TOBG.Free ;
 END ;
 
 Function CreerLignesTaxesRG ( TOBEcr,TOBPiece,TOBPieceRG,TOBTiers,TOBBases,TOBBasesRG : TOB ; MM : RMVT ) : T_RetCpta ;
@@ -4683,7 +4713,7 @@ BEGIN
   TOBCompta.Free ;
 END ;
 
-Procedure GCCreerPiecePayeur(TOBECR, TOBTiers: TOB; DocType : string; DocNumber : integer) ;
+Procedure GCCreerPiecePayeur(TOBECR, TOBTiers: TOB; DocInfo : T_WSDocumentInf); //DocType : string; DocNumber : integer) ;
 Var
   OkTp      : Boolean ;
   Jal       : string;
@@ -4731,13 +4761,13 @@ begin
     XX.Num       := TOBE.GetInteger('E_NUMEROPIECE') ;
     XX.TauxD     := TOBE.GetDouble('E_TAUXDEV') ;
     XX.DateE     := TOBE.GetDateTime('E_DATEECHEANCE') ;
-    XX.DocType   := DocType;
-    XX.DocNumber := DocNumber;
+    XX.DocType   := DocInfo.dType;
+    XX.DocNumber := DocInfo.dNumber;
     TobPayeur := TOB.Create('_PAYEUR', nil, -1);
     try
       GenerePiecesPayeur(XX, '', nil, TobPayeur);
       if TobPayeur.Detail.count > 0 then
-        CallWSCegid(wsetPayer, TobPayeur, XX.DocType, XX.DocNumber);
+        CallWSCegid(wsetPayer, TobPayeur, DocInfo); //XX.DocType, XX.DocNumber);
     finally
       FreeAndNil(TobPayeur);
     end;
@@ -5012,6 +5042,7 @@ Var
   LesMilliemes,TvaEncaissement : string;
   ExePiece : string;
   SendEntry : TSendEntryY2;
+  DocInfo : T_WSDocumentInf;
 begin
   Result    := rcOk ;
   if GetParamSocSecur('SO_GCDESACTIVECOMPTA',false) then exit; // SI pas de compta on sort
@@ -5193,6 +5224,7 @@ begin
         {Insertion}
         if LienP<>'DIF' then
         begin
+          DocInfo := GetWSDocumentInfFromTob(TobPiece);
           TobEcr.AddChampSup('IBAN', False);
           if Not TOBEcr.InsertDBByNivel(False) then
             V_PGI.IoError := oeUnknown
@@ -5210,12 +5242,12 @@ begin
               end;
             end else
               TOBEcr.SetString('IBAN', '');
-            CallWSCegid(wsetDocument, TOBEcr, TOBPiece.GetString('GP_NATUREPIECEG'), TOBPiece.GetInteger('GP_NUMERO'));
+            CallWSCegid(wsetDocument, TOBEcr,DocInfo);
           end;
           {Lettrage}
           if QualifP='N' then GCLettrerAcomptes(OldEcr,TOBEcr,TOBAcomptes,TOBPiece) ;
           {Tiers payeur}
-          if QualifP='N' then GCCreerPiecePayeur(TOBECR, TOBTiers, TobPiece.GetString('GP_NATUREPIECEG'), TobPiece.GetInteger('GP_NUMERO'));
+          if QualifP='N' then GCCreerPiecePayeur(TOBECR, TOBTiers, DocInfo); 
           {TVA encaissement}
           {$IFDEF BTP}
           if (QualifP='N') or (QualifP='S') then
@@ -6555,6 +6587,7 @@ Var
   LATobAcc : TOB;
   SensCommun : boolean;
   TOBEcart,TOBE1   : TOB ;
+  DocInfo : T_WSDocumentInf;
 BEGIN
   SensCommun := true;
   TOBE := nil;
@@ -6563,6 +6596,7 @@ BEGIN
   BEGIN
     // MISE A JOUR DU REGLEMENT
     LaTobAcc := LeAcc.LaTobAcc;
+    DocInfo := GetWSDocumentInfFromTob(TobPiece);
     if LeAcc.IsComptabilisable then
     begin
     	MM.Nature:='OD';
@@ -6627,7 +6661,9 @@ BEGIN
         V_PGI.IoError:=oeUnknown ;
         Exit ;
       end else
-        CallWSCegid(wsetSubContractPayment, TOBEcr, TobPiece.GetString('GP_NATUREPIECEG'), TOBPiece.GetInteger('GP_NUMERO'));
+      begin
+        CallWSCegid(wsetSubContractPayment, TOBEcr, DocInfo);
+      end;
     end;
     NewAcc.putvalue('GAC_MONTANTDEV',LeAcc.Montant);
     MajMontantAcc ;
@@ -6679,7 +6715,7 @@ BEGIN
         V_PGI.IoError:=oeUnknown ;
         Exit ;
       end else
-        CallWSCegid(wsetSubContractPayment, TOBEcr, TobPiece.GetString('GP_NATUREPIECEG'), TOBPiece.GetInteger('GP_NUMERO'));
+        CallWSCegid(wsetSubContractPayment, TOBEcr, DocInfo);
       TOBE:=TOBEcr.Detail[0] ;
     end;
     NewAcc:=TOB.Create('ACOMPTES',Nil,-1) ;
@@ -6743,7 +6779,6 @@ Var
   TOBEcr,TOBE   : TOB ;
   MM            : RMVT ;
   FlagAcc : String ;
-  {$IFDEF BTP}
   QQ : Tquery;
   XP,XD : double;
   Indice,i : integer;
@@ -6751,12 +6786,13 @@ Var
   LATobAcc : TOB;
   SensCommun : boolean;
   TOBEcart,TOBE1   : TOB ;
-  {$ENDIF BTP}
+  DocInfo : T_WSDocumentInf;
 BEGIN
   {$IFDEF BTP}
   SensCommun := true;
   TOBE := nil;
   TOBEcart := nil;
+  DocInfo := GetWSDocumentInfFromTob(TobPiece);
   if (LeAcc.LienCpta <> 'DIF') and (LeACC.IsModif) then
   begin
     LaTobAcc := LeAcc.LaTobAcc;
@@ -6869,7 +6905,7 @@ BEGIN
         V_PGI.IoError:=oeUnknown ;
         Exit ;
       end else
-        CallWSCegid(wsetPayment, TOBEcr, TobPiece.GetString('GP_NATUREPIECEG'), TOBPiece.GetInteger('GP_NUMERO'));
+        CallWSCegid(wsetPayment, TOBEcr, DocInfo);
     end;
     NewAcc.putvalue('GAC_MONTANTDEV',LeAcc.Montant);
     MajMontantAcc ;
@@ -6914,7 +6950,7 @@ BEGIN
             V_PGI.IoError:=oeUnknown ;
             Exit ;
           end else
-            CallWSCegid(wsetPayment, TOBEcr, TobPiece.GetString('GP_NATUREPIECEG'), TOBPiece.GetInteger('GP_NUMERO'));
+            CallWSCegid(wsetPayment, TOBEcr, DocInfo);
         end else
         begin
           FlagAcc:='D' ;
@@ -7458,6 +7494,22 @@ begin
     CumulAnal(CumHT,TOBL,XD,XP) ;
     if iTrouv<0 then TTA.Add(CumHT) ;
   END ;
+end;
+
+function GetWSDocumentInfFromRmvt(lRmvt: RMVT): T_WSDocumentInf;
+begin
+  Result.dType   := lRmvt.DocType;
+  Result.dStub   := lRmvt.Souche;
+  Result.dNumber := lRmvt.DocNumber;
+  Result.dIndex  := 0;
+end;
+
+function GetWSDocumentInfFromTob(TobGP: TOB): T_WSDocumentInf;
+begin
+  Result.dType   := TobGP.GetString('GP_NATUREPIECEG');
+  Result.dStub   := TobGP.GetString('GP_SOUCHE');
+  Result.dNumber := TobGP.GetInteger('GP_NUMERO');
+  Result.dIndex  := TobGP.GetInteger('GP_INDICEG');
 end;
 
 end.

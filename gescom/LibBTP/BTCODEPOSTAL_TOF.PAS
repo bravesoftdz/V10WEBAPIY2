@@ -35,6 +35,10 @@ Procedure VerifCodePostal(T : TDataSet ; CP,V : THEDIT ; Code : boolean) ;
 
 Type
   TOF_BTCODEPOSTAL = Class (TOF_GRILLEFILTRE)
+  private
+    CanCreate : boolean;
+  public
+    procedure OnArgument(S: string); override;
     procedure OnLoadRecord ( vTOBLignes : TOB )                ; override ;
     function  OnUpdateRecord ( laTOB : TOB )       : Integer   ; override ;
     function  OnAfterUpdateRecord ( laTOB : TOB )  : Integer   ; override ;
@@ -48,6 +52,11 @@ Type
   end ;
 
 Implementation
+
+uses
+  CommonTools
+  , HTB97
+  ;
 
 //==============================================================================
 //==============================================================================
@@ -217,6 +226,7 @@ begin
 
   // Colonne 3 (PAYS) non modifiable
   vGrille.ColEditables[3] := False ;
+  vGrille.ColEditables[2] := CanCreate;
 
 end;
 
@@ -226,9 +236,18 @@ begin
   vTOB.PutValue('O_PAYS', 'FRA' ) ;
 end;
 
-function TOF_BTCODEPOSTAL.GenererConditionPlus: String;
+function TOF_BTCODEPOSTAL.GenererConditionPlus: String;                     
 begin
   Result := '' ;
+end;
+
+procedure TOF_BTCODEPOSTAL.OnArgument(S: string);
+begin
+  CanCreate := Tools.CanInsertedInTable('CODEPOST'{$IFDEF APPSRV}, '', '' {$ENDIF APPSRV});
+  inherited;
+  TtoolbarButton97(GetControl('bDelete')).Enabled := CanCreate;
+  TtoolbarButton97(GetControl('bInsert')).Enabled := CanCreate;
+  TtoolbarButton97(GetControl('bValider')).Enabled := CanCreate;
 end;
 
 procedure TOF_BTCODEPOSTAL.OnLoadRecord(vTOBLignes: TOB);

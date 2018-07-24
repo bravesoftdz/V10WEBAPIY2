@@ -6,6 +6,7 @@ uses
   Classes
   {$IF not defined(APPSRV)}
   , UTob
+  , HEnt1
   {$IFEND !APPSRV}
   ;
 const
@@ -18,6 +19,7 @@ type
   tTableName = (  ttnNone
                 , ttnChoixCod    // CHOIXCOD
                 , ttnCommun      // COMMUN
+                , ttnChoixExt    // CHOIXEXT
                 , ttnDevise      // DEVISE
                 , ttnModeRegl    // MODEREGL
                 , ttnPays        // PAYS
@@ -35,6 +37,8 @@ type
                 , ttnChancell    // CHANCELL
                 , ttnExercice    // EXERCICE
                 , ttnParamSoc    // PARAMSOC
+                , ttnEcriture    // ECRITURE
+                , ttnAcomptes    // ACOMPTES
                );
   tTypeAlign = (traaNone, traaLeft, traaRigth);
   tFormatValueTypeDate = (tvtNone, tvtDate, tvtDateTime);
@@ -67,20 +71,23 @@ type
     class function iif(Const Expression: Boolean; Const TruePart, FalsePart: String): String; overload;
     class function iif(Const Expression: Boolean; Const TruePart, FalsePart: char): char; overload;
     class function iif(Const Expression: Boolean; Const TruePart, FalsePart: TStringList): TStringList; overload;
+    {$IF not defined(APPSRV)}
+    class function iif(Const Expression: Boolean; Const TruePart, FalsePart: TActionFiche): TActionFiche; overload;
+    {$IFEND !APPSRV}
     class function ReadTokenSt_(var S : string; Separator : string) : string;
     class function CountOccurenceString(const S : string; ToCount : string) : integer;
     class function GetArgumentValue(Argument: string; Const MyArg : String; Const WithUpperCase: Boolean = True; const Separator: String = ';'): String;
     class function GetArgumentString(Argument: string; Const MyArg : String; WithUpperCase: Boolean = True; const Separator: String = ';') : string;
     class function SetStrDateTimeFromStrUTCDateTime(UTCDateTime : string) : string;
     class function SetStrDateTimeToUTCDateTime(stDateTime : string) : string;
+    class function SetStrUTCDateTimeToDateTime(stUTCDateTime : string) : string;
     class function GetFileSize(FilePath : string; Size : tScaleSize) : Extended;
     class function StrFPoint_(Value : Extended) : string;
     class function IsNumeric_(stValue : string) : boolean;
-    class function GetFieldsListFromTableName(TablePrefix : string{$IF defined(APPSRV)}; ServerName, DBName : string{$IFEND !APPSRV}; Separator : string=',') : string;
+    class function GetFieldsListFromPrefix(TablePrefix : string{$IF defined(APPSRV)}; ServerName, DBName : string{$IFEND !APPSRV}; Separator : string=',') : string;
     class function GetStValueFromTSl(TSlLine, FieldName : string) : string; overload;
     class function GetStValueFromTSl(TSlLine : string; Index : integer; Separator : string=',') : string; overload;
     class function GetTSlIndexFromFieldName(TslLine, FieldName : string; Separator : string=',') : integer;
-    class function GetExtractTypeFromTableName(TableName : string) : string;
     class function GetTableNameFromTtn(Ttn : tTableName) : string;
     class function GetTtnFromTableName(TableName : string) : tTableName;
     class function CanInsertedInTable(TableName: string{$IF defined(APPSRV)}; ServerName, DBName : string{$IFEND APPSRV}): Boolean;
@@ -88,8 +95,15 @@ type
     class function SetTRAFileFromTSl(lTSL : TStringList) : Boolean;
     class function FormatValue(Value : string; Align : tTypeAlign; iLength : integer; NbDec : Integer=0; TypeDate : tFormatValueTypeDate=tvtNone) : string;
     class function CompressFile(FullPath : string) : string;
+    class function UnCompressFile(ZipPath, ZipFileName : string) : integer;
     class procedure FileCut(FullPath : string; MaxSizeBytes : integer; TSLResult : TStringList; KeepOriginFile : boolean=True);
     class function GetKoFromMo(Mo : integer) : integer;
+    class function DeleteDirectroy(Path : string) : boolean;
+    class function IsRecordableDocument(DocType, Establishment : string{$IF defined(APPSRV)}; ServerName, DBName : string{$IFEND !APPSRV}) : boolean;
+    class function EvalueDateJJMMYYY(sDate : string) : TDateTime;
+    class procedure DecodeAccDocReferency(DocReferency : string; var DocType : string; var Stump : string; var DocDate : TDateTime; var DocNumber : integer; var Index : integer);
+    class function GetParamSocSecur_(PSocName : string; DefaultValue : string{$IFDEF APPSRV}; ServerName, FolderName : string{$ENDIF APPSRV}) : string;
+    class function CastDateTimeForQry(lDate : TDateTime) : string;
     {$IF not defined(APPSRV)}
     class procedure TobToTStringList(TobOrig : TOB; TSlResult : TStringList; Level : Integer=1);
     {$IFEND !APPSRV}
@@ -97,7 +111,7 @@ type
 
 implementation
 
-uses
+uses                                                                  
   ADODB
   , Forms
   , SysUtils
@@ -107,9 +121,11 @@ uses
   , DateUtils
   , UConnectWSConst
   , Zip
+  , UConnectWSCEGID
   {$IF not defined(APPSRV)}
   , hCtrls
-  , hEnt1
+  , EntGC
+  , ParamSoc
   {$IFEND !APPSRV}
   ;
 
@@ -418,6 +434,16 @@ begin
 		Result := FalsePart;
 end;
 
+{$IF not defined(APPSRV)}
+class function Tools.iif(Const Expression: Boolean; Const TruePart, FalsePart: TActionFiche): TActionFiche;
+begin
+	if Expression then
+		Result := TruePart
+	else
+		Result := FalsePart;
+end;
+{$IFEND !APPSRV}
+
 class function Tools.ReadTokenSt_(var S : string; Separator : string) : string;
 var
   Cpt : integer;
@@ -528,6 +554,17 @@ begin
     Result := '';
 end;
 
+class function Tools.SetStrUTCDateTimeToDateTime(stUTCDateTime : string) : string;
+begin
+  if stUTCDateTime <> '' then
+  begin
+    Result := copy(stUTCDateTime, 1, pos('T', stUTCDateTime) -1);
+    Result := Format('%s/%s/%s', [copy(Result, 9, 2), copy(Result, 6, 2), copy(Result, 1, 4)]);
+  end else
+    Result := '';
+end;
+
+
 class function Tools.GetFileSize(FilePath: string; Size: tScaleSize): Extended;
 var
   SearchFile : TSearchRec;
@@ -577,7 +614,7 @@ begin
   {$IFEND !APPSRV}
 end;
 
-class function Tools.GetFieldsListFromTableName(TablePrefix : string{$IF defined(APPSRV)}; ServerName, DBName : string{$IFEND !APPSRV}; Separator : string=',') : string;
+class function Tools.GetFieldsListFromPrefix(TablePrefix : string{$IF defined(APPSRV)}; ServerName, DBName : string{$IFEND !APPSRV}; Separator : string=',') : string;
 var
   {$IF defined(APPSRV)}
   lAdoQry : AdoQry;
@@ -639,24 +676,6 @@ begin
       if lFieldName = FieldName then
         break;
     end;
-  end;
-end;
-
-class function Tools.GetExtractTypeFromTableName(TableName : string) : string;
-begin
-  case CaseFromString(TableName, [  GetTableNameFromTtn(ttnChoixCod)
-                                  , GetTableNameFromTtn(ttnCommun)
-                                  , GetTableNameFromTtn(ttnTiers)
-                                  , GetTableNameFromTtn(ttnRelance)
-                                  , GetTableNameFromTtn(ttnContact)
-                                 ]) of
-    {ttnChoixCod} 0 : Result := 'GDM;NVR;GOR;JUR;LGU;GCT;RTV;GZC;SCC;TRC;FON;SRV;YTC';
-    {ttnCommun}   1 : Result := 'SEP;MVI;NAE;TVS';
-    {ttnTiers}    2 : Result := 'CLI;PRO';
-    {ttnRelance}  3 : Result := 'RRG;RTR';
-    {ttnContact}  4 : Result := 'CLI';
-  else
-    Result := '';
   end;
 end;
 
@@ -750,6 +769,7 @@ begin
   case Ttn of
     ttnChoixCod    : Result := 'CHOIXCOD';
     ttnCommun      : Result := 'COMMUN';
+    ttnChoixExt    : Result := 'CHOIXEXT';
     ttnDevise      : Result := 'DEVISE';
     ttnModeRegl    : Result := 'MODEREGL';
     ttnPays        : Result := 'PAYS';
@@ -767,6 +787,7 @@ begin
     ttnChancell    : Result := 'CHANCELL';
     ttnExercice    : Result := 'EXERCICE';
     ttnParamSoc    : Result := 'PARAMSOC';
+    ttnEcriture    : Result := 'ECRITURE';
   else
     Result := '';
   end;
@@ -778,7 +799,7 @@ begin
   case CaseFromString(TableName, [  'CHOIXCOD', 'COMMUN'  , 'DEVISE'  , 'MODEREGL', 'PAYS'    , 'RIB'
                                   , 'SECTION' , 'TIERS'   , 'CODEPOST', 'CONTACT' , 'ETABLISS', 'MODEPAIE'
                                   , 'GENERAUX', 'JOURNAL' , 'RELANCE' , 'CORRESP' , 'CHANCELL', 'EXERCICE'
-                                  , 'PARAMSOC'
+                                  , 'PARAMSOC', 'CHOIXEXT', 'ECRITURE'
                                  ]) of
     {CHOIXCOD} 0  : Result := ttnChoixCod;
     {COMMUN}   1  : Result := ttnCommun;
@@ -799,6 +820,8 @@ begin
     {CHANCELL} 16 : Result := ttnChancell;
     {EXERCICE} 17 : Result := ttnExercice;
     {PARAMSOC} 18 : Result := ttnParamSoc;
+    {CHOIXEXT} 19 : Result := ttnChoixExt;
+    {ECRITURE} 20 : Result := ttnEcriture;
   else
     Result := ttnNone;
   end;
@@ -813,7 +836,7 @@ begin
   if (TableName <> '') and (GetTtnFromTableName(TableName) <> ttnNone) then
   begin
     {$IF not defined(APPSRV)}
-    Result := ExisteSql(Format('SELECT 1 FROM BTWSTABLEAUTO WHERE BWT_NOMTABLE = "%" AND BWT_AUTORISEE = "X"', [TableName]))
+    Result := ExisteSql(Format('SELECT 1 FROM BTWSTABLEAUTO WHERE BWT_NOMTABLE = "%s" AND BWT_AUTORISEE = "X"', [TableName]))
     {$ELSE !APPSRV}
     AdoQryAut := AdoQry.create;
     try
@@ -937,6 +960,33 @@ begin
   end;
 end;
 
+class function Tools.UnCompressFile(ZipPath, ZipFileName : string) : integer;
+var
+  Zip : TZip;
+  Cpt : integer;
+begin
+  Result := 0;
+  if (ZipPath <> '') and (ZipFileName <> '') then
+  begin
+    Zip := TZip.create(nil);
+    try
+      Zip.FileSpecList.Clear;
+      //Zip.ExtractOptions := [oeUpdate];
+      Zip.ExtractPath := ZipPath;
+      Zip.Filename    := ZipPath + ZipFileName;
+      if Zip.Count >= 0 then
+      begin
+        for Cpt := 0 to pred(Zip.Count) do
+          Zip.FileSpecList.Add(Zip.FileInfos[Cpt].Filename);
+      Result := Zip.Extract;
+      end;
+    finally
+      FreeAndNil(Zip);
+    end;
+
+  end;
+end;
+  
 class procedure Tools.FileCut(FullPath : string; MaxSizeBytes : integer; TSLResult : TStringList; KeepOriginFile : boolean=True);
 var
   FileStream : TFileStream;
@@ -991,6 +1041,156 @@ end;
 class function Tools.GetKoFromMo(Mo : integer) : Integer;
 begin
   Result := Mo * 1048576;
+end;
+
+class function Tools.DeleteDirectroy(Path : string) : boolean;
+var
+  iIndex    : Integer;
+  SearchRec : TSearchRec;
+  LocalPath : string;
+  sFileName : string;
+begin
+  if Path <> '' then
+  begin
+    if Copy(Path, Length(Path), 1) <> '\' then
+      LocalPath := Path + '\*.*'
+    else
+      LocalPath := Path + '*.*';
+    iIndex := FindFirst(LocalPath, faAnyFile, SearchRec);
+    while iIndex = 0 do
+    begin
+      sFileName := ExtractFileDir(LocalPath) + '\' + SearchRec.Name;
+      if SearchRec.Attr = faDirectory then
+      begin
+      if     (SearchRec.Name <> '' )
+         and (SearchRec.Name <> '.')
+         and (SearchRec.Name <> '..')
+      then
+         DeleteFile(sFileName);
+      end else
+      begin
+        if SearchRec.Attr <> faArchive then
+          FileSetAttr(sFileName, faArchive);
+        DeleteFile(sFileName);
+      end;
+      iIndex := FindNext(SearchRec);
+    end;
+    FindClose(SearchRec);
+    Result := RemoveDir(LocalPath);
+  end else
+    Result := False;
+end;
+
+class function Tools.IsRecordableDocument(DocType, Establishment : string{$IF defined(APPSRV)}; ServerName, DBName : string{$IFEND !APPSRV}) : boolean;
+var
+  AccState : string;
+  {$IF defined(APPSRV)}
+  lAdoQry  : AdoQry;
+  {$IFEND !APPSRV}
+
+  {$IF defined(APPSRV)}
+  function GetAccType(Prefix : string) : string;
+  var
+    Sql : string;
+  begin
+    lAdoQry.TSLResult.Clear;
+    lAdoQry.RecordCount := 0;
+    lAdoQry.ServerName  := ''; //ServerName;
+    lAdoQry.DBName      := ''; //DBName;
+    lAdoQry.FieldsList  := Prefix + '_TYPEECRCPTA';
+    Sql                 := Format('SELECT %s FROM %s WHERE %s_NATUREPIECEG = ''%s''', [lAdoQry.FieldsList, Tools.iif(Prefix = 'GPC', 'PARPIECECOMPL', 'PARPIECE'), Prefix, DocType]);
+    if Prefix = 'GPC' then
+      Sql := Sql + Format(' AND GPC_ETABLISSEMENT = ''%s''', [Establishment]);
+    lAdoQry.Request    := Sql;
+    lAdoQry.SingleTableSelect;
+    if lAdoQry.RecordCount > 0 then
+      Result := lAdoQry.TSLResult[0]
+    else
+      Result := '';
+  end;
+  {$IFEND !APPSRV}
+
+begin
+  if DocType <> '' then
+  begin
+    {$IF defined(APPSRV)}
+    lAdoQry := AdoQry.Create;
+    try
+      AccState := GetAccType('GPC');
+      if AccState = '' then
+        AccState := GetAccType('GPP');
+    finally
+      lAdoQry.Free;
+    end;
+    {$ELSE !APPSRV}
+    AccState := GetInfoParPieceCompl(DocType, Establishment, 'GPC_TYPEECRCPTA');
+    if AccState = '' then
+      AccState := GetInfoParPiece(DocType, 'GPP_TYPEECRCPTA');
+    {$IFEND !APPSRV}
+    Result := ((AccState <> '') and (AccState <> 'RIE'));
+  end else
+    Result := False;
+end;
+
+class function Tools.EvalueDateJJMMYYY(sDate : string) : TDateTime;
+var
+  dd : word;
+  mm : Word;
+  yy : Word ;
+begin
+  if sDate <> '' then
+  begin
+    dd     := StrToInt(Copy(sDate,1,2));
+    mm     := StrToInt(Copy(sDate,3,2));
+    yy     := StrToInt(Copy(sDate,5,4));
+    Result := Encodedate(yy,mm,dd);
+  end else
+    Result := 2;
+end;
+
+class procedure Tools.DecodeAccDocReferency(DocReferency : string; var DocType : string; var Stump : string; var DocDate : TDateTime; var DocNumber : integer; var Index : integer);
+begin
+  if DocReferency <> '' then
+  begin
+    DocType   := Tools.ReadTokenSt_(DocReferency, ';');
+    Stump     := Tools.ReadTokenSt_(DocReferency, ';');
+    DocDate   := Tools.EvalueDateJJMMYYY(Tools.ReadTokenSt_(DocReferency, ';'));
+    DocNumber := StrToInt(Tools.ReadTokenSt_(DocReferency, ';'));
+    Index     := StrToInt(Tools.ReadTokenSt_(DocReferency, ';'));
+  end;
+end;
+
+class function Tools.GetParamSocSecur_(PSocName : string; DefaultValue : string{$IFDEF APPSRV}; ServerName, FolderName : string{$ENDIF APPSRV}) : string;
+{$IFDEF APPSRV}
+var
+  AdoQryL : AdoQry;
+{$ENDIF APPSRV}
+begin
+  Result := DefaultValue;
+  {$IFDEF APPSRV}
+  if (ServerName <> '') and (FolderName <> '') and (PSocName <> '') then
+  begin
+    AdoQryL := AdoQry.Create;
+    try
+      AdoQryL.ServerName  := ServerName;
+      AdoQryL.DBName      := FolderName;
+      AdoQryL.FieldsList  := 'SOC_DATA';
+      AdoQryL.Request     := Format('SELECT %s FROM PARAMSOC WHERE SOC_NOM = ''%s''', [AdoQryL.FieldsList, PSocName]);
+      AdoQryL.SingleTableSelect;
+      if AdoQryL.RecordCount > 0 then
+        Result := AdoQryL.TSLResult[0];
+    finally
+      AdoQryL.free;
+    end;
+  end;
+  {$ELSE APPSRV}
+  Result := GetParamSocSecur(PSocName, DefaultValue);
+  {$ENDIF APPSRV}
+end;
+
+class function Tools.CastDateTimeForQry(lDate: TDateTime): string;
+begin
+  Result := FormatDateTime('yyyymmdd', lDate);                    
 end;
 
 end.

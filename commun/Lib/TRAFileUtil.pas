@@ -12,17 +12,17 @@ type
   T_TraFileContent = (trafcNone, trafcJRL, trafcDOS, trafcBAL, trafcSYN, trafcEXO);
   T_TraFileFormat = (traffNone, traffSTD, traffETE);
   T_TraRecordCode = (  trarcNone
-                     , trarcGeneralSetting1  // Paramètres généraux 1 - PS1
-                     , trarcGeneralSetting2  // Paramètres généraux 2 - PS2
-                     , trarcGeneralSetting3  // Paramètres généraux 3 - PS3
-                     , trarcGeneralSetting4  // Paramètres généraux 4 - PS4
-                     , trarcGeneralSetting5  // Paramètres généraux 5 - PS5
-                     , trarcFiscalYear       // Exercice - EXO
-                     , trarcEstablishment    // Etablissement - ETB
-                     , trarcPaymentMode      // Mode de paiement - MDP
-                     , trarcPaymentCondition // Condition de règlement - MDR
-                     , trarcCurrency         // Devise - DEV
-                     , trarcTaxSystem        // Régime de TVA - REG
+                     , trarcGeneralSetting1   // Paramètres généraux 1 - PS1
+                     , trarcGeneralSetting2   // Paramètres généraux 2 - PS2
+                     , trarcGeneralSetting3   // Paramètres généraux 3 - PS3
+                     , trarcGeneralSetting4   // Paramètres généraux 4 - PS4
+                     , trarcGeneralSetting5   // Paramètres généraux 5 - PS5
+                     , trarcFiscalYear        // Exercice - EXO
+                     , trarcEstablishment     // Etablissement - ETB
+                     , trarcPaymentMode       // Mode de paiement - MDP
+                     , trarcPaymentCondition  // Condition de règlement - MDR
+                     , trarcCurrency          // Devise - DEV
+                     , trarcTaxSystem         // Régime de TVA - REG
                      , trarcAnalyticalSection // Section analytique - SAT
                      , trarcCorrespondence    // Compte de correspondance - CRR * CRI à voir
                      , trarcAccount           // Comptes - CGN
@@ -35,27 +35,30 @@ type
                      , trarcChoixCod          // Choix code - CTL
                     );
 
-  TraUtil = class
+  FileTraGeneration = class(TObject)
     private
-      class function GetHeaderStartLine(Product : T_TraProduct; Origin : T_TraFileOrigin; Content : T_TraFileContent; Format : T_TraFileFormat) : string;
-      class function GetRecordStartLine(traRCode : T_TraRecordCode) : string;
-      class function GetThirdLine(Data : string) : string;
-      class function GetBankIdLine(Data : string) : string;
-      class function GetAnalyticalSection(Data : string) : string;
-      class function GetCurrency(Data : string) : string;
-      class function GetChangeRate(Data : string) : string;
-      class function GetPaymentMode(Data : string) : string;
-      class function GetChoixCod(Data : string) : string;
-      class function GetContact(Data : string) : string;
+      function GetHeaderStartLine(Product : T_TraProduct; Origin : T_TraFileOrigin; Content : T_TraFileContent; Format : T_TraFileFormat) : string;
+      function GetRecordStartLine(traRCode : T_TraRecordCode) : string;
+      function GetThirdLine(Data : string) : string;
+      function GetBankIdLine(Data : string) : string;
+      function GetAnalyticalSection(Data : string) : string;
+      function GetCurrency(Data : string) : string;
+      function GetChangeRate(Data : string) : string;
+      function GetPaymentMode(Data : string) : string;
+      function GetPaymentCondition(Data : string) : string;
+      function GetChoixCod(Data : string) : string;
+      function GetContact(Data : string) : string;
+      function GetTraProductCode(tProduct : T_TraProduct) : string;
+      function GetFileOrigin(tFileOrig : T_TraFileOrigin) : string;
+      function GetFileContent(tFileContent : T_TraFileContent) : string;
+      function GetFileFormat(tFileFormat : T_TraFileFormat) : string;
+      function GetRecordCode(tRecordCode : T_TraRecordCode) : string;
     public
-      class function GetTraProductCode(tProduct : T_TraProduct) : string;
-      class function GetFileOrigin(tFileOrig : T_TraFileOrigin) : string;
-      class function GetFileContent(tFileContent : T_TraFileContent) : string;
-      class function GetFileFormat(tFileFormat : T_TraFileFormat) : string;
-      class function GetRecordCode(tRecordCode : T_TraRecordCode) : string;
-      class function GetTraRecordCodeFromTableName(TableName : string) : T_TraRecordCode;
-      class function GetTraLine(tRecordCode: T_TraRecordCode; Data : string): string;
-      class function GetFirstLine(Product : T_TraProduct; Origin : T_TraFileOrigin; Content : T_TraFileContent; Format : T_TraFileFormat; UserCode : string) : string;
+      NewAna : boolean;
+
+      function GetTraRecordCodeFromTableName(TableName : string) : T_TraRecordCode;
+      function GetTraLine(tRecordCode: T_TraRecordCode; Data : string): string;
+      function GetTraFirstLine(Product : T_TraProduct; Origin : T_TraFileOrigin; Content : T_TraFileContent; Format : T_TraFileFormat; UserCode : string) : string;
   end;
 
 const
@@ -68,7 +71,7 @@ uses
   , UConnectWSConst
   , SysUtils
   ;
-class function TraUtil.GetHeaderStartLine(Product : T_TraProduct; Origin : T_TraFileOrigin; Content : T_TraFileContent; Format : T_TraFileFormat) : string;
+function FileTraGeneration.GetHeaderStartLine(Product : T_TraProduct; Origin : T_TraFileOrigin; Content : T_TraFileContent; Format : T_TraFileFormat) : string;
 begin
   Result := TRAFixedArea
           + GetTraProductCode(Product)
@@ -78,12 +81,12 @@ begin
           ; 
 end;
 
-class function TraUtil.GetRecordStartLine(traRCode : T_TraRecordCode) : string;
+function FileTraGeneration.GetRecordStartLine(traRCode : T_TraRecordCode) : string;
 begin
   Result := TRAFixedArea + GetRecordCode(traRCode);
 end;
 
-class function TraUtil.GetThirdLine(Data : string) : string;
+function FileTraGeneration.GetThirdLine(Data : string) : string;
 var
   MCurrency : string;
   Currency  : string;
@@ -169,7 +172,7 @@ begin
     Result := '';
 end;
 
-class function TraUtil.GetBankIdLine(Data : string) : string;
+function FileTraGeneration.GetBankIdLine(Data : string) : string;
 begin
   if Data <> '' then
     Result := GetRecordStartLine(trarcBankId)
@@ -198,13 +201,14 @@ begin
     Result := '';
 end;
 
-class function TraUtil.GetAnalyticalSection(Data : string) : string;
+function FileTraGeneration.GetAnalyticalSection(Data : string) : string;
 begin
   if Data <> '' then
     Result := GetRecordStartLine(trarcAnalyticalSection)
             + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'S_SECTION') , traaLeft, 17)
             + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'S_LIBELLE') , traaLeft, 35)
             + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'S_AXE')     , traaLeft, 3)
+            + Tools.FormatValue('S1'                                      , traaLeft, 3)      
             + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'S_TABLE0')  , traaLeft, 17)
             + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'S_TABLE1')  , traaLeft, 17)
             + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'S_TABLE2')  , traaLeft, 17)
@@ -222,7 +226,7 @@ begin
     Result := '';
 end;
 
-class function TraUtil.GetCurrency(Data : string) : string;
+function FileTraGeneration.GetCurrency(Data : string) : string;
 begin
   if Data <> '' then
     Result := GetRecordStartLine(trarcCurrency)
@@ -230,7 +234,7 @@ begin
             + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'D_LIBELLE')       , traaLeft, 35)
             + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'D_SYMBOLE')       , traaLeft, 3)
             + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'D_FERME')         , traaLeft, 1)
-            + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'D_DECIMALE')      , traaLeft, 2)
+            + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'D_DECIMALE')      , traaLeft, 1) 
             + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'D_QUOTITE')       , traaRigth, 6, 2)
             + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'D_MONNAIEIN')     , traaLeft, 1)
             + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'D_PARITEEURO')    , traaRigth, 20, 9)
@@ -246,22 +250,27 @@ begin
     Result := '';
 end;
 
-class function TraUtil.GetChangeRate(Data : string) : string;
+function FileTraGeneration.GetChangeRate(Data : string) : string;
+var
+  FreeDate1 : string;
 begin
   if Data <> '' then
+  begin
+    FreeDate1 := Tools.GetStValueFromTSl(Data, 'H_DATECOURS');
+    if StrToDateTime(FreeDate1) < 2 then FreeDate1 := DateTimeToStr(2);
     Result := GetRecordStartLine(trarcChangeRate)
             + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'H_DEVISE')     , traaLeft, 3)
-            + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'H_DATECOURS')  , traaLeft, 8, 0, tvtDate)
+            + Tools.FormatValue(FreeDate1                                     , traaLeft, 8, 0, tvtDateTime)
             + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'H_TAUXREEL')   , traaRigth, 9)
             + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'H_TAUXCLOTURE'), traaRigth, 9)
             + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'H_COMMENTAIRE'), traaLeft, 17)
             + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'H_SOCIETE')    , traaLeft, 3)
             + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'H_COTATION')   , traaRigth, 9)
-  else
+  end else
     Result := '';
 end;
 
-class function TraUtil.GetPaymentMode(Data : string) : string;
+function FileTraGeneration.GetPaymentMode(Data : string) : string;
 begin
   if Data <> '' then
     Result := GetRecordStartLine(trarcPaymentMode)
@@ -279,7 +288,31 @@ begin
     Result:= '';
 end;
 
-class function TraUtil.GetChoixCod(Data : string) : string;
+function FileTraGeneration.GetPaymentCondition(Data : string) : string;
+var
+  Cpt : integer;
+begin
+  if Data <> '' then
+  begin
+    Result := GetRecordStartLine(trarcPaymentCondition)
+            + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'MR_MODEREGLE')     , traaLeft, 3)
+            + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'MR_LIBELLE')       , traaLeft, 35)
+            + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'MR_APARTIRDE')     , traaLeft, 3)
+            + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'MR_PLUSJOUR')      , traaLeft, 3)
+            + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'MR_ARRONDIJOUR')   , traaLeft, 3)
+            + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'MR_NOMBREECHEANCE'), traaLeft, 2)
+            + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'MR_SEPAREPAR')     , traaLeft, 3)
+            + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'MR_MONTANTMIN')    , traaRigth, 20, 2)
+            + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'MR_REMPLACEMIN')   , traaLeft, 3)
+            ;
+    for Cpt := 1 to 12 do
+      Result := Result + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'MR_MP'   + IntToStr(Cpt)), traaLeft, 3)
+                       + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'MR_TAUX' + IntToStr(Cpt)), traaRigth, 6, 2);
+  end else
+    Result:= '';
+end;
+
+function FileTraGeneration.GetChoixCod(Data : string) : string;
 begin
   if Data <> '' then
     Result := GetRecordStartLine(trarcChoixCod)
@@ -292,9 +325,20 @@ begin
     Result := '';    
 end;
 
-class function TraUtil.GetContact(Data : string) : string;
+function FileTraGeneration.GetContact(Data : string) : string;
+var
+  FreeDate1 : string;
+  FreeDate2 : string;
+  FreeDate3 : string;
 begin
   if Data <> '' then
+  begin
+    FreeDate1 := Tools.GetStValueFromTSl(Data, 'C_DATELIBRE1');
+    FreeDate2 := Tools.GetStValueFromTSl(Data, 'C_DATELIBRE2');
+    FreeDate3 := Tools.GetStValueFromTSl(Data, 'C_DATELIBRE3');
+    if StrToDateTime(FreeDate1) < 2 then FreeDate1 := DateTimeToStr(2);
+    if StrToDateTime(FreeDate2) < 2 then FreeDate2 := DateTimeToStr(2);
+    if StrToDateTime(FreeDate3) < 2 then FreeDate3 := DateTimeToStr(2);
     Result := GetRecordStartLine(trarcContact)
             + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'C_TYPECONTACT')  , traaLeft, 3)
             + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'C_AUXILIAIRE')   , traaLeft, 35)
@@ -327,19 +371,19 @@ begin
             + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'C_LIBRECONTACT1'), traaLeft, 3)
             + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'C_LIBRECONTACT2'), traaLeft, 3)
             + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'C_LIBRECONTACT3'), traaLeft, 3)
-            + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'C_DATELIBRE1')   , traaLeft, 8, 0, tvtDate)
-            + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'C_DATELIBRE2')   , traaLeft, 8, 0, tvtDate)
-            + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'C_DATELIBRE3')   , traaLeft, 8, 0, tvtDate)
+            + Tools.FormatValue(FreeDate1                                       , traaLeft, 8, 0, tvtDate)
+            + Tools.FormatValue(FreeDate2                                       , traaLeft, 8, 0, tvtDate)
+            + Tools.FormatValue(FreeDate3                                       , traaLeft, 8, 0, tvtDate)
             + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'C_VALLIBRE1')    , traaRigth, 15, 2)
             + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'C_VALLIBRE2')    , traaRigth, 15, 2)
             + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'C_VALLIBRE3')    , traaRigth, 15, 2)
             + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'C_TIERS')        , traaLeft, 17)
             + Tools.FormatValue(Tools.GetStValueFromTSl(Data, 'C_CLETELEPHONE') , traaLeft, 25)
-  else
+  end else
     Result := '';
 end;
   
-class function TraUtil.GetTraProductCode(tProduct : T_TraProduct) : string;
+function FileTraGeneration.GetTraProductCode(tProduct : T_TraProduct) : string;
 begin
   case tProduct of
     trapS1 : Result := 'S1';
@@ -354,7 +398,7 @@ begin
   end;
 end;
 
-class function TraUtil.GetFileOrigin(tFileOrig : T_TraFileOrigin) : string;
+function FileTraGeneration.GetFileOrigin(tFileOrig : T_TraFileOrigin) : string;
 begin
   case tFileOrig of
     trafoCLI : Result := 'CLI';
@@ -364,7 +408,7 @@ begin
   end;
 end;
 
-class function TraUtil.GetFileContent(tFileContent: T_TraFileContent): string;
+function FileTraGeneration.GetFileContent(tFileContent: T_TraFileContent): string;
 begin
   case tFileContent of
     trafcJRL : Result := 'JRL';
@@ -377,7 +421,7 @@ begin
   end;
 end;
 
-class function TraUtil.GetFileFormat(tFileFormat: T_TraFileFormat): string;
+function FileTraGeneration.GetFileFormat(tFileFormat: T_TraFileFormat): string;
 begin
   case tFileFormat of
     traffSTD : Result := 'STD';
@@ -387,7 +431,7 @@ begin
   end;
 end;
 
-class function TraUtil.GetRecordCode(tRecordCode: T_TraRecordCode): string;
+function FileTraGeneration.GetRecordCode(tRecordCode: T_TraRecordCode): string;
 begin
   case tRecordCode of
     trarcGeneralSetting1   : Result := 'PS1';
@@ -401,7 +445,7 @@ begin
     trarcPaymentCondition  : Result := 'MDR';
     trarcCurrency          : Result := 'DEV';
     trarcTaxSystem         : Result := 'REG';
-    trarcAnalyticalSection : Result := 'NSA';
+    trarcAnalyticalSection : Result := Tools.iif(NewAna, 'NSA', 'SAT');
     trarcCorrespondence    : Result := 'CRR'; //CRI à voir
     trarcAccount           : Result := 'CGN';
     trarcThird             : Result := 'CAE';
@@ -416,7 +460,7 @@ begin
   end;
 end;
 
-class function TraUtil.GetTraRecordCodeFromTableName(TableName: string): T_TraRecordCode;
+function FileTraGeneration.GetTraRecordCodeFromTableName(TableName: string): T_TraRecordCode;
 begin
   case Tools.CaseFromString(TableName, [  Tools.GetTableNameFromTtn(ttnTiers)
                                         , Tools.GetTableNameFromTtn(ttnRib)
@@ -427,20 +471,20 @@ begin
                                         , Tools.GetTableNameFromTtn(ttnChoixCod)
                                         , Tools.GetTableNameFromTtn(ttnContact)
                                        ]) of
-    {ttnTiers}    0 : Result := trarcThird;
-    {ttnRib}      1 : Result := trarcBankId;
-    {ttnSection}  2 : Result := trarcAnalyticalSection;
-    {ttnDevise}   3 : Result := trarcCurrency;
-    {ttnChancell} 4 : Result := trarcChangeRate;
-    {ttnModeRegl} 5 : Result := trarcPaymentCondition;
-    {ttnChoixCod} 6 : Result := trarcChoixCod;
-    {ttnContact}  7 : Result := trarcContact;
+    {TIERS}     0 : Result := trarcThird;
+    {RIB}       1 : Result := trarcBankId;
+    {CSECTION}  2 : Result := trarcAnalyticalSection;
+    {DEVISE}    3 : Result := trarcCurrency;
+    {CHANCELL}  4 : Result := trarcChangeRate;
+    {MODEREGL}  5 : Result := trarcPaymentCondition;
+    {CHOIXCOD}  6 : Result := trarcChoixCod;
+    {CONTACT}   7 : Result := trarcContact;
   else
     Result := trarcNone;
   end;
 end;
 
-class function TraUtil.GetTraLine(tRecordCode: T_TraRecordCode; Data : string): string;
+function FileTraGeneration.GetTraLine(tRecordCode: T_TraRecordCode; Data : string): string;
 begin
   Result := '';
   if (tRecordCode <> trarcNone) and (Data <> '') then
@@ -452,13 +496,14 @@ begin
       {DEVISE}   trarcCurrency          : Result := GetCurrency(Data);
       {CHANCELL} trarcChangeRate        : Result := GetChangeRate(Data);
       {MODEPAIE} trarcPaymentMode       : Result := GetPaymentMode(Data);
+      {MODEREGL} trarcPaymentCondition  : Result := GetPaymentCondition(Data);
       {CHOIXCOD} trarcChoixCod          : Result := GetChoixCod(Data);
       {CONTACT}  trarcContact           : Result := GetContact(Data);
     end;
   end;
 end;
 
-class function TraUtil.GetFirstLine(Product : T_TraProduct; Origin : T_TraFileOrigin; Content : T_TraFileContent; Format : T_TraFileFormat; UserCode : string) : string;
+function FileTraGeneration.GetTraFirstLine(Product : T_TraProduct; Origin : T_TraFileOrigin; Content : T_TraFileContent; Format : T_TraFileFormat; UserCode : string) : string;
 var
   DefaultDate : string;
 begin

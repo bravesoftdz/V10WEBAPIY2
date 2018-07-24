@@ -115,6 +115,7 @@ type
     function  VerifPariteEuro : boolean ;
     procedure DisaChange ;
     procedure PosDevPiv ;
+    procedure SetButtonEna;
   public     { Déclarations publiques }
   end;
 
@@ -122,62 +123,72 @@ implementation
 
 {$R *.DFM}
 
-Uses Chancel,UtilPGI ;
+Uses
+  Chancel
+  , UtilPGI
+  , CommonTools
+  ;
 
 Procedure FicheDevise(Quel : String ; Comment : TActionFiche ; FromAss : boolean ) ;
-var FDevise: TFDevise;
-    PP : THPanel ;
+var
+  FDevise: TFDevise;
+  PP : THPanel ;
 begin
-if _Blocage(['nrCloture','nrBatch'],True,'nrBatch') then Exit ;
-FDevise:= TFDevise.Create(Application) ;
-FDevise.Mode:=Comment ; FDevise.FromAss:=FromAss ;
-FDevise.InitFL('D','PRT_DEVISE',quel,'',Comment,TRUE,FDevise.TaD_DEVISE,FDevise.TaD_LIBELLE,FDevise.TaD_DEVISE,['ttDevise','ttDeviseEtat']) ;
-PP:=FindInsidePanel ;
-if PP=Nil then
-   BEGIN
+  if _Blocage(['nrCloture','nrBatch'],True,'nrBatch') then Exit ;
+  FDevise         := TFDevise.Create(Application) ;
+  if Tools.CanInsertedInTable('DEVISE'{$IFDEF APPSRV}, '', '' {$ENDIF APPSRV}) then
+    FDevise.Mode := Comment
+  else
+    FDevise.Mode := taConsult;
+  FDevise.FromAss := FromAss ;
+  FDevise.InitFL('D','PRT_DEVISE',quel,'',Comment,TRUE,FDevise.TaD_DEVISE,FDevise.TaD_LIBELLE,FDevise.TaD_DEVISE,['ttDevise','ttDeviseEtat']) ;
+  PP:=FindInsidePanel ;
+  if PP=Nil then
+  begin
     try
-     FDevise.ShowModal ;
+      FDevise.ShowModal ;
     finally
-     FDevise.Free ;
-     _Bloqueur('nrBatch',False) ;
+      FDevise.Free ;
+      _Bloqueur('nrBatch',False) ;
     end ;
-   SourisNormale ;
-   END else
-   BEGIN
-   InitInside(FDevise,PP) ;
-   FDevise.Show ;
-   END ;
+    SourisNormale ;
+  end else
+  begin
+    InitInside(FDevise,PP) ;
+    FDevise.Show ;
+  end;
 end ;
 
 Procedure TFDevise.ChargeEnreg  ;
 BEGIN
-Inherited ;
-OldDec:=TaD_DECIMALE.AsInteger ; OldQuot:=TaD_QUOTITE.AsInteger ; OldParite:=TaD_PARITEEURO.AsFloat ;
-D_CPTLETTRDEBIT.ExisteH ; D_CPTLETTRCREDIT.ExisteH ;
-D_CPTPRODEBIT.ExisteH ; D_CPTPROCREDIT.ExisteH ;
-if TaD_DEVISE.AsString=V_PGI.DevisePivot then
-   BEGIN
-   GB1.Enabled:=False ; D_CPTLETTRDEBIT.Color:=clBtnFace ; D_CPTLETTRCREDIT.Color:=clBtnFace ;
-   GB2.Enabled:=False ; D_CPTPRODEBIT.Color:=clBtnFace ; D_CPTPROCREDIT.Color:=clBtnFace ;
-   END else
-   BEGIN
-   GB1.Enabled:=True ; D_CPTLETTRDEBIT.Color:=clWindow ; D_CPTLETTRCREDIT.Color:=clWindow ;
-   GB2.Enabled:=True ; D_CPTPRODEBIT.Color:=clWindow ; D_CPTPROCREDIT.Color:=clWindow ;
-   BChancel.Enabled:=True ;
-   END ;
-D_MONNAIEINClick(nil) ;
-DisaChange ;
-if ((TAD_FONGIBLE.AsString='X') and (VH^.TenueEuro)) then
-   BEGIN
-   D_PARITEEURO.Enabled:=False ;
-   D_FONGIBLE.Enabled:=False ; 
-   END ;
-HConseil.Visible:=D_PARITEEURO.Enabled ;
-HConseil.Caption:=HM.Mess[16]+' '+D_SYMBOLE.Text+' '+D_DEVISE.Text+')' ;
-BChancelOut.Visible:=Not (D_MONNAIEIN.Checked) ;
-TSEURO.TabVisible:=not (VH^.TenueEuro and (D_DEVISE.Text=V_PGI.DevisePivot)) ;
-if not (TSEURO.TabVisible) and (Pages.ActivePage<>TSREGUL) then Pages.ActivePage:=TSREGUL ;
-PosDevPiv ;
+  Inherited ;
+  OldDec:=TaD_DECIMALE.AsInteger ; OldQuot:=TaD_QUOTITE.AsInteger ; OldParite:=TaD_PARITEEURO.AsFloat ;
+  D_CPTLETTRDEBIT.ExisteH ; D_CPTLETTRCREDIT.ExisteH ;
+  D_CPTPRODEBIT.ExisteH ; D_CPTPROCREDIT.ExisteH ;
+  if TaD_DEVISE.AsString=V_PGI.DevisePivot then
+     BEGIN
+     GB1.Enabled:=False ; D_CPTLETTRDEBIT.Color:=clBtnFace ; D_CPTLETTRCREDIT.Color:=clBtnFace ;
+     GB2.Enabled:=False ; D_CPTPRODEBIT.Color:=clBtnFace ; D_CPTPROCREDIT.Color:=clBtnFace ;
+     END else
+     BEGIN
+     GB1.Enabled:=True ; D_CPTLETTRDEBIT.Color:=clWindow ; D_CPTLETTRCREDIT.Color:=clWindow ;
+     GB2.Enabled:=True ; D_CPTPRODEBIT.Color:=clWindow ; D_CPTPROCREDIT.Color:=clWindow ;
+     BChancel.Enabled:=True ;
+     END ;
+  D_MONNAIEINClick(nil) ;
+  DisaChange ;
+  if ((TAD_FONGIBLE.AsString='X') and (VH^.TenueEuro)) then
+     BEGIN
+     D_PARITEEURO.Enabled:=False ;
+     D_FONGIBLE.Enabled:=False ; 
+     END ;
+  HConseil.Visible:=D_PARITEEURO.Enabled ;
+  HConseil.Caption:=HM.Mess[16]+' '+D_SYMBOLE.Text+' '+D_DEVISE.Text+')' ;
+  BChancelOut.Visible:=Not (D_MONNAIEIN.Checked) ;
+  TSEURO.TabVisible:=not (VH^.TenueEuro and (D_DEVISE.Text=V_PGI.DevisePivot)) ;
+  if not (TSEURO.TabVisible) and (Pages.ActivePage<>TSREGUL) then Pages.ActivePage:=TSREGUL ;
+  PosDevPiv ;
+  SetButtonEna;
 END ;
 
 Function TFDevise.EnregOK : boolean ;
@@ -261,10 +272,10 @@ end;
 procedure TFDevise.STaDataChange(Sender: TObject; Field: TField);
 begin
   inherited;
-BChancel.Enabled:=(Not (Ta.State in [dsEdit,dsInsert])) ;
-BChancelOut.Enabled:=(Not (Ta.State in [dsEdit,dsInsert])) ;
-if (TaD_DEVISE.AsString=V_PGI.DevisePivot) then BChancel.Enabled:=False ;
-if (VH^.TenueEuro and (TaD_DEVISE.Text=V_PGI.DevisePivot)) then BChancelOut.Enabled:=False ;
+  BChancel.Enabled:=(Not (Ta.State in [dsEdit,dsInsert])) ;
+  BChancelOut.Enabled:=(Not (Ta.State in [dsEdit,dsInsert])) ;
+  if (TaD_DEVISE.AsString=V_PGI.DevisePivot) then BChancel.Enabled:=False ;
+  if (VH^.TenueEuro and (TaD_DEVISE.Text=V_PGI.DevisePivot)) then BChancelOut.Enabled:=False ;
 end;
 
 Function TFDevise.MouvementDepuisEuro (St : String) : boolean ;
@@ -312,12 +323,16 @@ end;
 
 procedure TFDevise.FormShow(Sender: TObject);
 begin
-Favertir:=False ; Acreer:=False ;
+  Favertir:=False ; Acreer:=False ;
   inherited;
-//if(Ta.Eof) And (Ta.Bof) And (FTypeAction<>taConsult)then BinsertClick(Nil) ;
-DateDebutEuro.Caption:=FormatDateTime('dd mmmm yyyy',V_PGI.DateDebutEuro) ;
-PosDevPiv ;
-TSFIXING.TabVisible := (GetParamSoc('SO_PREFSYSTTARIF') and ( not (ctxCompta in V_PGI.PGIContexte)));
+  DateDebutEuro.Caption:=FormatDateTime('dd mmmm yyyy',V_PGI.DateDebutEuro) ;
+  PosDevPiv ;
+  TSFIXING.TabVisible := (GetParamSoc('SO_PREFSYSTTARIF') and ( not (ctxCompta in V_PGI.PGIContexte)));
+  if Mode = taConsult then
+  begin
+    SetButtonEna;
+    FicheReadOnly(Self);
+  end;
 end;
 
 procedure TFDevise.BValiderClick(Sender: TObject);
@@ -453,6 +468,13 @@ if Valeur(St)>999999.9 then
    While Valeur(St)>999999.9 do Delete(St,Length(St),1) ;
    D_PARITEEURO.Text:=St ; 
    END ;
+end;
+
+procedure TFDevise.SetButtonEna;
+begin
+  bInsert.Visible  := (Mode <> taConsult);
+  bDelete.Visible  := (Mode <> taConsult);
+  bValider.Visible := (Mode <> taConsult);
 end;
 
 end.

@@ -14,17 +14,21 @@ Uses  StdCtrls,Classes,
 Type
         TOM_MODEREGL = class(TOM)
         Private
-        Guide : Boolean ;
-        Protected
-        procedure OnUpdateRecord ; override ;
-        procedure OnChangeField (F : TField)  ; override ;
-        procedure OnNewRecord  ; override ;
-        procedure OnDeleteRecord ; override ;
+          Guide : Boolean ;
+          CanCreate : boolean;
 
-        procedure OnArgument (stArgument : String ) ; override ;
-        function  ModePaieOk : Boolean ;
-        function  TotalTauxOK : Boolean ;
-        function  PresenceModeRegle : Boolean ;
+          procedure SetButtonEna;
+
+        Protected
+          procedure OnUpdateRecord ; override ;
+          procedure OnChangeField (F : TField)  ; override ;
+          procedure OnNewRecord  ; override ;
+          procedure OnDeleteRecord ; override ;
+
+          procedure OnArgument (stArgument : String ) ; override ;
+          function  ModePaieOk : Boolean ;
+          function  TotalTauxOK : Boolean ;
+          function  PresenceModeRegle : Boolean ;
 End;
 
 Const
@@ -44,6 +48,12 @@ Const
 
 implementation
 
+uses
+  CommonTools
+  , HSysMenu
+  , HTB97
+  ;
+
 procedure TOM_MODEREGL.OnArgument(stArgument : String ) ;
 var
   {$IFNDEF EAGLCLIENT}
@@ -54,22 +64,29 @@ var
   CB : TCheckBox ;
   {$ENDIF}
 begin
-Inherited;
-FF:=TFFicheListe(ecran) ;
-{$IFDEF EAGLCLIENT}
-//AFAIREEAGL
-{$ELSE}
-FF.ta.filter:='MR_MODEGUIDE=''-''' ;
-x:=pos('GUIDE',stArgument);
-Guide:=(x>0) ;
-FF.ta.filtered:=(not Guide) ;
-if FF.FLeQuel<>'' then FF.BValider.Enabled:=Guide;
-{$ENDIF}
-{$IFDEF GCGC}
-CB:=TCHeckBox(FF.FindComponent('MR_EINTEGREAUTO')) ;
-if CB<>Nil then CB.Visible:=True ;
-{$ENDIF}
-SetActiveTabSheet('TABCAR');
+  Inherited;
+  FF:=TFFicheListe(ecran) ;
+  CanCreate := Tools.CanInsertedInTable('MODEREGL'{$IFDEF APPSRV}, '', '' {$ENDIF APPSRV});
+  if not CanCreate then
+  begin
+    FicheReadOnly(FF);
+//    FF.TypeAction := taConsult;
+  end;
+  SetButtonEna;
+  {$IFDEF EAGLCLIENT}
+  //AFAIREEAGL
+  {$ELSE}
+  FF.ta.filter:='MR_MODEGUIDE=''-''' ;
+  x:=pos('GUIDE',stArgument);
+  Guide:=(x>0) ;
+  FF.ta.filtered:=(not Guide) ;
+  if FF.FLeQuel<>'' then FF.BValider.Enabled:=Guide;
+  {$ENDIF}
+  {$IFDEF GCGC}
+  CB:=TCHeckBox(FF.FindComponent('MR_EINTEGREAUTO')) ;
+  if CB<>Nil then CB.Visible:=True ;
+  {$ENDIF}
+  SetActiveTabSheet('TABCAR');
 end ;
 
 procedure TOM_MODEREGL.OnChangeField (F : TField);
@@ -217,6 +234,12 @@ begin
     if Trouv then begin LastError:=8 ; LastErrorMsg:=TexteMessage[LastError] ; exit ; Result:=True ; end ;
 end ;
 
+
+procedure TOM_MODEREGL.SetButtonEna;
+begin
+  TtoolbarButton97(GetControl('bInsert')).Visible := CanCreate;
+  TtoolbarButton97(GetControl('bDelete')).Visible := CanCreate;
+end;
 
 Initialization
 registerclasses([TOM_MODEREGL]);

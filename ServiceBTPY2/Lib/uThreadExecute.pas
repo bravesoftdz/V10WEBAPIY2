@@ -3,43 +3,49 @@ unit uThreadExecute;
 interface
 
 uses
-  Classes;
+  Classes
+  , uExecuteService
+  ;
 
 type
   SynchroThread = class(TThread)
-  private
-    { Déclarations privées }
+  public
+    ServiceTreatment : TSvcSyncBTPY2Execute;
+
+    constructor Create(CreateSuspended : boolean);
+    destructor Destroy; override;
+
   protected
     procedure Execute; override;
   end;
 
+(*
   R_Params = record
     ServerName  : string;
     DBName      : string;
     LastSynchro : string;
   end;
-
+*)
 
 implementation
 
-{ Important : les méthodes et propriétés des objets de la VCL peuvent uniquement
-  être utilisés dans une méthode appelée en utilisant Synchronize, comme :
-
-      Synchronize(UpdateCaption);
-
-  où UpdateCaption serait de la forme 
-
-    procedure SynchroThread.UpdateCaption;
-    begin
-      Form1.Caption := 'Mis à jour dans un thread';
-    end; }
-
 { SynchroThread }
+
+constructor SynchroThread.Create(CreateSuspended : boolean);
+begin
+  inherited Create(CreateSuspended);
+  FreeOnTerminate := True;
+  Priority        := tpNormal;
+end;
+
+destructor SynchroThread.Destroy;
+begin
+  inherited;
+end;
 
 procedure SynchroThread.Execute;
 begin
-  
-  { Placez le code du thread ici }
+  ServiceTreatment.ServiceExecute;
 end;
 
 end.

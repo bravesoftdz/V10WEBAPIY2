@@ -370,10 +370,6 @@ END ;
   // -- Partie Sous traitance
   if NatureTravail = 2 then
   begin
-    (*
-    if IsAutoLiquidationTvaST  (Fournisseur) then TauxSt := 0
-    													 						   else TauxST := GetTauxTaxeST(Fournisseur,GetparamSocSecur('SO_BTTAXESOUSTRAIT','TN'));
-    *)
     TauxST := GetTauxTaxeST(Fournisseur,GetTvaST(Fournisseur));
     BaseAch := baseAch + MontantbaseAch;
     MontantTaxeAch:=Arrondi(CalculeMontantTaxe(BaseAch,TauxST,'',TOBL),NbDec);
@@ -1470,14 +1466,14 @@ Procedure CalculFacture ( TOBAffaire,TOBPiece,TOBPieceTrait,TOBSSTRAIT,TOBouvrag
       if EnHT then
       BEGIN
         CalculeLigneHT(TOBOL,TOBTaxesL,TOBPiece,DEV, NbDec,False,TOBTiers) ;
-        if (VenteAchat = 'VEN') and (IsDetailleCollectif) then CumuleCollectifs(TOBOL,TOBTaxesL,TOBVTECOLL,TOBSSTRAIT);
+        if {(VenteAchat = 'VEN') and} (IsDetailleCollectif) then CumuleCollectifs(TOBOL,TOBTaxesL,TOBVTECOLL,TOBSSTRAIT,TOBArticles,TOBTiers,TOBAffaire);
         ChangeParentLignesBases (TOBBasesL,TOBtaxesL,NBdec);
         //
         SommeLignePlat(TOBOL,TOBL,EnHT) ;
       END else
       BEGIN
         CalculeLigneTTC(TOBOL,TOBTaxesL,TOBPiece,DEV, NbDec,False,TOBTiers) ;
-        if (VenteAchat = 'VEN') and (IsDetailleCollectif) then CumuleCollectifs(TOBOL,TOBTaxesL,TOBVTECOLL,TOBSSTRAIT);
+        if {(VenteAchat = 'VEN') and }(IsDetailleCollectif) then CumuleCollectifs(TOBOL,TOBTaxesL,TOBVTECOLL,TOBSSTRAIT,TOBArticles,TOBTiers,TOBAffaire);
         ChangeParentLignesBases (TOBBasesL,TOBtaxesL,NBdec);
         //
         SommeLignePlat(TOBOL,TOBL,EnHT) ;
@@ -1661,7 +1657,7 @@ BEGIN
             end;
           end;
           CalculeLigneHT(TOBL,TOBTaxesL,TOBPiece,DEV, NbDec,False,TOBTiers) ;
-          if (VenteAchat = 'VEN') and (IsDetailleCollectif) then CumuleCollectifs(TOBL,TOBTaxesL,TOBVTECOLL,TOBSSTRAIT);
+          if {(VenteAchat = 'VEN') and} (IsDetailleCollectif) then CumuleCollectifs(TOBL,TOBTaxesL,TOBVTECOLL,TOBSSTRAIT,TOBArticles,TOBTiers,TOBAffaire);
           ChangeParentLignesBases (TOBBasesL,TOBtaxesL,NBdec);
           //
           if (not IsVariante(TOBL)) and (not IsLigneFromCentralis(TOBL)) then
@@ -1671,7 +1667,7 @@ BEGIN
         END else
         BEGIN
           CalculeLigneTTC(TOBL,TOBTaxesL,TOBPiece,DEV, NbDec,False,TOBTiers) ;
-          if (VenteAchat = 'VEN') and (IsDetailleCollectif) then CumuleCollectifs(TOBL,TOBTaxesL,TOBVTECOLL,TOBSSTRAIT);
+          if {(VenteAchat = 'VEN') and }(IsDetailleCollectif) then CumuleCollectifs(TOBL,TOBTaxesL,TOBVTECOLL,TOBSSTRAIT,TOBArticles,TOBTiers,TOBAffaire);
           ChangeParentLignesBases (TOBBasesL,TOBtaxesL,NBdec);
           //
           if (not IsVariante(TOBL)) and (not IsLigneFromCentralis(TOBL)) then
@@ -2431,10 +2427,6 @@ begin
     //
     if TOBB.GetValue('GPB_TYPEINTERV') = 'Y00' then
     begin
-      (*
-			if IsAutoLiquidationTvaST (TOBB.GetValue('GPB_FOURN')) then TaxeSt := 0
-                                  													 else TaxeST := GetTauxTaxeST(TOBB.GetValue('GPB_FOURN'),GetparamSocSecur('SO_BTTAXESOUSTRAIT','TN'));
-      *)
       TaxeSt := GetTauxTaxeST(TOBB.GetValue('GPB_FOURN'),GetTvaST(TOBB.GetValue('GPB_FOURN')));
 
     	ValeurCalc:=Arrondi(CalculeMontantTaxe(TOBB.GetValue('GPB_BASEACHAT'),TaxeST,'',nil),DEV.Decimale);

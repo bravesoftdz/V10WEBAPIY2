@@ -54,12 +54,13 @@ uses
   , SysUtils
   , wCommuns
   , uDbxDataSet
-  , BRGPDTIERSMUL_TOF         
+  , BRGPDTIERSMUL_TOF
   , BRGPDRESSOURCEMUL_TOF
   , BRGPDUTILISATMUL_TOF
   , BRGPDSUSPECTMUL_TOF
   , BRGPDCONTACTMUL_TOF
   , BTWSTABLEAUTO_TOF
+  , CommonTools
   ;
 
 class function OpenForm.SetArgument(Argument: string): string;
@@ -114,7 +115,7 @@ begin
       if not ExJaiLeDroitConcept(TConcept(bt511),False) then
         stAction:= 'ACTION=CONSULTATION';
     stArgument := SetArgument(Argument);
-    if ForceConsult then
+    if (ForceConsult) or (not Tools.CanInsertedInTable('TIERS'{$IFDEF APPSRV}, '', '' {$ENDIF APPSRV})) then
       stAction:= 'ACTION=CONSULTATION';
     Result := AGLLanceFiche('GC', frm_ThirdCliPro, '', Auxiliary, stAction + ';MONOFICHE;T_NATUREAUXI=' + ThirdType + stArgument);
   end else

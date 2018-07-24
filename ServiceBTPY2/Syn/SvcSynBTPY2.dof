@@ -90,7 +90,7 @@ MaxStackSize=1048576
 ImageBase=4194304
 ExeDescription=
 [Directories]
-OutputDir=$(CBP_ROOT)\bin
+OutputDir=$(CBP_ROOT)\binWS
 UnitOutputDir=$(CBP_ROOT)\DCU\SvcSynBTPY2
 PackageDLLOutputDir=
 PackageDCPOutputDir=
@@ -106,7 +106,7 @@ Launcher=
 UseLauncher=0
 DebugCWD=
 [Version Info]
-IncludeVerInfo=0
+IncludeVerInfo=1
 AutoIncBuild=0
 MajorVer=1
 MinorVer=0
@@ -120,8 +120,8 @@ DLL=0
 Locale=1036
 CodePage=1252
 [Version Info Keys]
-CompanyName=
-FileDescription=
+CompanyName=LSE
+FileDescription=LSE 
 FileVersion=1.0.0.0
 InternalName=
 LegalCopyright=
@@ -141,5 +141,6 @@ Item0=WinTypes=Windows;WinProcs=Windows;DbiTypes=BDE;DbiProcs=BDE;DbiErrs=BDE;
 Count=1
 Item0=$(CBP_ROOT)\DCU\SvcSynBTPY2
 [HistoryLists\hlOutputDirectorry]
-Count=1
-Item0=$(CBP_ROOT)\bin
+Count=2
+Item0=$(CBP_ROOT)\binWS
+Item1=$(CBP_ROOT)\bin

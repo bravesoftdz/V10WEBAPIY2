@@ -116,7 +116,13 @@ type
 
 implementation
 
-uses PrintDBG,Devise,UtilPGI;
+uses
+  PrintDBG
+  , Devise
+  , UtilPGI
+  , CommonTools
+  , HTB97
+  ;
 
 {$R *.DFM}
 
@@ -133,86 +139,113 @@ If Sur2Dates And SurEuro Then
 END ;
 
 procedure TFChancel.FormShow(Sender: TObject);
-Var QLoc : TQuery ;
-    DD : TDateTime ;
+Var
+  QLoc : TQuery ;
+  DD : TDateTime ;
 begin
-// Appel de la fonction d'empilage dans la liste des fiches
-AglEmpileFiche(Self) ;
-H_DateDu.Text:=StDate1900 ; H_DateAu.Text:=StDate2099 ;
-if Not SurEuro then
-   BEGIN
-   H_DATEAU.Text:=DateToStr(V_PGI.DatedebutEuro-1) ;
-   RGSens.ItemIndex:=1 ; RGSens.Visible:=False ;
-   END ;
-GereSens(False) ;
-if SurEuro then HelpContext:=1150200 ;
-CodeDevise.Values.Clear ; CodeDevise.Items.Clear ;
-QLoc:=OpenSql('Select D_DEVISE,D_LIBELLE From DEVISE Where D_DEVISE<>"'+V_PGI.DevisePivot+'" Order by D_DEVISE',True,-1,'',true);
-While Not QLoc.Eof do
-   BEGIN
-   CodeDevise.Values.Add(QLoc.Fields[0].AsString) ; CodeDevise.Items.Add(QLoc.Fields[1].AsString) ;
-   QLoc.Next ;
-   END ;
-Ferme(QLoc) ;
-TChancell.Open ;
-if Lequel<>'' then
-   BEGIN
-   if (Action<>tacreat) And (Not Sur2Dates) then
-      BEGIN
+  // Appel de la fonction d'empilage dans la liste des fiches
+  AglEmpileFiche(Self) ;
+  H_DateDu.Text:=StDate1900 ; H_DateAu.Text:=StDate2099 ;
+  if Not SurEuro then
+  begin
+     H_DATEAU.Text:=DateToStr(V_PGI.DatedebutEuro-1) ;
+     RGSens.ItemIndex:=1 ; RGSens.Visible:=False ;
+  end;
+  GereSens(False) ;
+  if SurEuro then HelpContext:=1150200 ;
+  CodeDevise.Values.Clear ; CodeDevise.Items.Clear ;
+  QLoc:=OpenSql('Select D_DEVISE,D_LIBELLE From DEVISE Where D_DEVISE<>"'+V_PGI.DevisePivot+'" Order by D_DEVISE',True,-1,'',true);
+  While Not QLoc.Eof do
+  begin
+     CodeDevise.Values.Add(QLoc.Fields[0].AsString) ; CodeDevise.Items.Add(QLoc.Fields[1].AsString) ;
+     QLoc.Next ;
+  end;
+  Ferme(QLoc) ;
+  TChancell.Open ;
+  if not Tools.CanInsertedInTable('CHANCELL'{$IFDEF APPSRV}, '', '' {$ENDIF APPSRV}) then
+  begin
+    Action := taConsult;
+  end else
+  begin
+    if Lequel<>'' then
+    begin
+      if (Action<>tacreat) And (Not Sur2Dates) then
+      begin
       if FirstDate>0 then DD:=FirstDate else DD:=V_PGI.DateEntree ;
       if not FindLaKey(TChancell,[Lequel,DD]) then
-         BEGIN
-         if ChercheEnreg(DD) then
-            BEGIN
-            MessageAlerte(MsgBox.Mess[7]) ; PostMessage(Handle,WM_CLOSE,0,0) ; Exit ;
-            END else Action:=taCreat ;
-         END ;
-      END ;
-   CodeDevise.Value:=Lequel ;
-   If JustOne Then CodeDevise.Enabled:=FALSE ;
-   If (Double(FirstDate)>0) Then
-      BEGIN
-      H_DATEDU.Text:=DateToStr(FirstDate) ;
-      OkDate.Checked:=TRUE ;
-      END else
-      BEGIN
-      if MonnaieIn then
-        BEGIN
-        H_DATEAU.Text:=DateToStr(V_PGI.DateDebutEuro-1) ;
-        END else
-        BEGIN
-        if SurEuro then H_DATEDU.Text:=DateToStr(V_PGI.DateDebutEuro)
-                   else H_DATEAU.Text:=DateToStr(V_PGI.DateDebutEuro-1) ;
-        END ;
-      END ;
-   InitSur2Dates ;
-   ChangeIndex ;
-   if Action=taCreat Then Bouge(nbInsert) ;
-   END else
-   BEGIN
-   If CodeDevise.Values.Count>0 Then CodeDevise.Value:=CodeDevise.Values[0] ;
-   If Sur2Dates And SurEuro Then BEGIN InitSur2Dates ; ChangeIndex ; END ;
-   END ;
-if Action=taConsult then BEGIN FicheReadOnly(Self) ; BPurge.Enabled:=False ; END ;
+      begin
+        if ChercheEnreg(DD) then
+        begin
+          MessageAlerte(MsgBox.Mess[7]) ;
+          PostMessage(Handle,WM_CLOSE,0,0) ;
+          Exit ;
+        end else
+          Action:=taCreat ;
+        end;
+      end;
+      CodeDevise.Value:=Lequel ;
+      if JustOne then
+        CodeDevise.Enabled:=FALSE ;
+      if (Double(FirstDate)>0) then
+      begin
+        H_DATEDU.Text:=DateToStr(FirstDate) ;
+        OkDate.Checked:=TRUE ;
+      end else
+      begin
+        if MonnaieIn then
+        begin
+          H_DATEAU.Text:=DateToStr(V_PGI.DateDebutEuro-1) ;
+        end else
+        begin
+          if SurEuro then H_DATEDU.Text:=DateToStr(V_PGI.DateDebutEuro)
+                     else H_DATEAU.Text:=DateToStr(V_PGI.DateDebutEuro-1) ;
+        end;
+      end;
+      InitSur2Dates ;
+      ChangeIndex ;
+      if Action=taCreat then
+        Bouge(nbInsert) ;
+    end else
+    begin
+      if CodeDevise.Values.Count>0 Then CodeDevise.Value:=CodeDevise.Values[0] ;
+      if Sur2Dates And SurEuro then
+      begin
+        InitSur2Dates ;
+        ChangeIndex ;
+      end;
+    end;
+  end;
+  if Action=taConsult then
+  begin
+    FicheReadOnly(Self);
+    BPurge.Enabled:=False;
+    bValider.Enabled := False;
+    FListe.Enabled := False;
+  end;
 end;
 
 
 Procedure FicheChancel(Quel : String ; JusteUne : Boolean ; DateDeb : TDateTime ; Action : TActionFiche ; SurEuro : boolean) ;
-var FChancel : TFChancel ;
+var
+  FChancel : TFChancel ;
 begin
-if _Blocage(['nrCloture'],True,'nrAucun') then Exit ;
-FChancel:= TFChancel.Create(Application) ;
-try
-  FChancel.Lequel:=Quel ; FCHancel.JustOne:=JusteUne ;
-  FChancel.FirstDate:=0 ; FChancel.LastDate:=0 ;
-  FChancel.Action:=Action ; FChancel.Sur2Dates:=FALSE ;
-  FChancel.SurEuro:=SurEuro ;
-  If Double(DateDeb)>0 Then BEGIN FChancel.FirstDate:=DateDeb ; END ;
-  FChancel.ShowModal ;
+  if _Blocage(['nrCloture'],True,'nrAucun') then Exit ;
+  FChancel:= TFChancel.Create(Application) ;
+  try
+    FChancel.Lequel    := Quel;
+    FCHancel.JustOne   := JusteUne;
+    FChancel.FirstDate := 0;
+    FChancel.LastDate  := 0;
+    FChancel.Action    := Action;
+    FChancel.Sur2Dates := FALSE;
+    FChancel.SurEuro   := SurEuro;
+    if Double(DateDeb) > 0 then
+      FChancel.FirstDate:=DateDeb ;
+    FChancel.ShowModal ;
   finally
-  FChancel.Free ;
+    FChancel.Free ;
   end ;
-Screen.Cursor:=SyncrDefault ;
+  Screen.Cursor:=SyncrDefault ;
 end ;
 
 Procedure FicheChancelSur2Dates(Quel : String ; DateDeb,DateFin : TDateTime ; Action : TActionFiche ; SurEuro : boolean) ;
@@ -515,7 +548,10 @@ procedure TFChancel.BLastClick(Sender: TObject);
 begin Bouge(nbLast) ; end;
 
 procedure TFChancel.FormCreate(Sender: TObject);
-begin PopUpMenu:=ADDMenuPop(PopUpMenu,'','') ; Lequel:='' ; end;
+begin
+  PopUpMenu:=ADDMenuPop(PopUpMenu,'','') ;
+  Lequel:='' ;
+end;
 
 procedure TFChancel.BImprimerClick(Sender: TObject);
 var MyBookmark: TBookmark;

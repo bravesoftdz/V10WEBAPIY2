@@ -13,13 +13,18 @@ type
   TFRegimeTVA = class(TFTablette)
     Msg: THMsgBox;
     procedure TChoixCodBeforeDelete(DataSet: TDataSet);
+
   private { Déclarations privées }
-  Function SupprimeRegimeTva : Boolean ;
-  public  { Déclarations publiques }
-  Function Supprime : Boolean ; override ;
+    Function SupprimeRegimeTva : Boolean ;
+    public  { Déclarations publiques }
+    Function Supprime : Boolean ; override ;
   end;
 
 implementation
+
+uses
+  CommonTools
+  ;
 
 {$R *.DFM}
 
@@ -27,23 +32,25 @@ procedure RegimesTVA ;
 var X : TFRegimeTVA ;
     PP : THPanel ;
 begin
-if Blocage(['nrCloture'],False,'nrAucun') then Exit ;
-X:=TFRegimeTVA.Create(Application) ;
-X.FQuoi:='TTREGIMETVA' ;
-PP:=FindInsidePanel ;
-if PP=Nil then
-   BEGIN
-   try
-   X.ShowModal ;
-   finally
-   X.Free ;
-   end ;
-   Screen.Cursor:=SyncrDefault ;
-   END else
-   BEGIN
-   InitInside(X,PP) ;
-   X.Show ;
-   END ;
+  if Blocage(['nrCloture'],False,'nrAucun') then Exit ;
+  X         := TFRegimeTVA.Create(Application) ;
+  X.FQuoi   := 'TTREGIMETVA' ;
+  if not Tools.CanInsertedInTable('CHOIXCOD'{$IFDEF APPSRV}, '', '' {$ENDIF APPSRV}) then
+    X.FAction := taConsult;
+  PP:=FindInsidePanel ;
+  if PP=Nil then
+     BEGIN
+     try
+     X.ShowModal ;
+     finally
+     X.Free ;
+     end ;
+     Screen.Cursor:=SyncrDefault ;
+     END else
+     BEGIN
+     InitInside(X,PP) ;
+     X.Show ;
+     END ;
 end ;
 
 Function TFRegimeTVA.Supprime : Boolean ;
@@ -85,8 +92,8 @@ END ;
 
 procedure TFRegimeTVA.TChoixCodBeforeDelete(DataSet: TDataSet);
 begin
-inherited;
-ExecuteSql('Delete From TXCPTTVA Where TV_REGIME="'+TChoixCod.FindField(Fprefixe+'_CODE').AsString+'"') ;
+  inherited;
+  ExecuteSql('Delete From TXCPTTVA Where TV_REGIME="'+TChoixCod.FindField(Fprefixe+'_CODE').AsString+'"') ;
 end;
 
 end.

@@ -626,7 +626,13 @@ const DOU_AUCUN		: integer = 0;
 function AppelParamSociete (Init : Boolean=false) : boolean;
 
 implementation
-uses UTOF_VideInside,UiUtil,BTTVA_TOF,BTPUTil;
+uses
+  UTOF_VideInside
+  , UiUtil
+  , BTTVA_TOF
+  , BTPUTil
+  , CommonTools
+  ;
 
 {$R *.DFM}
 
@@ -2048,7 +2054,10 @@ end;
 procedure TFassistParamSoc.FormesJuridiquesClick(Sender: TObject);
 begin
   inherited;
-  ParamTable('ttFormeJuridique',taCreat,0,Nil) ;
+  if Tools.CanInsertedInTable('CHOIXCOD'{$IFDEF APPSRV}, '', '' {$ENDIF APPSRV}) then
+    ParamTable('ttFormeJuridique', taCreat, 0, Nil)
+  else
+    ParamTable('ttFormeJuridique', taConsult, 0, Nil);
   AvertirTable ('ttFormeJuridique');
 end;
 

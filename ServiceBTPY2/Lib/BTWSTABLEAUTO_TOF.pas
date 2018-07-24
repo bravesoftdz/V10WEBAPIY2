@@ -112,7 +112,7 @@ begin
   for Cpt := 0 to pred(TobTables.Detail.count) do
   begin
     TobTableL := TobTables.Detail[Cpt];
-    TobTableL.SetString('DATA', Tools.GetExtractTypeFromTableName(TobTableL.GetString('BWT_NOMTABLE')));
+    TobTableL.SetString('DATA', TGetFromDSType.ExtractType(TobTableL.GetString('BWT_NOMTABLE')));
   end;
   CheckNumCol := 4;
   LstTables.OnDblClick := LstTables_OnDlbclick;

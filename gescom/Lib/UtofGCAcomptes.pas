@@ -1777,36 +1777,39 @@ end;
 
 procedure TOF_GCACOMPTES.BFermerClick;
 begin
-  {$IFDEF BTP}
-  if (ModeGestion <> ttaNormal) then
+//  if Action <> taConsult then
   begin
-    EnErreur := true;
-    Exit;
-  end;
-  {$ENDIF}
-  if TobAcomptes.detail.count <> 0 then
-  begin
-    PostMessage(fCurrentOnglet.GS.Handle, WM_KEYDOWN, VK_TAB, 0);
-    application.processMessages;
-  end;
-  LastError := 0;
-  EnErreur := False;
-  if TobAcomptes.detail.count > 0 then
-  begin
-    TobAcomptes.GetGridDetail(fCurrentOnglet.GS, fCurrentOnglet.GS.rowcount - 1, 'ACOMPTES', LesColonnes);
-    if (TobAcomptes.IsOneModifie(True)) then
+    {$IFDEF BTP}
+    if (ModeGestion <> ttaNormal) then
     begin
-      if PGIAsk('Voulez-vous enregistrer les modifications ?', Ecran.Caption) = mrYes then
+      EnErreur := true;
+      Exit;
+    end;
+    {$ENDIF}
+    if TobAcomptes.detail.count <> 0 then
+    begin
+      PostMessage(fCurrentOnglet.GS.Handle, WM_KEYDOWN, VK_TAB, 0);
+      application.processMessages;
+    end;
+    LastError := 0;
+    EnErreur := False;
+    if TobAcomptes.detail.count > 0 then
+    begin
+      TobAcomptes.GetGridDetail(fCurrentOnglet.GS, fCurrentOnglet.GS.rowcount - 1, 'ACOMPTES', LesColonnes);
+      if (TobAcomptes.IsOneModifie(True)) then
       begin
-        LastError := 0;
-        OnUpdate;
-        if LastError <> 0 then exit;
+        if PGIAsk('Voulez-vous enregistrer les modifications ?', Ecran.Caption) = mrYes then
+        begin
+          LastError := 0;
+          OnUpdate;
+          if LastError <> 0 then exit;
+        end;
       end;
     end;
+    TobAcomptes.ClearDetail;
+    TobAcomptes.Dupliquer(TobAcomptesOrigine, True, True, True);
+    LastError := 0;
   end;
-  TobAcomptes.ClearDetail;
-  TobAcomptes.Dupliquer(TobAcomptesOrigine, True, True, True);
-  LastError := 0;
 end;
 
 procedure TOF_GCACOMPTES.OnCancel;

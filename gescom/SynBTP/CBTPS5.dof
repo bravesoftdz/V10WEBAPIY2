@@ -90,8 +90,8 @@ MaxStackSize=1048576
 ImageBase=4194304
 ExeDescription=
 [Directories]
-OutputDir=$(CBP_ROOT)\bin
-UnitOutputDir=$(CBP_ROOT)\DCU\CBTPS5
+OutputDir=$(CBP_ROOT)\binWS
+UnitOutputDir=$(CBP_ROOT)\DCU\CBTPS5WS
 PackageDLLOutputDir=
 PackageDCPOutputDir=
 SearchPath=..\..\COMMUN\LIB;..\..\CommunBTP\Batiprix;..\..\CommunBTP\LIB;$(CBP_ROOT)\;$(CBP_ROOT)\Paquets;$(CBP_ROOT)\Sources;$(CBP_ROOT)\Lib;$(CBP_ROOT)\Bin;$(DELPHI)\Lib
@@ -130,3 +130,19 @@ OriginalFilename=
 ProductName=LSE BUSINESS BTP
 ProductVersion=10.0.0.155
 Comments=Référence base 998
+[HistoryLists\hlConditionals]
+Count=2
+Item0=APPSRV;GCGC;BTP;AFFAIRE;GRC;CTI;BUSINESSPLACE;DBXPRESS;DBXADO;V10
+Item1=APPSRV1;GCGC;BTP;AFFAIRE;GRC;CTI;BUSINESSPLACE;DBXPRESS;DBXADO;V10
+[HistoryLists\hlUnitAliases]
+Count=1
+Item0=WinTypes=Windows;WinProcs=Windows;DbiTypes=BDE;DbiProcs=BDE;DbiErrs=BDE;
+[HistoryLists\hlSearchPath]
+Count=1
+Item0=..\..\COMMUN\LIB;..\..\CommunBTP\Batiprix;..\..\CommunBTP\LIB;$(CBP_ROOT)\;$(CBP_ROOT)\Paquets;$(CBP_ROOT)\Sources;$(CBP_ROOT)\Lib;$(CBP_ROOT)\Bin;$(DELPHI)\Lib
+[HistoryLists\hlUnitOutputDirectory]
+Count=1
+Item0=$(CBP_ROOT)\DCU\CBTPS5WS
+[HistoryLists\hlOutputDirectorry]
+Count=1
+Item0=$(CBP_ROOT)\binWS

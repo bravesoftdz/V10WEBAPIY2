@@ -39,18 +39,18 @@ function BTLanceFicheParamWSCegid(Nat,Cod : String ; Range,Lequel,Argument : str
 Type
   TOF_BTPARAMWS = Class (TOF)
   private
-    ServerName : THEdit;
-    Port       : THEdit;
-    FolderName : THValComboBox;
-    WSCegid    : TconnectCEGID;
+    ServerName    : THEdit;
+    Port          : THEdit;
+    FolderName    : THValComboBox;
+    WSCegid       : TconnectCEGID;
     TOBFolderName : TOB;
-    LoadFolderNameResponse : WideString;
     SearchFolders : TToolbarButton97;
 
     procedure ChangeValues(Sender : TObject);
     procedure SetFloderList(Sender : TObject);
-
+   {$IF defined(APPSRV)}
     procedure TstWApi_Onclick(Sender : TObject);
+   {$IFEND APPSRV}
 
   public
     procedure OnNew                    ; override ;
@@ -70,10 +70,10 @@ uses
   , ed_Tools
   , UConnectWSConst
   , uWSDataService
-//*********** POUR TEST
+ {$IF defined(APPSRV)}
   , uExecuteService
   , CommonTools
-//*********** Fin POUR TEST
+ {$IFEND APPSRV}
   ;
 
 function BTLanceFicheParamWSCegid(Nat, Cod : String ; Range,Lequel,Argument : string) : string;
@@ -127,9 +127,12 @@ begin
   SearchFolders.OnClick := SetFloderList;
   ServerName.OnChange   := ChangeValues;
   Port.OnChange         := ChangeValues;
-
+ {$IF defined(APPSRV)}
+  TToolbarButton97(GetControl('TSTWEBAPI')).Visible := True;
   TToolbarButton97(GetControl('TSTWEBAPI')).OnClick := TstWApi_Onclick;
-
+ {$ELSE APPSRV}
+  TToolbarButton97(GetControl('TSTWEBAPI')).Visible := False;
+ {$IFEND APPSRV}
 end ;
 
 procedure TOF_BTPARAMWS.OnClose ;
@@ -165,6 +168,7 @@ var
   Cpt            : integer;
   TOBFolderNameL : TOB;
   FolderValue    : string;
+  LoadFolderNameResponse : WideString;
   ItemIndex      : integer;
 {$IFEND !APPSRV}
 begin
@@ -206,16 +210,19 @@ begin
   {$IFEND !APPSRV}
 end;
 
+{$IF defined(APPSRV)}
 procedure TOF_BTPARAMWS.TstWApi_Onclick;
 var
   BTPY2Exec : TSvcSyncBTPY2Execute;
   AppName   : string;
 begin
   { Test du service }
-  AppName   := ExtractFilePath(Application.ExeName) + 'SvcSynBTPY2.exe';
+  AppName   := ExtractFilePath(Application.ExeName); // + 'SvcSynBTPY2.exe';
   BTPY2Exec := TSvcSyncBTPY2Execute.Create;
   try
-    BTPY2Exec.ApplicationName := AppName;
+    BTPY2Exec.IniFilePath := AppName + 'SvcSynBTPY2.ini';
+    BTPY2Exec.AppFilePath := AppName + 'SvcSynBTPY2.exe';
+    BTPY2Exec.LogFilePath := AppName + 'SvcSynBTPY2.log';
     BTPY2Exec.CreateObjects;
     try
       BTPY2Exec.InitApplication;
@@ -225,12 +232,12 @@ begin
       end;
     finally
       BTPY2Exec.FreeObjects;
-//      WriteLog(ssbylWindows, 'Fin d''exécution du service SvcSynBTPY2', 0);
     end;
   finally
     BTPY2Exec.Free;
   end;
 end;
+{$IFEND APPSRV}
   
 Initialization
   registerclasses ( [ TOF_BTPARAMWS ] ) ;

@@ -60,6 +60,8 @@ type
     fboAvecMaj: Boolean;
     ReferenceMajAuto: String;
     {$ENDIF}
+    CanCreate : boolean;
+
     procedure R_PAYSChange(Sender: TObject);
     procedure R_TYPEPAYSChange(Sender : TObject);
     procedure R_NUMEROCOMPTEKeyPress(Sender: TObject; var Key: Char);
@@ -70,6 +72,8 @@ type
     procedure SauveRib(Vide: Boolean);
     {$ENDIF}
   	procedure FlisteDblClick (Sender : TObject);
+    procedure SetButtonEna;
+
   public
     procedure OnNewRecord; override;
     procedure OnUpdateRecord; override;
@@ -114,14 +118,18 @@ const
 implementation
 
 uses
-{$IFDEF MODENT1}
-  CPTypeCons,
-  CPProcGen,
-{$ENDIF MODENT1}
-{$IFDEF AFFAIRE} // BDU - 19/04/07 - PDev : 5063
-  UtofAfMajChampsAuto, // dans \gescom\liba
-{$ENDIF}
-  uTobDebug, TntDBCtrls;
+  uTobDebug
+  , TntDBCtrls
+  , CommonTools
+  , HSysMenu
+  {$IFDEF MODENT1}
+  , CPTypeCons
+  , CPProcGen
+  {$ENDIF MODENT1}
+  {$IFDEF AFFAIRE}
+  , UtofAfMajChampsAuto
+  {$ENDIF}
+  ;
 
 {$IFDEF AFFAIRE} // BDU - 19/04/07 - PDev : 5063
 type
@@ -199,6 +207,13 @@ var
 {$ENDIF}
 begin
   inherited;
+  CanCreate := Tools.CanInsertedInTable('RIB'{$IFDEF APPSRV}, '', '' {$ENDIF APPSRV});
+  if not CanCreate then
+  begin
+    FicheReadOnly(TFFicheListe(ecran));
+    TFFicheListe(ecran).TypeAction := taConsult;
+  end;
+  SetButtonEna;
   {$IFDEF AFFAIRE} // BDU - 19/04/07 - PDev : 5063
   fboAvecMaj := False;
   {$ENDIF}
@@ -1189,6 +1204,12 @@ begin
 //  TFFicheListe(Ecran).STa.
   TFFicheListe(Ecran).Retour := THDBEdit(getControl('R_NUMERORIB')).Text;
   TFFicheListe(Ecran).Close;
+end;
+
+procedure Tom_RIB.SetButtonEna;
+begin
+  TtoolbarButton97(GetControl('bInsert')).Visible := CanCreate;
+  TtoolbarButton97(GetControl('bDelete')).Visible := CanCreate;
 end;
 
 initialization

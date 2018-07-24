@@ -13,7 +13,11 @@ Type
      TOM_MODEPAIE = Class (TOM)
        Private
        ControleChange : Boolean ;
+       CanCreate : boolean;
+
        Function DansModRegl : Boolean ;
+       procedure SetButtonEna;
+
        Public
        procedure OnChangeField (F : TField)  ; override ;
        procedure OnNewRecord  ; override ;
@@ -58,24 +62,35 @@ const
                      );
 implementation
 
+uses
+  CommonTools
+  , HSysMenu
+  , HTB97
+  ;
+
 procedure Tom_MODEPAIE.OnArgument(Arguments : String );
-var x:integer ;
+var
+  x:integer ;
 begin
-Inherited;
-x:=pos('ZOOM',Arguments);
-SetControlChecked('IFZOOM',(x>0)) ;
-{$IFDEF GESCOM}
-SetControlVisible('PCOMPLEMENTFO',True) ;
-SetControlProperty('PCOMPLEMENTFO','Caption','Ventes Comptoir');
-SetControlProperty('MP_DEVISEFO','DataType','TTDEVISE');
-{$ELSE}
-SetControlVisible('PCOMPLEMENTFO',(ctxMode in V_PGI.PGIContexte)) ;
-{$ENDIF}
-SetActiveTabSheet('PGeneral');
-SetControlVisible('BCOMPLEMENT',Not (ctxFo in V_PGI.PGIContexte)) ;
-//uniquement en line
-//SetControlVisible('MP_CONDITION',false) ;
-//SetControlVisible('PCONDMT',false) ;
+  Inherited;
+  CanCreate := Tools.CanInsertedInTable('MODEPAIE'{$IFDEF APPSRV}, '', '' {$ENDIF APPSRV});
+  if not CanCreate then
+  begin
+    FicheReadOnly(TFFicheListe(ecran));
+    TFFicheListe(ecran).TypeAction := taConsult;
+  end;
+  SetButtonEna;
+  x:=pos('ZOOM',Arguments);
+  SetControlChecked('IFZOOM',(x>0)) ;
+  {$IFDEF GESCOM}
+  SetControlVisible('PCOMPLEMENTFO',True) ;
+  SetControlProperty('PCOMPLEMENTFO','Caption','Ventes Comptoir');
+  SetControlProperty('MP_DEVISEFO','DataType','TTDEVISE');
+  {$ELSE}
+  SetControlVisible('PCOMPLEMENTFO',(ctxMode in V_PGI.PGIContexte)) ;
+  {$ENDIF}
+  SetActiveTabSheet('PGeneral');
+  SetControlVisible('BCOMPLEMENT',Not (ctxFo in V_PGI.PGIContexte)) ;
 end;
 
 procedure Tom_MODEPAIE.OnChangeField(F: TField);
@@ -391,6 +406,12 @@ if F.FieldName='MPC_CPTEREGLE' then
     end;
   end ;
 END ;
+
+procedure TOM_MODEPAIE.SetButtonEna;
+begin
+  TtoolbarButton97(GetControl('bInsert')).Visible := CanCreate;
+  TtoolbarButton97(GetControl('bDelete')).Visible := CanCreate;
+end;
 
 Initialization
 registerclasses([Tom_MODEPAIE]);

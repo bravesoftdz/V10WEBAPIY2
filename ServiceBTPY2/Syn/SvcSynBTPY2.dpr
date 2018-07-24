@@ -12,8 +12,10 @@ uses
   uExecuteService in '..\Lib\uExecuteService.pas',
   UConnectWSCEGID in '..\..\CONNECTWS\UConnectWSCEGID.pas',
   TRAFileUtil in '..\..\commun\Lib\TRAFileUtil.pas',
-  Ulog in '..\..\commun\Lib\Ulog.pas';
-
+  Ulog in '..\..\commun\Lib\Ulog.pas',
+  Zip in '..\..\commun\Lib\Zip.pas',
+  ZipDlls in '..\..\commun\Lib\ZipDlls.pas';
+  
 {$R *.RES}
 
 begin

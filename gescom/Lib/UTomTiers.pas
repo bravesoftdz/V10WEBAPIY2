@@ -63,9 +63,7 @@ Type
          TOBTIERSBTP : TOB;
          Old_Payeur, Old_Facture, Old_Livre : String;
          TE_LivreEnter, TE_FactureEnter: String;
-//  BBI Fiche 11227
          TE_PayeurEnter: String;
-//  BBI Fin Fiche 11227
          EtatRisque : string;
          TOBProspect,TOBSuspect,TOBSuspectCompl : TOB;
          CritereSuspect : Boolean;
@@ -88,11 +86,11 @@ Type
          CodeBarre      : THEdit;
          TypeCodeBarre  : THValComboBox;
          BCodeBarre     : TToolbarButton97;
-         //
+
          function  GestionFournisseur : boolean;
          procedure BCODEBARREOnClick(Sender : Tobject);
-         //
          function  RechercheTiers (Tiers : string; NatureTiers, stPayeur : string;var LibelleTiers : string) : boolean;
+
 	     procedure AfterFormShow;
          procedure AfficheContactTiers;
          procedure SetLastError (Num : integer; ou : string );
@@ -350,24 +348,25 @@ implementation
 
 uses
   ParamSoc
-  ,uTomAdresses
-  ,SaisieList
+  , uTomAdresses
+  , SaisieList
   {$IFDEF EDI}
-    ,EDITiers
+  , EDITiers
   {$ENDIF}
-  ,Tarifs
-  ,MailOl
-  ,Shellapi
-  ,Web
-  ,EntRt
-  ,CtiAlerte
-  ,UseriaLSe
-  ,UTilFonctionCalcul
-  ,UtilArticle
-  ,ConfidentAffaire
-  ,UFonctionsCBP
+  , Tarifs
+  , MailOl
+  , Shellapi
+  , Web
+  , EntRt
+  , CtiAlerte
+  , UseriaLSe
+  , UTilFonctionCalcul
+  , UtilArticle
+  , ConfidentAffaire
+  , UFonctionsCBP
   , FormsName
   , CommonTools
+  , HSysMenu
   ;
 
 /////////////////////////////////////////////
@@ -448,32 +447,25 @@ End;
 /////////////////////////////////////////////////////////////////////////////
 
 procedure TOM_TIERS.OnArgument (Arguments : String );
-var Critere,ChampMul,ValMul : string;
-    i : integer;
-    kk : integer ;
-    pop : TPopupMenu ;
-    stmp,st,stAuxi : string; // GRC
-    tsArgsReception : TStringList;
-    cc : ThEdit;
-    Ctrl: TControl;
-{$IFNDEF EAGLCLIENT} // JT eQualité 11030
-    Confidentiel : TDBCheckBox;
-{$ENDIF EAGLCLIENT}
+var
+  Critere,ChampMul,ValMul : string;
+  i : integer;
+  kk : integer ;
+  pop : TPopupMenu ;
+  stmp,st,stAuxi : string;
+  tsArgsReception : TStringList;
+  cc : ThEdit;
+  Ctrl: TControl;
+  CanInsertChoixCod : boolean;
+  {$IFNDEF EAGLCLIENT}
+  Confidentiel : TDBCheckBox;
+  {$ENDIF EAGLCLIENT}
 begin
-inherited ;
+  inherited ;
     TOBTIERSBTP := TOB.Create ('BTIERS',nil,-1);
     //
     //FV1 : 25/06/2015 - FS#1619 - MULTIPHONE NETCOM - la fonction de conversion des suspects en prospects
     if assigned(Getcontrol('T_BLOCNOTE')) then AppliqueFontDefaut (THRichEditOle(GetControl('T_BLOCNOTE')));
-(*
-    HandleSeria := LoadLibrarySeriaLSE;
-    if HandleSeria <> 0 then
-    begin
-			ThEdit(GetControl('BSERIALSE')).visible := True;
-			ThEdit(GetControl('BSERIALSE')).Onclick := GoSeriaLSE;
-    end;
-*)
-
   if TmenuItem(GetControl('MnInterfRexel')) <> nil then
   begin
     TmenuItem(GetControl('MnInterfRexel')).OnClick := ParamInterfaceRexelClick;
@@ -675,89 +667,93 @@ begin
         end
     else
     begin
-        cc:=THEdit(GetControl('T_MODEREGLE'));
-        SetControlProperty('T_MODEREGLE', 'DataTypeParametrable', TRUE);
-        i := cc.width;
-        SetControlProperty('T_MODEREGLE', 'Width', i-20);
-        cc:=THEdit(GetControl('T_ORIGINETIERS'));
-        SetControlProperty('T_ORIGINETIERS', 'DataTypeParametrable', TRUE);
-        i := cc.width;
-        SetControlProperty('T_ORIGINETIERS', 'Width', i-20);
-        cc:=THEdit(GetControl('T_SECTEUR'));
-        SetControlProperty('T_SECTEUR', 'DataTypeParametrable', TRUE);
-        i := cc.width;
-        SetControlProperty('T_SECTEUR', 'Width', i-20);
-        cc:=THEdit(GetControl('T_TARIFTIERS'));
-        SetControlProperty('T_TARIFTIERS', 'DataTypeParametrable', TRUE);
-        i := cc.width;
-        SetControlProperty('T_TARIFTIERS', 'Width', i-20);
-        cc:=THEdit(GetControl('T_COMPTATIERS'));
-        SetControlProperty('T_COMPTATIERS', 'DataTypeParametrable', TRUE);
-        i := cc.width;
-        SetControlProperty('T_COMPTATIERS', 'Width', i-20);
-        SetControlVisible ('GB_RESSOURCE' , True);
-        SetControlVisible ('GBEXPEDITION' , FALSE);
-        SetControlVisible ('GB_RELEVE' , FALSE);
-        SetControlVisible ('T_SOUMISTPF' , FALSE);
-                     // si pas de gestion apporteur et commissionnement
-      {if Not(VH_GC.AFGestionCom) then begin
-        SetControlVisible ('T_APPORTEUR' , False);
-        SetControlVisible ('TT_APPORTEUR' , False);
-        SetControlVisible ('T_LIBELLEAPP' , False);
-        SetControlVisible ('T_COEFCOMMA' , False);
-        SetControlVisible ('TT_COEFCOMMA' , False);
-        end;  }
+      if (stNatureAuxi = 'CLI') or (stNatureAuxi = 'PRO') then
+        CanInsertChoixCod := Tools.CanInsertedInTable('CHOIXCOD'{$IFDEF APPSRV}, '', '' {$ENDIF APPSRV})
+      else
+        CanInsertChoixCod := True;
+      cc:=THEdit(GetControl('T_MODEREGLE'));
+      SetControlProperty('T_MODEREGLE', 'DataTypeParametrable', TRUE);
+      i := cc.width;
+      SetControlProperty('T_MODEREGLE', 'Width', i-20);
+      cc:=THEdit(GetControl('T_ORIGINETIERS'));
+      SetControlProperty('T_ORIGINETIERS', 'DataTypeParametrable', CanInsertChoixCod);
+      i := cc.width;
+      SetControlProperty('T_ORIGINETIERS', 'Width', i-20);
+      cc:=THEdit(GetControl('T_SECTEUR'));
+      SetControlProperty('T_SECTEUR', 'DataTypeParametrable', CanInsertChoixCod);
+      i := cc.width;
+      SetControlProperty('T_SECTEUR', 'Width', i-20);
+      cc:=THEdit(GetControl('T_TARIFTIERS'));
+      SetControlProperty('T_TARIFTIERS', 'DataTypeParametrable', TRUE);
+      i := cc.width;
+      SetControlProperty('T_TARIFTIERS', 'Width', i-20);
+      cc:=THEdit(GetControl('T_COMPTATIERS'));
+      SetControlProperty('T_COMPTATIERS', 'DataTypeParametrable', TRUE);
+      i := cc.width;
+      SetControlProperty('T_COMPTATIERS', 'Width', i-20);
+      SetControlVisible ('GB_RESSOURCE' , True);
+      SetControlVisible ('GBEXPEDITION' , FALSE);
+      SetControlVisible ('GB_RELEVE' , FALSE);
+      SetControlVisible ('T_SOUMISTPF' , FALSE);
+                   // si pas de gestion apporteur et commissionnement
+    {if Not(VH_GC.AFGestionCom) then begin
+      SetControlVisible ('T_APPORTEUR' , False);
+      SetControlVisible ('TT_APPORTEUR' , False);
+      SetControlVisible ('T_LIBELLEAPP' , False);
+      SetControlVisible ('T_COEFCOMMA' , False);
+      SetControlVisible ('TT_COEFCOMMA' , False);
+      end;  }
 
-        If ctxTempo in V_PGI.PGIContexte  then SetControlVisible ('GBEXPORT',False);
+      If ctxTempo in V_PGI.PGIContexte  then SetControlVisible ('GBEXPORT',False);
 
-        If ctxSCot in V_PGI.PGIContexte  then
-        begin
-               // pas de gestion representatn pour l'instant
-            SetControlVisible ('GBREPRESENTANT', False);
-            SetControlVisible ('T_REPRESENTANT' , FALSE);
-            SetControlVisible ('TT_REPRESENTANT' , FALSE);
-            SetControlVisible ('T_PRESCRIPTEUR' , False);
-            SetControlVisible ('TT_PRESCRIPTEUR' , False);
-            SetControlVisible ('TT_PRESCRIPTEUR_' , False);
-            SetControlVisible ('T_PUBLIPOSTAGE' , False);
-            SetControlVisible ('T_SEXE' , False);
-            SetControlVisible ('TT_SEXE' , False);
-            SetControlVisible ('T_ZONECOM' , False);
-            SetControlVisible ('GBCLOTURE', True);
-            SetControlVisible ('TT_MOISCLOTURE' , True);
-            SetControlVisible ('T_MOISCLOTURE' , True);
-            SetControlProperty('T_MOISCLOTURE', 'EditorEnabled', False); //mcd 01/10/03 oblige passer par ascenseur pour résourdre cas si saisie > 12 pas pris en compte equalité 10372
-            SetControlVisible ('T_CONSO' , True);
-            SetControlVisible ('TT_CONSO' , True);
-            SetControlVisible ('GBPARTICULIER', FALSE);
-            SetControlVisible ('GBEXPORT',False);
-            SetControlVisible ('T_PROFIL',False);
-            SetControlVisible ('TT_PROFIL',False);
-            SetControlVisible ('TT_ENSEIGNE',False);
-            SetControlVisible ('TE_LIVRE',False);
-            SetControlVisible ('TLIB_LIVRE',False);
-            SetControlVisible ('TYTC_NADRESSELIV',False);
-            SetControlVisible ('YTC_NADRESSELIV',False);
-          // specif pour lien DP
-            if (GetParamsoc('SO_AFLIENDP') =true)  then
-            begin     // cas SCOT avec lien DP
+      If ctxSCot in V_PGI.PGIContexte  then
+      begin
+             // pas de gestion representatn pour l'instant
+          SetControlVisible ('GBREPRESENTANT', False);
+          SetControlVisible ('T_REPRESENTANT' , FALSE);
+          SetControlVisible ('TT_REPRESENTANT' , FALSE);
+          SetControlVisible ('T_PRESCRIPTEUR' , False);
+          SetControlVisible ('TT_PRESCRIPTEUR' , False);
+          SetControlVisible ('TT_PRESCRIPTEUR_' , False);
+          SetControlVisible ('T_PUBLIPOSTAGE' , False);
+          SetControlVisible ('T_SEXE' , False);
+          SetControlVisible ('TT_SEXE' , False);
+          SetControlVisible ('T_ZONECOM' , False);
+          SetControlVisible ('GBCLOTURE', True);
+          SetControlVisible ('TT_MOISCLOTURE' , True);
+          SetControlVisible ('T_MOISCLOTURE' , True);
+          SetControlProperty('T_MOISCLOTURE', 'EditorEnabled', False); //mcd 01/10/03 oblige passer par ascenseur pour résourdre cas si saisie > 12 pas pris en compte equalité 10372
+          SetControlVisible ('T_CONSO' , True);
+          SetControlVisible ('TT_CONSO' , True);
+          SetControlVisible ('GBPARTICULIER', FALSE);
+          SetControlVisible ('GBEXPORT',False);
+          SetControlVisible ('T_PROFIL',False);
+          SetControlVisible ('TT_PROFIL',False);
+          SetControlVisible ('TT_ENSEIGNE',False);
+          SetControlVisible ('TE_LIVRE',False);
+          SetControlVisible ('TLIB_LIVRE',False);
+          SetControlVisible ('TYTC_NADRESSELIV',False);
+          SetControlVisible ('YTC_NADRESSELIV',False);
+        // specif pour lien DP
+          if (GetParamsoc('SO_AFLIENDP') =true)  then
+          begin     // cas SCOT avec lien DP
 {$IFDEF DP}
-                DPInit(Ecran);
+              DPInit(Ecran);
 {$endif}
-                SetControlVisible ('T_APE',False);
-                SetControlVisible ('TT_APE',False);
-                SetControlVisible ('BDP',True);
-            end;
-            if (GetParamsoc('SO_AFLIENDP') =true) and (origine = 'DP') then
-            begin    //cas lien DP et SCOT et appel depuis le DP
+              SetControlVisible ('T_APE',False);
+              SetControlVisible ('TT_APE',False);
+              SetControlVisible ('BDP',True);
+          end;
+          if (GetParamsoc('SO_AFLIENDP') =true) and (origine = 'DP') then
+          begin    //cas lien DP et SCOT et appel depuis le DP
 {$IFDEF DP}
-                DpGrise(Ecran);        // grise les zones communes
+              DpGrise(Ecran);        // grise les zones communes
 {$endif}
-                SetControlVisible ('BDP',FAlse);
-                SetControlVisible ('BINSERT' , FALSE);
-            end;
-            SetCOntrolText('XXcodeper','0');
-        end;
+              SetControlVisible ('BDP',FAlse);
+              SetControlVisible ('BINSERT' , FALSE);
+          end;
+          SetCOntrolText('XXcodeper','0');
+      end;
     end;
 end
 else   // fin Affaire
@@ -3433,7 +3429,6 @@ if TOBSuspectCompl<>nil then begin TOBSuspectCompl.free ; TOBSuspectCompl:=nil ;
 if TOBEtude <> nil then TOBEtude.free;
 {$ENDIF}
   TOBTIERSBTP.free;
-
 end;
 // fin Affaire
 
