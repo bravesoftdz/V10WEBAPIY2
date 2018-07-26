@@ -69,7 +69,7 @@ begin
   finally
     Reg.Free;                                                                              
   end;
-end;
+end;                                                                                    
 
 procedure TSvcSyncBTPY2.ServiceExecute(Sender: TService);
 var

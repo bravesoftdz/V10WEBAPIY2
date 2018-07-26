@@ -46,6 +46,8 @@ type
   AdoQry = class
   private
     function GetConnectionString : string;
+    procedure AddWindowsLog(Text : string);
+
   public
     ServerName  : string;
     DBName      : string;
@@ -53,6 +55,8 @@ type
     FieldsList  : string;                                           
     TSLResult   : TStringList;
     RecordCount : integer;
+    LogLevel    : integer; 
+    DebugEvents : boolean;
 
     Constructor Create;
     Destructor Destroy; override;
@@ -111,7 +115,7 @@ type
 
 implementation
 
-uses                                                                  
+uses
   ADODB
   , Forms
   , SysUtils
@@ -122,6 +126,8 @@ uses
   , UConnectWSConst
   , Zip
   , UConnectWSCEGID
+  , SvcMgr
+  , Windows
   {$IF not defined(APPSRV)}
   , hCtrls
   , EntGC
@@ -146,6 +152,23 @@ begin
           + ';Tag with column collation when possible=False';
 end;
 
+procedure AdoQry.AddWindowsLog(Text : string);
+var
+  WindowsLog : TEventLogger;
+  AppFilePath : string;
+begin
+  if DebugEvents then
+  begin
+    AppFilePath := Format('%s%s.%s', [ExtractFilePath(ParamStr(0)), WSCDS_ServiceName, 'exe']);
+    WindowsLog := TEventLogger.Create(ExtractFileName(AppFilePath));
+    try
+      WindowsLog.LogMessage(Text, EVENTLOG_INFORMATION_TYPE);
+    finally
+      WindowsLog.Free;
+    end;
+  end;
+end;
+  
 constructor AdoQry.Create;
 begin
   TSLResult           := TStringList.Create;
@@ -225,23 +248,30 @@ begin
       try
         Connect.BeginTrans;
         Qry := TADOQuery.Create(Application);
+        if DebugEvents then TGetFromDSType.WriteLog(ssbylLog, Format('AdoQry.SingleTableSelect - TADOQuery.Create', []), LogLevel, 0);
+        AddWindowsLog(Format('AdoQry.SingleTableSelect - TADOQuery.Create', []));
         try
           Qry.Connection := Connect;
           Qry.SQL.Text   := Sql;
           Qry.Prepared   := True;
           try
+            AddWindowsLog(Format('AdoQry.SingleTableSelect - Qry.SQL.Text =%s', [Qry.SQL.Text]));
             Qry.Open;
             RecordCount := Qry.RecordCount;
+            AddWindowsLog(Format('AdoQry.SingleTableSelect - Qry.RecordCount =%s', [IntToStr(Qry.RecordCount)]));
             if not Qry.Eof then
             begin
+              Qry.first;
               while not Qry.Eof do
               begin
                 for Cpt := 0 to pred(Length(FieldsArray)) do
                   ResultValue := ResultValue + TSLResult.Delimiter + VarToStr(Qry.FieldValues[FieldsArray[Cpt]]);
                 ResultValue := Copy(ResultValue, 2, Length(ResultValue));
                 TSLResult.Add(ResultValue);
+                AddWindowsLog(Format('AdoQry.SingleTableSelect - ResultValue =%s', [ResultValue]));
                 ResultValue := '';
                 Qry.Next;
+                AddWindowsLog(Format('AdoQry.SingleTableSelect - After Qry.Next', []));
               end;
             end;
           except
@@ -262,22 +292,27 @@ begin
 *)
           end;
         finally
+          AddWindowsLog(Format('AdoQry.SingleTableSelect - Start finally Qry', []));
           Qry.active := False;
           Qry.Free;
+          AddWindowsLog(Format('AdoQry.SingleTableSelect - Stop finally Qry', []));
         end;
         if Result = '' then
           Connect.CommitTrans;
       except
         on E:Exception do
         begin
+          AddWindowsLog(Format('AdoQry.SingleTableSelect - Exception = %s', [E.Message]));
           Result := E.Message;
           Connect.RollbackTrans;
           //Raise;
         end;
       end;
     finally
+      AddWindowsLog(Format('AdoQry.SingleTableSelect - Start finally Connect', []));
       Connect.Close;
       Connect.Free;
+      AddWindowsLog(Format('AdoQry.SingleTableSelect - Stop finally Connect', []));
     end;
   end;
 end;
@@ -1050,7 +1085,7 @@ begin
         end;
         DoCut(Qty);
         if not KeepOriginFile then
-          DeleteFile(FullPath);
+          SysUtils.DeleteFile(FullPath);
       end else
         TSLResult.Add(FullPath);
     finally
@@ -1087,16 +1122,16 @@ begin
          and (SearchRec.Name <> '.')
          and (SearchRec.Name <> '..')
       then
-         DeleteFile(sFileName);
+         SysUtils.DeleteFile(sFileName);
       end else
       begin
         if SearchRec.Attr <> faArchive then
           FileSetAttr(sFileName, faArchive);
-        DeleteFile(sFileName);
+        SysUtils.DeleteFile(sFileName);
       end;
       iIndex := FindNext(SearchRec);
     end;
-    FindClose(SearchRec);
+    SysUtils.FindClose(SearchRec);
     Result := RemoveDir(LocalPath);
   end else
     Result := False;

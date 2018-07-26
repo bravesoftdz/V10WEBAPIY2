@@ -108,10 +108,10 @@ DebugCWD=
 [Version Info]
 IncludeVerInfo=1
 AutoIncBuild=0
-MajorVer=1
+MajorVer=10
 MinorVer=0
 Release=0
-Build=0
+Build=159
 Debug=0
 PreRelease=0
 Special=0
@@ -121,15 +121,15 @@ Locale=1036
 CodePage=1252
 [Version Info Keys]
 CompanyName=LSE
-FileDescription=LSE 
-FileVersion=1.0.0.0
-InternalName=
-LegalCopyright=
-LegalTrademarks=
+FileDescription=LSE-Synchronisation des données comptables entre BTP et Y2
+FileVersion=10.0.0.159
+InternalName=SvcSynBTPY2
+LegalCopyright=LSE 2018
+LegalTrademarks=LSE
 OriginalFilename=
-ProductName=
-ProductVersion=1.0.0.0
-Comments=
+ProductName=Synchronisation comptable BTP <-> Y2
+ProductVersion=10.00.000.159
+Comments=Service autonome
 [HistoryLists\hlConditionals]
 Count=2
 Item0=APPSRV

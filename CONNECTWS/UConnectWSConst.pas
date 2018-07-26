@@ -33,6 +33,7 @@ type
   T_WSInfoFromDSType = (wsidNone, wsidTableName, wsidFieldsKey, wsidExcludeFields, wsidFieldsList, wsidRequest);
   T_WSAction         = (wsacNone, wsacUpdate, wsacInsert);
   T_WSType           = (wstypNone, wstypUpload, wstypImport, wstypGetState, wstypGetReport);
+  T_SvcSyncBTPY2Log  = (ssbylNone, ssbylLog, ssbylWindows);
 
   T_WSBTPValues      = Record
                          ConnectionName : string;
@@ -86,6 +87,7 @@ type
     class function dstWSName(DSType : T_WSDataService) : string;
     class function ExtractType(TableName : string) : string; overload;
     class function ExtractType(DSType : T_WSDataService) : string; overload;
+    class procedure WriteLog(TypeDebug: T_SvcSyncBTPY2Log; Text: string; LogLevel, LineLevel: integer; WithoutDateTime: Boolean = true);
     class function dstFiedsList(DSType : T_WSDataService) : string;
   end;
 
@@ -119,6 +121,9 @@ implementation
 
 uses
   CommonTools
+  , SvcMgr
+  , Windows
+  , SysUtils
   ;
   
 { TGetFromDSType }
@@ -268,6 +273,52 @@ begin
     wsdsThird    : Result := 'CLI;PRO';
   else
     Result := '';
+  end;
+end;
+
+class procedure TGetFromDSType.WriteLog(TypeDebug: T_SvcSyncBTPY2Log; Text: string; LogLevel, LineLevel: integer; WithoutDateTime: Boolean = true);
+var
+  LogText    : string;
+  FilePath   : string;
+  WindowsLog : TEventLogger;
+  LogFile    : TextFile;
+begin
+  case TypeDebug of
+    ssbylLog:
+      begin
+        if LogLevel > 0 then
+        begin
+          FilePath := Format('%s%s.%s', [ExtractFilePath(ParamStr(0)), WSCDS_ServiceName, 'log']);
+          AssignFile(LogFile, FilePath);
+          try
+            if FileExists(FilePath) then
+              Append(LogFile)
+            else
+              Rewrite(LogFile);
+            if Text <> '' then
+            begin
+              if WithoutDateTime then
+                LogText := Format('%s : %s%s', [DateTimeToStr(Now), StringOfChar(' ', LineLevel), Text])
+              else
+                LogText := Format('%s : %s%s', [Copy(Text, 1, pos('=', Text) - 1), StringOfChar(' ', LineLevel), Copy(Text, Pos('=', Text) + 1, length(Text))]);
+            end else
+              LogText := '';
+            Writeln(LogFile, LogText);
+          finally
+            CloseFile(LogFile);
+          end;
+        end;
+      end;
+    ssbylWindows:
+      begin
+        FilePath := Format('%s%s.%s', [ExtractFilePath(ParamStr(0)), WSCDS_ServiceName, 'exe']);
+        WindowsLog := TEventLogger.Create(ExtractFileName(FilePath));
+        try
+          WindowsLog.LogMessage(Text, EVENTLOG_INFORMATION_TYPE);
+        finally
+          WindowsLog.Free;
+        end;
+      end;
   end;
 end;
 
