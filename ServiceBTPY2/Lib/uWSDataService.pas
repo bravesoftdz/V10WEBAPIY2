@@ -246,9 +246,9 @@ begin
           end;
           Result := WSCDS_GetDataOk;
         end else
-          Result :=  Format('Erreur %s - %s (%s)', [IntToStr(http.Status), http.StatusText, Url]); //http.ResponseText]);;
+          Result :=  Format('Erreur %s - %s (%s) : %s', [IntToStr(http.Status), http.StatusText, Url, http.ResponseText]); 
       except
-        Result := Format('Erreur interne (exception) lors de l''appel de %s', [Url]); //http.ResponseText]);;
+        Result := Format('Erreur interne (exception) lors de l''appel de %s. Erreur : ', [Url, http.ResponseText]); 
       end;
     finally
       http := nil;

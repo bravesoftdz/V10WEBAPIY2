@@ -85,7 +85,6 @@ type
     function GetKeyValues(DSType: T_WSDataService; lTSlValues: TStringList): string;
     function GetIndiceY2DataCache(DSType: T_WSDataService; TSLValue: TStringList): string;
     function AddQuotes(DSType: T_WSDataService; FieldName, FieldValue: string): string;
-    //function ValueAnalysis(LineValue, FieldName, FieldValue : string; FieldType : tTypeField) : string;
     function ValueAnalysis(LineValue, FieldName : string; FieldType : tTypeField) : string;
     function GetY2Data(DSType: T_WSDataService): boolean;
     function GetPayment : boolean;
@@ -161,7 +160,7 @@ procedure TSvcSyncBTPY2Execute.CreateMemoryCache;
 var
   lTslFieldsList: TStringList;
 
-  procedure SetBTPDefaultValue(DSType: T_WSDataService);
+  function SetBTPDefaultValue(DSType: T_WSDataService) : boolean;
   var
     CptCache     : integer;
     lTsl         : TStringList;
@@ -171,36 +170,44 @@ var
     FieldType    : string;
     DefaultValue : string;
   begin
+    Result := True;
     lTsl   := GetTSlFromDSType(DSType, True);
     Prefix := TGetFromDSType.dstPrefix(DSType);
     AdoQryBTP.TSLResult.Clear;
     AdoQryBTP.FieldsList := 'DH_NOMCHAMP,DH_TYPECHAMP';
     AdoQryBTP.Request    := Format('SELECT %s FROM DECHAMPS WHERE DH_PREFIXE = ''%s'' ORDER BY DH_NOMCHAMP', [AdoQryBTP.FieldsList, Prefix]);
-    AdoQryBTP.SingleTableSelect;
-    if AdoQryBTP.TSLResult.Count > 0 then
-    begin
-      for CptCache := 0 to pred(AdoQryBTP.TSLResult.Count) do
+    try
+      AdoQryBTP.SingleTableSelect;
+      if AdoQryBTP.TSLResult.Count > 0 then
       begin
-        Value     := AdoQryBTP.TSLResult[CptCache];
-        FieldName := Tools.ReadTokenSt_(Value, ToolsTobToTsl_Separator);
-        FieldType := Value;
-        if Tools.GetTypeFieldFromStringType(FieldType) <> ttfMemo then // Exclusion des memo
+        for CptCache := 0 to pred(AdoQryBTP.TSLResult.Count) do
         begin
-          case Tools.GetTypeFieldFromStringType(Value) of
-            ttfNumeric : DefaultValue := '0';
-            ttfInt     : DefaultValue := '0';
-            ttfBoolean : DefaultValue := '''-''';
-            ttfDate    : DefaultValue := '''' + DateToStr(2) + '''';
-            ttfMemo    : DefaultValue := '''''';
-            ttfCombo   : DefaultValue := '''''';
-            ttfText    : DefaultValue := '''''';
+          Value     := AdoQryBTP.TSLResult[CptCache];
+          FieldName := Tools.ReadTokenSt_(Value, ToolsTobToTsl_Separator);
+          FieldType := Value;
+          if Tools.GetTypeFieldFromStringType(FieldType) <> ttfMemo then // Exclusion des memo
+          begin
+            case Tools.GetTypeFieldFromStringType(Value) of
+              ttfNumeric : DefaultValue := '0';
+              ttfInt     : DefaultValue := '0';
+              ttfBoolean : DefaultValue := '''-''';
+              ttfDate    : DefaultValue := '''' + DateToStr(2) + '''';
+              ttfMemo    : DefaultValue := '''''';
+              ttfCombo   : DefaultValue := '''''';
+              ttfText    : DefaultValue := '''''';
+            end;
+            lTsl.Add(FieldName + ToolsTobToTsl_Separator + FieldType + ToolsTobToTsl_Separator + DefaultValue);
           end;
-          lTsl.Add(FieldName + ToolsTobToTsl_Separator + FieldType + ToolsTobToTsl_Separator + DefaultValue);
         end;
       end;
+      AdoQryBTP.TSLResult.Clear;
+      AdoQryBTP.RecordCount := 0;
+    except
+      if DebugEvents then
+        WriteLog(ssbylLog, Format('%s - %s - TSvcSyncBTPY2Execute.CreateMemoryCache/SetBTPDefaultValue. Erreur sur exécution de %s / %s / %s', [WSCDS_DebugMsg, WSCDS_ErrorMsg, AdoQryBTP.ServerName, AdoQryBTP.DBName, AdoQryBTP.Request]), 0);
+      Result := False;
+      exit;
     end;
-    AdoQryBTP.TSLResult.Clear;
-    AdoQryBTP.RecordCount := 0;
   end;
 
   procedure SetY2FieldsList(DSType: T_WSDataService);
@@ -274,8 +281,8 @@ begin
   { Liste des champs Y2 }
   lTslFieldsList := TStringList.Create;
   try
-    TReadWSDataService.GetData(wsdsFieldsList, AdoQryY2.ServerName, AdoQryY2.DBName, lTslFieldsList, TSlCacheWSFields);
     try
+      TReadWSDataService.GetData(wsdsFieldsList, AdoQryY2.ServerName, AdoQryY2.DBName, lTslFieldsList, TSlCacheWSFields);
       SetY2FieldsList(wsdsThird);
       SetY2FieldsList(wsdsAnalyticalSection);
       SetY2FieldsList(wsdsAccount);
@@ -353,24 +360,30 @@ begin
   AdoQryEcr.TSLResult.Clear;
   AdoQryEcr.Request := Format('SELECT %s FROM ECRITURE WHERE E_ENTITY = ''%s'' AND E_EXERCICE = ''%s'' AND E_JOURNAL = ''%s'' AND E_NUMEROPIECE = %s'
                               , [AdoQryEcr.FieldsList, BE0Entity, BE0Exercice, BE0Journal, BE0NumPce]);
-  AdoQryEcr.SingleTableSelect;
-  { Charge l'éventuelle analytique }
-  for Cpt := 0 to pred(AdoQryEcr.TSLResult.Count) do
-  begin
-    FieldIndex := Tools.GetTSlIndexFromFieldName(AdoQryEcr.FieldsList, 'E_ANA');                         // Recherche l'index dans la liste des champs
-    if Tools.GetStValueFromTSl(AdoQryEcr.TSLResult[Cpt], FieldIndex, ToolsTobToTsl_Separator) = 'X' then // Recherche la valeur dans liste des valeurs
+  try
+    AdoQryEcr.SingleTableSelect;
+    { Charge l'éventuelle analytique }
+    for Cpt := 0 to pred(AdoQryEcr.TSLResult.Count) do
     begin
-      AdoQryAna.TSLResult.Clear;
-      AdoQryAna.Request := Format('SELECT %s FROM ANALYTIQ WHERE Y_ENTITY = ''%s'' AND Y_EXERCICE = ''%s'' AND Y_JOURNAL = ''%s'' AND Y_NUMEROPIECE = %s'
-                                  , [AdoQryAna.FieldsList
-                                     , Tools.GetStValueFromTSl(AdoQryEcr.TSLResult[Cpt], Tools.GetTSlIndexFromFieldName(AdoQryEcr.FieldsList, 'E_ENTITY')  , ToolsTobToTsl_Separator)
-                                     , Tools.GetStValueFromTSl(AdoQryEcr.TSLResult[Cpt], Tools.GetTSlIndexFromFieldName(AdoQryEcr.FieldsList, 'E_EXERCICE'), ToolsTobToTsl_Separator)
-                                     , Tools.GetStValueFromTSl(AdoQryEcr.TSLResult[Cpt], Tools.GetTSlIndexFromFieldName(AdoQryEcr.FieldsList, 'E_JOURNAL') , ToolsTobToTsl_Separator)
-                                     , Tools.GetStValueFromTSl(AdoQryEcr.TSLResult[Cpt], Tools.GetTSlIndexFromFieldName(AdoQryEcr.FieldsList, 'E_NUMEROPIECE'), ToolsTobToTsl_Separator)
-                                    ]);
-      AdoQryAna.SingleTableSelect;
-      Break;
+      FieldIndex := Tools.GetTSlIndexFromFieldName(AdoQryEcr.FieldsList, 'E_ANA');                         // Recherche l'index dans la liste des champs
+      if Tools.GetStValueFromTSl(AdoQryEcr.TSLResult[Cpt], FieldIndex, ToolsTobToTsl_Separator) = 'X' then // Recherche la valeur dans liste des valeurs
+      begin
+        AdoQryAna.TSLResult.Clear;
+        AdoQryAna.Request := Format('SELECT %s FROM ANALYTIQ WHERE Y_ENTITY = ''%s'' AND Y_EXERCICE = ''%s'' AND Y_JOURNAL = ''%s'' AND Y_NUMEROPIECE = %s'
+                                    , [AdoQryAna.FieldsList
+                                       , Tools.GetStValueFromTSl(AdoQryEcr.TSLResult[Cpt], Tools.GetTSlIndexFromFieldName(AdoQryEcr.FieldsList, 'E_ENTITY')  , ToolsTobToTsl_Separator)
+                                       , Tools.GetStValueFromTSl(AdoQryEcr.TSLResult[Cpt], Tools.GetTSlIndexFromFieldName(AdoQryEcr.FieldsList, 'E_EXERCICE'), ToolsTobToTsl_Separator)
+                                       , Tools.GetStValueFromTSl(AdoQryEcr.TSLResult[Cpt], Tools.GetTSlIndexFromFieldName(AdoQryEcr.FieldsList, 'E_JOURNAL') , ToolsTobToTsl_Separator)
+                                       , Tools.GetStValueFromTSl(AdoQryEcr.TSLResult[Cpt], Tools.GetTSlIndexFromFieldName(AdoQryEcr.FieldsList, 'E_NUMEROPIECE'), ToolsTobToTsl_Separator)
+                                      ]);
+        AdoQryAna.SingleTableSelect;
+        Break;
+      end;
     end;
+  except
+    if DebugEvents then
+      WriteLog(ssbylLog, Format('%s - %s - TSvcSyncBTPY2Execute.LoadEcrFromBE0. Erreur sur exécution de %s / %s / %s', [WSCDS_DebugMsg, WSCDS_ErrorMsg, AdoQryEcr.ServerName, AdoQryEcr.DBName, AdoQryEcr.Request]), 0);
+    exit;
   end;
 end;
 
@@ -559,55 +572,62 @@ begin
     AdoQryParam.TSLResult.Clear;
     AdoQryParam.FieldsList := FieldsList;
     AdoQryParam.Request    := GetRequest(AdoQryParam);
-    AdoQryParam.SingleTableSelect;
-    if AdoQryParam.RecordCount > 0 then
-    begin
-      Y2FieldsList := GetFieldsList(GetTSlFromDSType(DSType, False));
-      { Boucle sur les enregistrements BTP trouvés et tests s'ils existent dans les datas provenant d'Y2}
-      for Cpt := 0 to pred(AdoQryParam.TSLResult.count) do
+    try
+      AdoQryParam.SingleTableSelect;
+      if AdoQryParam.RecordCount > 0 then
       begin
-        CommonSendData := '';
-        BtpSendData    := SetDataToSend(AdoQryParam.FieldsList, AdoQryParam.TSLResult[Cpt]);
-        Y2SendData     := GetY2DataFromCache(AdoQryParam.FieldsList, AdoQryParam.TSLResult[Cpt]);
-        if BtpSendData <> Y2SendData then // Les données ou colonnes sont différentes, calcul des champs communs (ainsi que les données) et on renvoie
+        Y2FieldsList := GetFieldsList(GetTSlFromDSType(DSType, False));
+        { Boucle sur les enregistrements BTP trouvés et tests s'ils existent dans les datas provenant d'Y2}
+        for Cpt := 0 to pred(AdoQryParam.TSLResult.count) do
         begin
-          SameValue := (Y2SendData <> '');
-          while BtpSendData <> '' do
+          CommonSendData := '';
+          BtpSendData    := SetDataToSend(AdoQryParam.FieldsList, AdoQryParam.TSLResult[Cpt]);
+          Y2SendData     := GetY2DataFromCache(AdoQryParam.FieldsList, AdoQryParam.TSLResult[Cpt]);
+          if BtpSendData <> Y2SendData then // Les données ou colonnes sont différentes, calcul des champs communs (ainsi que les données) et on renvoie
           begin
-            TmpData       := Tools.ReadTokenSt_(BtpSendData, ToolsTobToTsl_Separator);
-            TmpFieldName  := Copy(TmpData, 1, Pos('=', TmpData) - 1);
-            TmpFieldValue := Copy(TmpData, Pos('=', TmpData) + 1, Length(TmpData));
-            AddData       := TmpFieldName + '=' + TmpFieldValue;
-            if Pos(',' + TmpFieldName + ',', ',' + Y2FieldsList + ',') > 0 then
+            SameValue := (Y2SendData <> '');
+            while BtpSendData <> '' do
             begin
-              CommonSendData := CommonSendData + ToolsTobToTsl_Separator + AddData;
-              if (Y2SendData <> '') and (SameValue) then // S'il existe des données issues de Y2, test si la valeur est la même
+              TmpData       := Tools.ReadTokenSt_(BtpSendData, ToolsTobToTsl_Separator);
+              TmpFieldName  := Copy(TmpData, 1, Pos('=', TmpData) - 1);
+              TmpFieldValue := Copy(TmpData, Pos('=', TmpData) + 1, Length(TmpData));
+              AddData       := TmpFieldName + '=' + TmpFieldValue;
+              if Pos(',' + TmpFieldName + ',', ',' + Y2FieldsList + ',') > 0 then
               begin
-                Y2StartPosData := Pos(TmpFieldName + '=', Y2SendData) + length(TmpFieldName) + 1;
-                while Y2SendData[Y2StartPosData] <> ToolsTobToTsl_Separator do
+                CommonSendData := CommonSendData + ToolsTobToTsl_Separator + AddData;
+                if (Y2SendData <> '') and (SameValue) then // S'il existe des données issues de Y2, test si la valeur est la même
                 begin
-                  Y2FieldValue := Y2FieldValue + Copy(Y2SendData, Y2StartPosData, 1);
-                  Inc(Y2StartPosData);
+                  Y2StartPosData := Pos(TmpFieldName + '=', Y2SendData) + length(TmpFieldName) + 1;
+                  while Y2SendData[Y2StartPosData] <> ToolsTobToTsl_Separator do
+                  begin
+                    Y2FieldValue := Y2FieldValue + Copy(Y2SendData, Y2StartPosData, 1);
+                    Inc(Y2StartPosData);
+                  end;
+                  SameValue := (TmpFieldValue = Y2FieldValue);
+                  Y2FieldValue := '';
                 end;
-                SameValue := (TmpFieldValue = Y2FieldValue);
-                Y2FieldValue := '';
               end;
             end;
-          end;
-          { Ajouter uniquement si pas les mêmes valeur dans les champs communs }
-          if not SameValue then
-          begin
-            inc(RecordCount);
-            Result         := True;
-            CommonSendData := Copy(CommonSendData, 2, Length(CommonSendData));
-            TSlCacheSendAccParam.Add(sIndex + '=' + CommonSendData);
+            { Ajouter uniquement si pas les mêmes valeur dans les champs communs }
+            if not SameValue then
+            begin
+              inc(RecordCount);
+              Result         := True;
+              CommonSendData := Copy(CommonSendData, 2, Length(CommonSendData));
+              TSlCacheSendAccParam.Add(sIndex + '=' + CommonSendData);
+            end;
           end;
         end;
-      end;
-      if (Result) and (not IsRelatedParameters) then
-        WriteLog(ssbylLog, Format('%s : %s enregistrement(s) à envoyer.', [TableName, IntToStr(RecordCount)]), 4);
-    end else
-      TSlCacheSendAccParam.Add(sIndex + '=' + WSCDS_EmptyValue);
+        if (Result) and (not IsRelatedParameters) then
+          WriteLog(ssbylLog, Format('%s : %s enregistrement(s) à envoyer.', [TableName, IntToStr(RecordCount)]), 4);
+      end else
+        TSlCacheSendAccParam.Add(sIndex + '=' + WSCDS_EmptyValue);
+    except
+      if DebugEvents then
+        WriteLog(ssbylLog, Format('%s - %s - TSvcSyncBTPY2Execute.AddUpdateValues. Erreur sur exécution de %s / %s / %s', [WSCDS_DebugMsg, WSCDS_ErrorMsg, AdoQryParam.ServerName, AdoQryParam.DBName, AdoQryParam.Request]), 0);
+      Result := False;
+      exit;
+    end;
   end;
 end;
 
@@ -753,7 +773,7 @@ var
 
 begin
   if DebugEvents then
-    WriteLog(ssbylWindows, Format('Start TSvcSyncBTPY2Execute.SendY2Settings', []), 0);
+    WriteLog(ssbylLog, Format('%s - TSvcSyncBTPY2Execute.SendY2Settings', [WSCDS_DebugMsg]), 0);
   Result := True;
   if TSlCacheSendAccParam.count > 0 then
   begin
@@ -821,8 +841,6 @@ begin
       TraGeneration.Free;
     end;
   end;
-  if DebugEvents then
-    WriteLog(ssbylWindows, Format('End TSvcSyncBTPY2Execute.SendY2Settings', []), 0);
 end;
 
 function TSvcSyncBTPY2Execute.SendAccountingEntries(TslEntries : TStringList) : integer;
@@ -848,8 +866,6 @@ var
   KeyValue1   : string;
   KeyValue2   : string;
 begin
-  if DebugEvents then
-    WriteLog(ssbylWindows, Format('Start TSvcSyncBTPY2Execute.SearchRelatedParameters', []), 0);
   AdoQryParam := AdoQry.Create;
   try
     AdoQryParam.ServerName := AdoQryBTP.ServerName;
@@ -875,8 +891,6 @@ begin
   finally
     AdoQryParam.Free;
   end;
-  if DebugEvents then
-    WriteLog(ssbylWindows, Format('End TSvcSyncBTPY2Execute.SearchRelatedParameters', []), 0);
 end;
 
 procedure TSvcSyncBTPY2Execute.SearchOthersParameters;
@@ -902,7 +916,7 @@ var
 
 begin
   if DebugEvents then
-    WriteLog(ssbylWindows, Format('Start TSvcSyncBTPY2Execute.SearchOthersParameters', []), 0);
+    WriteLog(ssbylLog, Format('%s - TSvcSyncBTPY2Execute.SearchOthersParameters', [WSCDS_DebugMsg]), 0);
   AdoQryParam := AdoQry.Create;
   try
     AdoQryParam.ServerName := AdoQryBTP.ServerName;
@@ -916,8 +930,6 @@ begin
   finally
     AdoQryParam.Free;
   end;
-  if DebugEvents then
-    WriteLog(ssbylWindows, Format('Start TSvcSyncBTPY2Execute.SearchOthersParameters', []), 0);
 end;
 
 procedure TSvcSyncBTPY2Execute.WriteLog(TypeDebug: TSvcSyncBTPY2Log; Text: string; Level: integer; WithoutDateTime: Boolean = true);
@@ -1531,8 +1543,6 @@ var
   TSlInsertedFields : TStringList;
   FieldType         : tTypeField;
 begin
-//  if DebugEvents then
-//    WriteLog(ssbylWindows, Format('Start TSvcSyncBTPY2Execute.AddData', []), 0);
   Result         := True;
   KeyValue       := GetKeyValues(DSType, lTSlValues);
   InsertedFields := '';
@@ -1542,7 +1552,7 @@ begin
   for CptUI := 0 to pred(lTSlValues.Count) do
   begin
     if copy(lTSlValues[CptUI], 1, 7) <> WSCDS_IndiceField then
-    begin
+    begin                                                                                            
       FieldName := copy(lTSlValues[CptUI], 1, Pos('=', lTSlValues[CptUI]) - 1);
       FieldType := GetFieldTypeFromCache(DSType, FieldName);
       if (FieldExistInTSl(GetTSlFromDSType(DSType, True), FieldName))             // Le champ existe dans BTP
@@ -1552,7 +1562,6 @@ begin
             )
       then
       begin
-        //FieldValue := ValueAnalysis(lTSlValues[CptUI], FieldName, FieldValue, FieldType);
         FieldValue := ValueAnalysis(lTSlValues[CptUI], FieldName, FieldType);
         FieldValue := AddQuotes(DSType, FieldName, FieldValue);
         Sql := Sql + Format(', %s=%s', [FieldName, FieldValue]);
@@ -1593,8 +1602,6 @@ begin
   end else
     Sql := Format('INSERT INTO %s (%s) VALUES(%s)', [GetInfoFromDSType(wsidTableName, DSType), InsertedFields, InsertedValues]);
   TSLUpdateInsertData.Add(Sql);
-//  if DebugEvents then
-//    WriteLog(ssbylWindows, Format('End TSvcSyncBTPY2Execute.AddData', []), 0);
 end;
 
 function TSvcSyncBTPY2Execute.GetKeyValues(DSType: T_WSDataService; lTSlValues: TStringList): string;
@@ -1603,7 +1610,10 @@ var
   Value      : string;
   FieldName  : string;
   FieldValue : string;
+  sDate      : string;
+  sHour      : string;
   Posit      : integer;
+  iDateTime  : TDateTime;
 begin
   Result    := '';
   FieldsKey := GetInfoFromDSType(wsidFieldsKey, DSType);
@@ -1614,8 +1624,19 @@ begin
     begin
       FieldName  := copy(lTSlValues[Posit], 1, Pos('=', lTSlValues[Posit]) - 1);
       FieldValue := copy(lTSlValues[Posit], Pos('=', lTSlValues[Posit]) + 1, length(lTSlValues[Posit]));
-      if GetFieldTypeFromCache(DSType, FieldName) = ttfCombo then
-        FieldValue := Trim(FieldValue);
+      case GetFieldTypeFromCache(DSType, FieldName) of
+        ttfCombo : FieldValue := Trim(FieldValue);
+        ttfDate  : begin
+                     FieldValue := Tools.SetStrDateTimeFromStrUTCDateTime(FieldValue);
+                     iDateTime  := StrToDateTime(FieldValue);
+                     if iDateTime - trunc(iDateTime) > 0 then // Il y a des heures
+                     begin
+                       sDate := copy(FieldValue, 1, pos(' ', FieldValue) -1);
+                       sHour := copy(FieldValue, pos(' ', FieldValue), length(FieldValue));
+                       FieldValue := Tools.CastDateTimeForQry(StrToDate(sDate)) + sHour;
+                     end;
+                   end;
+      end;
       FieldValue := AddQuotes(DSType, FieldName, FieldValue);
       Value      := Format('-%s=%s', [FieldName, FieldValue]);
       Result     := Result + Value;
@@ -1654,7 +1675,6 @@ begin
   end;
 end;
 
-//function TSvcSyncBTPY2Execute.ValueAnalysis(LineValue, FieldName, FieldValue : string; FieldType : tTypeField) : string;
 function TSvcSyncBTPY2Execute.ValueAnalysis(LineValue, FieldName : string; FieldType : tTypeField) : string;
 begin
   if Pos('_DATEMODIF', FieldName) > 0 then
@@ -1708,72 +1728,81 @@ var
   end;
 
 begin
-  Result    := True;
-  TableName := GetInfoFromDSType(wsidTableName, DSType);
-  ModifyQty := 0;
-  InsertQty := 0;
-  LogMsgTableName := Format('%s=%s', [DateTimeToStr(Now), TableName]);
-  SetFilterFromDSType(DSType, TSlFilter);
-  GetDataState := TReadWSDataService.GetData(DSType, Y2Values.Server, Y2Values.DataBase, TSlValues, TSlCacheWSFields, TSlFilter, '', GetTSlFromDSType(DSType, True));
   try
-    Result := (GetDataState = WSCDS_GetDataOk);
-    if Result then
-    begin
-      if TSlValues.Count > 0 then
+    TableName := GetInfoFromDSType(wsidTableName, DSType);
+    ModifyQty := 0;
+    InsertQty := 0;
+    LogMsgTableName := Format('%s=%s', [DateTimeToStr(Now), TableName]);
+    SetFilterFromDSType(DSType, TSlFilter);
+    try
+      GetDataState := TReadWSDataService.GetData(DSType, Y2Values.Server, Y2Values.DataBase, TSlValues, TSlCacheWSFields, TSlFilter, '', GetTSlFromDSType(DSType, True));
+      Result       := (GetDataState = WSCDS_GetDataOk);
+      if Result then
       begin
-        for Cpt := 0 to Pred(TSlValues.Count) do
+        if TSlValues.Count > 0 then
         begin
-          if Copy(TSlValues[Cpt], 1, 7) = WSCDS_IndiceField then
+          for Cpt := 0 to Pred(TSlValues.Count) do
           begin
-            Index := StrToInt(Copy(TSlValues[Cpt], Pos('=', TSlValues[Cpt]) + 1, Length(TSlValues[Cpt])));
-            TSlIndice.Clear;
-            ExtractIndice(Index, TSlValues, TSlIndice);
-            { Met la valeur trouvée en cache pour comparer si les valeurs ont changées lors du Send vers Y2 }
-            SetCacheY2Data;         
-            { Test si existe déjà }
-            AdoQryBTP.TSLResult.Clear;
-            AdoQryBTP.FieldsList := GetInfoFromDSType(wsidFieldsList, DSType);
-            AdoQryBTP.Request    := GetInfoFromDSType(wsidRequest, DSType);
-            AdoQryBTP.SingleTableSelect;
-            if AdoQryBTP.RecordCount > 0 then
+            if Copy(TSlValues[Cpt], 1, 7) = WSCDS_IndiceField then
             begin
-              Inc(ModifyQty);
-              Result := AddData(wsacUpdate, DSType, TSlIndice);
-            end else
-            begin
-              if DSType <> wsdsSocietyParameters then // Il ne faut pas créer les nouveaux PSoc de la compta 
-              begin
-                Inc(InsertQty);
-                Result := AddData(wsacInsert, DSType, TSlIndice);
+              Index := StrToInt(Copy(TSlValues[Cpt], Pos('=', TSlValues[Cpt]) + 1, Length(TSlValues[Cpt])));
+              TSlIndice.Clear;
+              ExtractIndice(Index, TSlValues, TSlIndice);
+              { Met la valeur trouvée en cache pour comparer si les valeurs ont changées lors du Send vers Y2 }
+              SetCacheY2Data;         
+              { Test si existe déjà }
+              AdoQryBTP.TSLResult.Clear;
+              AdoQryBTP.FieldsList := GetInfoFromDSType(wsidFieldsList, DSType);
+              AdoQryBTP.Request    := GetInfoFromDSType(wsidRequest, DSType);
+              try
+                AdoQryBTP.SingleTableSelect;
+                if AdoQryBTP.RecordCount > 0 then
+                begin
+                  Inc(ModifyQty);
+                  Result := AddData(wsacUpdate, DSType, TSlIndice);
+                end else
+                begin
+                  if DSType <> wsdsSocietyParameters then // Il ne faut pas créer les nouveaux PSoc de la compta
+                  begin
+                    Inc(InsertQty);
+                    Result := AddData(wsacInsert, DSType, TSlIndice);
+                  end;
+                end;
+                AdoQryBTP.TSLResult.Clear;
+                AdoQryBTP.RecordCount := 0;
+              except
+                if DebugEvents then
+                  WriteLog(ssbylLog, Format('%s - %s - TSvcSyncBTPY2Execute.GetY2Data. Erreur sur exécution de %s / %s / %s', [WSCDS_DebugMsg, WSCDS_ErrorMsg, AdoQryBTP.ServerName, AdoQryBTP.DBName, AdoQryBTP.Request]), 0);
+                Result := False;
+                exit;
               end;
             end;
-            AdoQryBTP.TSLResult.Clear;
-            AdoQryBTP.RecordCount := 0;
           end;
         end;
-      end;
-      if (ModifyQty + InsertQty) > 0then
+        if (ModifyQty + InsertQty) > 0then
+        begin
+          if ModifyQty > 0 then
+            LogMsgTableName := Format('%s (%s enregistrement(s) à modifier.', [LogMsgTableName, IntToStr(ModifyQty)]);
+          if InsertQty > 0 then
+            LogMsgTableName := Format('%s %s%s enregistrement(s) à créer.', [LogMsgTableName, Tools.iif(ModifyQty > 0, ' ', '('), IntToStr(InsertQty)]);
+          LogMsgTableName := Format('%s)', [LogMsgTableName]);
+          WriteLog(ssbylLog, LogMsgTableName, 3, False);
+        end;
+      end else
       begin
-        if ModifyQty > 0 then
-          LogMsgTableName := Format('%s (%s enregistrement(s) à modifier.', [LogMsgTableName, IntToStr(ModifyQty)]);
-        if InsertQty > 0 then
-          LogMsgTableName := Format('%s %s%s enregistrement(s) à créer.', [LogMsgTableName, Tools.iif(ModifyQty > 0, ' ', '('), IntToStr(InsertQty)]);
-        LogMsgTableName := Format('%s)', [LogMsgTableName]);
-        WriteLog(ssbylLog, LogMsgTableName, 3, False);
+        { Si pas de log métier, écrit l'erreur dans le log windows }
+        if LogValues.LogLevel > 0 then
+          WriteLog(ssbylLog, Format('%s - %s : %s', [WSCDS_DebugMsg, WSCDS_ErrorMsg, GetDataState]), 0);
       end;
-    end else
-    begin
-      { Si pas de log métier, écrit l'erreur dans le log windows }
-      if LogValues.LogLevel > 0 then
-        WriteLog(ssbylLog, Format('%s : %s', [WSCDS_ErrorMsg, GetDataState]), 0);
+    except
       if DebugEvents then
-        WriteLog(ssbylWindows, Format('%s : %s', [WSCDS_ErrorMsg, GetDataState]), 0)
+        WriteLog(ssbylLog, Format('%s : Récupération des données de %s (TSvcSyncBTPY2Execute.GetY2Data).', [WSCDS_ErrorMsg, TableName]), 0);
+      Result := False;
     end;
-  except
-    WriteLog(ssbylLog, Format('%s : Récupération des données de %s (TSvcSyncBTPY2Execute.GetY2Data).', [WSCDS_ErrorMsg, TableName]), 0);
+  finally
+    TSlFilter.Clear;
+    TSlValues.Clear;
   end;
-  TSlFilter.Clear;
-  TSlValues.Clear;
 end;
 
 function TSvcSyncBTPY2Execute.GetPayment : boolean;
@@ -1863,10 +1892,16 @@ var
           AdoQryT.DBName     := BTPValues.DataBase;
           AdoQryT.FieldsList := 'T_LIBELLE';
           AdoQryT.Request    := Format('SELECT %s FROM TIERS WHERE T_AUXILIAIRE = ''%s''', [AdoQryT.FieldsList, Auxiliary]);
-          AdoQryT.SingleTableSelect;
-          if AdoQryT.TSLResult.count > 0 then
-            TslCacheThird.Add(Format('%s=%s', [Auxiliary, AdoQryT.TSLResult[0]]));
-          Result := AdoQryT.TSLResult[0];
+          try
+            AdoQryT.SingleTableSelect;
+            if AdoQryT.TSLResult.count > 0 then
+              TslCacheThird.Add(Format('%s=%s', [Auxiliary, AdoQryT.TSLResult[0]]));
+            Result := AdoQryT.TSLResult[0];
+          except
+            if DebugEvents then
+              WriteLog(ssbylLog, Format('%s - %s - TSvcSyncBTPY2Execute.GetPayment/GetThirdLabel. Erreur sur exécution de %s / %s / %s', [WSCDS_DebugMsg, WSCDS_ErrorMsg, AdoQryT.ServerName, AdoQryT.DBName, AdoQryT.Request]), 0);
+            exit;
+          end;
         finally
           AdoQryT.free;
         end;
@@ -1876,7 +1911,7 @@ var
       Result := '';
   end;
 
-  procedure AddInsertToTsl;
+  function AddInsertToTsl : boolean;
   var
     IsPayment           : string;
     sIndex              : string;
@@ -1907,6 +1942,7 @@ var
     end;
 
   begin
+    Result     := True;
     IsPayment  := Tools.iif(copy(AccDocType, 1, 1) = 'R', 'X', '-');
     sIndex     := AccAuxiliary + '-' + BE0Type + '-' + BE0Stump + '-' + IntToSTr(BE0Number) + '-' + IntToSTr(BE0Index);
     OrderNum   := 0;
@@ -1960,11 +1996,18 @@ var
                                    + ' WHERE EX_DATEDEBUT <= ''%s'''
                                    + '   AND EX_DATEFIN   >= ''%s'''
                                   , [AdoQryE.FieldsList, lAccDate, lAccDate]);
-        AdoQryE.SingleTableSelect;
-        if AdoQryE.RecordCount = 1 then
-        begin
-          TslCacheFiscalYear.Add(AdoQryE.TSLResult[Cpt]);
-          SetFiscalYearValues(AdoQryE.TSLResult[Cpt]);
+        try
+          AdoQryE.SingleTableSelect;
+          if AdoQryE.RecordCount = 1 then
+          begin
+            TslCacheFiscalYear.Add(AdoQryE.TSLResult[Cpt]);
+            SetFiscalYearValues(AdoQryE.TSLResult[Cpt]);
+          end;
+        except
+          if DebugEvents then
+            WriteLog(ssbylLog, Format('%s - %s - TSvcSyncBTPY2Execute.GetPayment/AddInsertToTsl. Erreur sur exécution de %s / %s / %s', [WSCDS_DebugMsg, WSCDS_ErrorMsg, AdoQryE.ServerName, AdoQryE.DBName, AdoQryE.Request]), 0);
+          Result := False;
+          exit;
         end;
       end;
       { Test si l'enregistrement a déjà été importé }
@@ -1993,8 +2036,15 @@ var
                                     , Tools.CastDateTimeForQry(StrToDateTime(FiscalYearStartDate))
                                     , Tools.CastDateTimeForQry(StrToDateTime(FiscalYearEndDate))
                                    ]);
-      AdoQryE.SingleTableSelect;
-      AlreadyExist := (AdoQryE.RecordCount = 1);
+      try
+        AdoQryE.SingleTableSelect;
+        AlreadyExist := (AdoQryE.RecordCount = 1);
+      except
+        if DebugEvents then
+          WriteLog(ssbylLog, Format('%s - %s - TSvcSyncBTPY2Execute.GetPayment/AddInsertToTsl. Erreur sur exécution de %s / %s / %s', [WSCDS_DebugMsg, WSCDS_ErrorMsg, AdoQryE.ServerName, AdoQryE.DBName, AdoQryE.Request]), 0);
+          Result := False;
+        exit;
+      end;
     finally
       AdoQryE.free;
     end;
@@ -2060,11 +2110,14 @@ var
     logAuxiliary : string;
     logDocType   : string;
     logDocNumber : string;
+    MSgErr       : string;
   begin
     Result      := True;
     PaymentQty  := 0;
     DocumentQty := 0;
     { Sépare les règlements des pièces }
+    if DebugEvents then
+      WriteLog(ssbylLog, Format('%s - TSvcSyncBTPY2Execute.GetPayment : Sépare les règlements des pièces.', [WSCDS_DebugMsg]), 0);
     for Cpt := 0 to Pred(TSlValues.Count) do
     begin
       if Copy(TSlValues[Cpt], 1, 7) = WSCDS_IndiceField then
@@ -2087,6 +2140,8 @@ var
     TSlIndice.Clear;
     { Pour chaque règlement, recherche la pièce associée (auxiliaire et code lettrage identique) pour récupérer E_COUVERTURE et E_COUVERTUREDEV
       et les champs permettant de retrouver l'enregistrement correspondant dans BTPECRITURE }
+    if DebugEvents then
+      WriteLog(ssbylLog, Format('%s - TSvcSyncBTPY2Execute.GetPayment : Recherche des pièces associées aux règlements.', [WSCDS_DebugMsg]), 0);
     for Cpt := 0 to Pred(TslPayments.Count) do
     begin
       if Copy(TslPayments[Cpt], 1, 7) = WSCDS_IndiceField then
@@ -2154,15 +2209,24 @@ var
                                          , DocJrl
                                          , DocFiscalYear
                                          , IntToStr(DocNumber)]);
-            AdoQryL.SingleTableSelect;
-            if AdoQryL.RecordCount > 0 then
-            begin
-              BE0Values := AdoQryL.TSLResult[0];
-              BE0Type   := Tools.ReadTokenSt_(BE0Values, ToolsTobToTsl_Separator);
-              BE0Stump  := Tools.ReadTokenSt_(BE0Values, ToolsTobToTsl_Separator);
-              BE0Number := StrToint(Tools.ReadTokenSt_(BE0Values, ToolsTobToTsl_Separator));
-              BE0Index  := StrToint(Tools.ReadTokenSt_(BE0Values, ToolsTobToTsl_Separator));
-              AddInsertToTsl;
+            try
+              MSgErr := AdoQryL.SingleTableSelect;
+              if AdoQryL.RecordCount > 0 then
+              begin
+                BE0Values := AdoQryL.TSLResult[0];
+                BE0Type   := Tools.ReadTokenSt_(BE0Values, ToolsTobToTsl_Separator);
+                BE0Stump  := Tools.ReadTokenSt_(BE0Values, ToolsTobToTsl_Separator);
+                BE0Number := StrToint(Tools.ReadTokenSt_(BE0Values, ToolsTobToTsl_Separator));
+                BE0Index  := StrToint(Tools.ReadTokenSt_(BE0Values, ToolsTobToTsl_Separator));
+                Result    := AddInsertToTsl;
+              end;
+              if not Result then
+                exit;
+            except
+              if DebugEvents then
+                WriteLog(ssbylLog, Format('%s - %s - TSvcSyncBTPY2Execute.GetPayment/Treatment. Erreur sur exécution de %s / %s / %s', [WSCDS_DebugMsg, WSCDS_ErrorMsg, AdoQryL.ServerName, AdoQryL.DBName, AdoQryL.Request]), 0);
+              Result := False;
+              exit;
             end;
           finally
             AdoQryL.free;
@@ -2170,6 +2234,8 @@ var
         end;
       end;
     end;
+    if DebugEvents then
+      WriteLog(ssbylLog, Format('%s - TSvcSyncBTPY2Execute.GetPayment/Treatment #01 : Création des règlements et mise à jour des pièces.', [WSCDS_DebugMsg]), 0);
     if TslInsertList.count > 0 then
     begin
       WriteLog(ssbylLog, Format('%s règlement(s) trouvé(s).', [IntToStr(PaymentQty)]), 3);
@@ -2185,8 +2251,15 @@ var
           WriteLog(ssbylLog, Format('Auxiliaire %s - Pièce %s n° %s', [logAuxiliary, logDocType, logDocNumber]), 4);
         end;
         AdoQryBTP.Request := copy(TslInsertList[Cpt], pos('=', TslInsertList[Cpt]) + 1, length(TslInsertList[Cpt]));
-        AdoQryBTP.InsertUpdate;
-        Result := (AdoQryBTP.RecordCount = 1);
+        try
+          AdoQryBTP.InsertUpdate;
+          Result := (AdoQryBTP.RecordCount = 1);
+        except
+          if DebugEvents then
+            WriteLog(ssbylLog, Format('%s - %s - TSvcSyncBTPY2Execute.GetPayment/Treatment #02. Erreur sur exécution de %s / %s / %s', [WSCDS_DebugMsg, WSCDS_ErrorMsg, AdoQryBTP.ServerName, AdoQryBTP.DBName, AdoQryBTP.Request]), 0);
+          Result := False;
+          exit;
+        end;
         if not Result then
           Break;
       end;
@@ -2196,14 +2269,14 @@ var
 begin                                                          
   Result := True;
   if DebugEvents then
-    WriteLog(ssbylWindows, Format('Start TSvcSyncBTPY2Execute.GetPayment', []), 0);
+    WriteLog(ssbylLog, Format('%s - TSvcSyncBTPY2Execute.GetPayment', [WSCDS_DebugMsg]), 0);
   if Tools.GetParamSocSecur_('SO_BTGETREGLCPTA', '-' {$IFDEF APPSRV}, BTPValues.Server, BTPValues.DataBase{$ENDIF APPSRV}) = 'X' then
   begin
     WriteLog(ssbylLog, 'Récupération des règlements.', 2);
     TSlFilter.Clear;
     SetFilterFromDSType(wsdsAccForPayment, TSlFilter);
-    GetDataState := TReadWSDataService.GetData(wsdsAccForPayment, Y2Values.Server, Y2Values.DataBase, TSlValues, TSlCacheWSFields, TSlFilter);
     try
+      GetDataState := TReadWSDataService.GetData(wsdsAccForPayment, Y2Values.Server, Y2Values.DataBase, TSlValues, TSlCacheWSFields, TSlFilter);
       Result := (GetDataState = WSCDS_GetDataOk);
       if Result then
       begin
@@ -2243,12 +2316,10 @@ begin
         end;
       end;
     except
-      WriteLog(ssbylLog, Format('%s : Récupération des règlements (TSvcSyncBTPY2Execute.GetPayment).', [WSCDS_ErrorMsg]), 0);
+      WriteLog(ssbylLog, Format('%s : Récupération des règlements (TSvcSyncBTPY2Execute.GetPayment). Erreur : %s', [WSCDS_ErrorMsg, GetDataState]), 0);
     end;
   end else
     Result := True;
-  if DebugEvents then
-    WriteLog(ssbylWindows, Format('End TSvcSyncBTPY2Execute.GetPayment', []), 0);
 end;
 
 procedure TSvcSyncBTPY2Execute.CreateObjects;
@@ -2387,7 +2458,7 @@ var
   SettingFile: TInifile;
 begin
   if DebugEvents then
-    WriteLog(ssbylWindows, Format('Start TSvcSyncBTPY2Execute.SetLastSyncIniFile', []), 0);
+    WriteLog(ssbylLog, Format('%s - TSvcSyncBTPY2Execute.SetLastSyncIniFile', [WSCDS_DebugMsg]), 0);
   SettingFile := TIniFile.Create(IniFilePath);
   try
     SettingFile.WriteString(BTPValues.ConnectionName, IniFileLastSynchro, DateTimeToStr(Now));
@@ -2395,8 +2466,6 @@ begin
   finally
     SettingFile.Free;
   end;
-  if DebugEvents then
-    WriteLog(ssbylWindows, Format('End TSvcSyncBTPY2Execute.SetLastSyncIniFile', []), 0);
 end;
 
 procedure TSvcSyncBTPY2Execute.ReadSettings;
@@ -2479,7 +2548,7 @@ begin
   if LogValues.LogLevel > 0 then
   begin
     if DebugEvents then
-      WriteLog(ssbylWindows, Format('Start TSvcSyncBTPY2Execute.LogsManagement : LogFilePath = %s', [LogFilePath]), 0);
+      WriteLog(ssbylLog, Format('%s - TSvcSyncBTPY2Execute.LogsManagement : LogFilePath = %s', [WSCDS_DebugMsg, LogFilePath]), 0);
     if not OneLogPerDay then
     begin
       MaxSize := LogValues.LogMoMaxSize;
@@ -2501,8 +2570,6 @@ begin
     begin
       LogFilePath := Format('%s_%s.log', [Copy(LogFilePath, 1, pos('.log', LogFilePath) -1), Tools.CastDateTimeForQry(Now)]);
     end;
-    if DebugEvents then
-      WriteLog(ssbylWindows, Format('End TSvcSyncBTPY2Execute.LogsManagement : LogFilePath = %s', [LogFilePath]), 0);
   end;
 end;
 
@@ -2537,17 +2604,13 @@ function TSvcSyncBTPY2Execute.GetData: boolean;
       if DSType <> wsdsAccForPayment then
       begin
         if DebugEvents then
-          WriteLog(ssbylWindows, Format('Start TSvcSyncBTPY2Execute.GetData / GetFromDSType - %s', [GetTableNameFromDSType(DsType)]), 0);
+          WriteLog(ssbylLog, Format('%s - TSvcSyncBTPY2Execute.GetData/GetFromDSType - %s', [WSCDS_DebugMsg, GetTableNameFromDSType(DsType)]), 0);
         Result := GetY2Data(DSType);
-        if DebugEvents then
-          WriteLog(ssbylWindows, Format('End TSvcSyncBTPY2Execute.GetData / GetFromDSType - %s', [GetTableNameFromDSType(DsType)]), 0);
       end else
       begin
         if DebugEvents then
-          WriteLog(ssbylWindows, Format('Start TSvcSyncBTPY2Execute.GetPayment / GetFromDSType ', []), 0);
+          WriteLog(ssbylLog, Format('%s - TSvcSyncBTPY2Execute.GetPayment/GetFromDSType ', [WSCDS_DebugMsg]), 0);
         Result := GetPayment;
-        if DebugEvents then
-          WriteLog(ssbylWindows, Format('End TSvcSyncBTPY2Execute.GetPayment / GetFromDSType ', []), 0);
       end;
     end else
       Result := True;
@@ -2571,14 +2634,16 @@ function TSvcSyncBTPY2Execute.GetData: boolean;
         Inc(UpdQty)
       else
         Inc(InsQty);
-      AdoQryBTP.InsertUpdate;
       try
+        AdoQryBTP.InsertUpdate;
         Result := (AdoQryBTP.RecordCount = 1);
         if not Result then
           Break;
       except
-        WriteLog(ssbylLog, Format('%s : Erreur lors de l''exécution de %s .', [WSCDS_ErrorMsg, AdoQryBTP.Request]), 0);
+        if DebugEvents then
+          WriteLog(ssbylLog, Format('%s - %s - TSvcSyncBTPY2Execute.GetData/InsertOrUpdateData. Erreur sur exécution de %s / %s / %s', [WSCDS_DebugMsg, WSCDS_ErrorMsg, AdoQryBTP.ServerName, AdoQryBTP.DBName, AdoQryBTP.Request]), 0);
         Result := False;
+        exit;
       end;
     end;
     if Result then
@@ -2616,10 +2681,11 @@ begin
   if Result then Result := GetFromDSType(wsdsChangeRate);
   if Result then Result := GetFromDSType(wsdsContact);
   if Result then Result := InsertOrUpdateData;
-  if Result then Result := GetFromDSType(wsdsAccForPayment);     
-  WriteLog(ssbylLog, 'Fin de la récupération des données créées ou modifiées depuis le ' + BTPValues.LastSynchro, 2);
-  if DebugEvents then
-    WriteLog(ssbylWindows, Format('End TSvcSyncBTPY2Execute.GetData', []), 0);
+  if Result then Result := GetFromDSType(wsdsAccForPayment);
+  if Result then
+    WriteLog(ssbylLog, 'Fin de la récupération des données créées ou modifiées depuis le ' + BTPValues.LastSynchro, 2)
+  else
+    WriteLog(ssbylLog, Format('%s - Interruption de la récupération des données créées ou modifiées depuis le %s', [WSCDS_ErrorMsg, BTPValues.LastSynchro]), 0);
 end;
 
 function TSvcSyncBTPY2Execute.SendData: boolean;
@@ -2664,99 +2730,104 @@ var
 
 begin
   if DebugEvents then
-    WriteLog(ssbylWindows, Format('Start TSvcSyncBTPY2Execute.SendData', []), 0);
+    WriteLog(ssbylLog, Format('%s - TSvcSyncBTPY2Execute.SendData', [WSCDS_DebugMsg]), 0);
   WriteLog(ssbylLog, 'Envoi des données créées ou modifiées depuis le ' + BTPValues.LastSynchro, 2);
   Result := True;
   { Recherche s'il existe des écritures non envoyées }
   AdoQryBTP.TSLResult.Clear;
   AdoQryBTP.FieldsList := 'BE0_ENTITY,BE0_EXERCICE,BE0_JOURNAL,BE0_NUMEROPIECE';
   AdoQryBTP.Request    := Format('SELECT %s FROM BTPECRITURE WHERE BE0_REFERENCEY2 = 0', [AdoQryBTP.FieldsList]);
-  AdoQryBTP.SingleTableSelect;
-  if AdoQryBTP.RecordCount > 0 then
-  begin
-    WriteLog(ssbylLog, Format('%s pièce(s) comptable trouvée(s).', [IntToStr(AdoQryBTP.RecordCount)]), 3);
-    AdoQryEcr := AdoQry.Create;
-    try
-      AdoQryAna := AdoQry.Create;
+  try
+    AdoQryBTP.SingleTableSelect;
+    if AdoQryBTP.RecordCount > 0 then
+    begin
+      WriteLog(ssbylLog, Format('%s pièce(s) comptable trouvée(s).', [IntToStr(AdoQryBTP.RecordCount)]), 3);
+      AdoQryEcr := AdoQry.Create;
       try
-        TSlAccEntries := TStringList.create;
+        AdoQryAna := AdoQry.Create;
         try
-          TSlSendEntries := TStringList.create;
+          TSlAccEntries := TStringList.create;
           try
-            AdoQryEcr.ServerName := AdoQryBTP.ServerName;
-            AdoQryEcr.DBName     := AdoQryBTP.DBName;
-            AdoQryEcr.FieldsList := Tools.GetFieldsListFromPrefix('E' {$IF defined(APPSRV)}, AdoQryBTP.ServerName, AdoQryBTP.DBName{$IFEND !APPSRV});
-            AdoQryAna.ServerName := AdoQryBTP.ServerName;
-            AdoQryAna.DBName     := AdoQryBTP.DBName;
-            AdoQryAna.FieldsList := Tools.GetFieldsListFromPrefix('Y' {$IF defined(APPSRV)}, AdoQryBTP.ServerName, AdoQryBTP.DBName{$IFEND !APPSRV});
-            if AdoQryBTP.RecordCount > 0 then
-            begin
-              for Cpt := 0 to pred(AdoQryBTP.TSLResult.Count) do
+            TSlSendEntries := TStringList.create;
+            try
+              AdoQryEcr.ServerName := AdoQryBTP.ServerName;
+              AdoQryEcr.DBName     := AdoQryBTP.DBName;
+              AdoQryEcr.FieldsList := Tools.GetFieldsListFromPrefix('E' {$IF defined(APPSRV)}, AdoQryBTP.ServerName, AdoQryBTP.DBName{$IFEND !APPSRV});
+              AdoQryAna.ServerName := AdoQryBTP.ServerName;
+              AdoQryAna.DBName     := AdoQryBTP.DBName;
+              AdoQryAna.FieldsList := Tools.GetFieldsListFromPrefix('Y' {$IF defined(APPSRV)}, AdoQryBTP.ServerName, AdoQryBTP.DBName{$IFEND !APPSRV});
+              if AdoQryBTP.RecordCount > 0 then
               begin
-                LoadEcrFromBE0(AdoQryEcr, AdoQryAna, AdoQryBTP.TSLResult[Cpt]); // Charge les écritures et analytique
-                if AdoQryEcr.RecordCount > 0 then
+                if DebugEvents then
+                  WriteLog(ssbylLog, Format('%s - TSvcSyncBTPY2Execute.SearchRelatedParameters', [WSCDS_DebugMsg]), 0);
+                for Cpt := 0 to pred(AdoQryBTP.TSLResult.Count) do
                 begin
-                  { Si log, recherche les données à ajouter dans le log }
-                  if LogValues.LogLevel > 0 then
+                  LoadEcrFromBE0(AdoQryEcr, AdoQryAna, AdoQryBTP.TSLResult[Cpt]); // Charge les écritures et analytique
+                  if AdoQryEcr.RecordCount > 0 then
                   begin
-                    LogValue    := SetDataToSend(AdoQryEcr.FieldsList, AdoQryEcr.tslresult[0]);
-                    LogValueExo := Tools.GetStValueFromTSl(LogValue, 'E_EXERCICE');
-                    LogValueAux := Tools.GetStValueFromTSl(LogValue, 'E_AUXILIAIRE');
-                    LogValueJou := Tools.GetStValueFromTSl(LogValue, 'E_JOURNAL');
-                    LogValueNum := Tools.GetStValueFromTSl(LogValue, 'E_NUMEROPIECE');
-                    LogValueDte := Tools.GetStValueFromTSl(LogValue, 'E_DATECOMPTABLE');
-                    WriteLog(ssbylLog, Format('Pièce %s : Exercice "%s" - Auxiliaire "%s" - Journal "%s" - Date "%s" - Numéro "%s"'
-                                              , [IntToStr(Cpt+1) ,LogValueExo, LogValueAux, LogValueJou, LogValueDte, LogValueNum]), 4);
+                    { Si log, recherche les données à ajouter dans le log }
+                    if LogValues.LogLevel > 0 then
+                    begin
+                      LogValue    := SetDataToSend(AdoQryEcr.FieldsList, AdoQryEcr.tslresult[0]);
+                      LogValueExo := Tools.GetStValueFromTSl(LogValue, 'E_EXERCICE');
+                      LogValueAux := Tools.GetStValueFromTSl(LogValue, 'E_AUXILIAIRE');
+                      LogValueJou := Tools.GetStValueFromTSl(LogValue, 'E_JOURNAL');
+                      LogValueNum := Tools.GetStValueFromTSl(LogValue, 'E_NUMEROPIECE');
+                      LogValueDte := Tools.GetStValueFromTSl(LogValue, 'E_DATECOMPTABLE');
+                      WriteLog(ssbylLog, Format('Pièce %s : Exercice "%s" - Auxiliaire "%s" - Journal "%s" - Date "%s" - Numéro "%s"'
+                                                , [IntToStr(Cpt+1) ,LogValueExo, LogValueAux, LogValueJou, LogValueDte, LogValueNum]), 4);
+                    end;
+                    TSlAccEntries.Clear;
+                    SetSendY2TSl(AdoQryEcr, AdoQryAna, TSlAccEntries);
+                    SearchRelatedParameters(TSlAccEntries);
+                    TSlSendEntries.Add('###NEWECR');
+                    for Cpt1 := 0 to pred(TSlAccEntries.count) do
+                      TSlSendEntries.Add(TSlAccEntries[Cpt1]);
                   end;
-                  TSlAccEntries.Clear;
-                  SetSendY2TSl(AdoQryEcr, AdoQryAna, TSlAccEntries);
-                  SearchRelatedParameters(TSlAccEntries);
-                  TSlSendEntries.Add('###NEWECR');
-                  for Cpt1 := 0 to pred(TSlAccEntries.count) do
-                    TSlSendEntries.Add(TSlAccEntries[Cpt1]);
                 end;
-              end;
-              SearchOthersParameters;   // Préparation autres paramètres
-              Result := SendY2Settings; // Envoi du paramétrage
-              if DebugEvents then
-                WriteLog(ssbylWindows, Format('Start TSvcSyncBTPY2Execute.SendEntriesToY2', []), 0);
-              if Result then // Envoi des écritures
-              begin
-                WriteLog(ssbylLog, Format('Envoi des pièces comptables (%s pièce(s)).', [IntToStr(AdoQryBTP.RecordCount)]), 3);
-                TSlAccEntries.clear;
-                Cpt1 := 0;
-                for Cpt := 0 to pred(TSlSendEntries.count) do
+                SearchOthersParameters;   // Préparation autres paramètres
+                Result := SendY2Settings; // Envoi du paramétrage
+                if DebugEvents then
+                  WriteLog(ssbylLog, Format('%s - TSvcSyncBTPY2Execute.SendEntriesToY2', [WSCDS_DebugMsg]), 0);
+                if Result then // Envoi des écritures
                 begin
-                  if TSlSendEntries[Cpt] = '###NEWECR' then
-                    Result := SendEntriesToY2
-                  else
-                    TSlAccEntries.Add(TSlSendEntries[Cpt]);
+                  WriteLog(ssbylLog, Format('Envoi des pièces comptables (%s pièce(s)).', [IntToStr(AdoQryBTP.RecordCount)]), 3);
+                  TSlAccEntries.clear;
+                  Cpt1 := 0;
+                  for Cpt := 0 to pred(TSlSendEntries.count) do
+                  begin
+                    if TSlSendEntries[Cpt] = '###NEWECR' then
+                      Result := SendEntriesToY2
+                    else
+                      TSlAccEntries.Add(TSlSendEntries[Cpt]);
+                  end;
+                  if Result then
+                    Result := SendEntriesToY2;
                 end;
-                if Result then
-                  Result := SendEntriesToY2;
               end;
-              if DebugEvents then
-                WriteLog(ssbylWindows, Format('End TSvcSyncBTPY2Execute.SendEntriesToY2', []), 0);
+            finally
+              FreeAndNil(TSlSendEntries);
             end;
           finally
-            FreeAndNil(TSlSendEntries);
+            FreeAndNil(TSlAccEntries);
           end;
         finally
-          FreeAndNil(TSlAccEntries);
+          AdoQryAna.free;
         end;
       finally
-        AdoQryAna.free;
+        AdoQryEcr.free;
       end;
-    finally
-      AdoQryEcr.free;
     end;
+    AdoQryBTP.TSLResult.Clear;
+    AdoQryBTP.FieldsList := '';
+    AdoQryBTP.Request    := '';
+  except
+    if DebugEvents then
+      WriteLog(ssbylLog, Format('%s - %s - TSvcSyncBTPY2Execute.SendData. Erreur sur exécution de %s / %s / %s', [WSCDS_DebugMsg, WSCDS_ErrorMsg, AdoQryBTP.ServerName, AdoQryBTP.DBName, AdoQryBTP.Request]), 0);
+    Result := False;
+    exit;
   end;
-  AdoQryBTP.TSLResult.Clear;
-  AdoQryBTP.FieldsList := '';
-  AdoQryBTP.Request    := '';
   WriteLog(ssbylLog, 'Fin de l''envoi des données créées ou modifiées depuis le ' + BTPValues.LastSynchro, 2);
-  if DebugEvents then
-    WriteLog(ssbylWindows, Format('End TSvcSyncBTPY2Execute.SendData', []), 0);
 end;
 
 function TSvcSyncBTPY2Execute.ServiceExecute: Boolean;
@@ -2784,7 +2855,7 @@ var
 
 begin
   if DebugEvents then
-    WriteLog(ssbylWindows, 'Start TSvcSyncBTPY2Execute.ServiceExecute', 0);
+    WriteLog(ssbylLog, Format('%s - TSvcSyncBTPY2Execute.ServiceExecute', [WSCDS_DebugMsg]), 0);
   Result := True;
   LogsManagement;
   WriteLog(ssbylLog, '', 0, False);
@@ -2805,11 +2876,18 @@ begin
           AdoQryPAna.FieldsList := 'SOC_DATA';
           { Paramètres de connexion }
           AdoQryPAna.Request    := Format('SELECT %s FROM PARAMSOC WHERE SOC_NOM IN (''%s'', ''%s'', ''%s'') ORDER BY SOC_NOM DESC', [AdoQryPAna.FieldsList, WSCDS_SocServer, WSCDS_SocNumPort, WSCDS_SocCegidDos]);
-          AdoQryPAna.SingleTableSelect;
-          if AdoQryPAna.RecordCount > 0 then
-            Result := ((AdoQryPAna.TSLResult[0] <> '') and (AdoQryPAna.TSLResult[1] <> '') and (AdoQryPAna.TSLResult[2] <> ''))
-          else
+          try
+            AdoQryPAna.SingleTableSelect;
+            if AdoQryPAna.RecordCount > 0 then
+              Result := ((AdoQryPAna.TSLResult[0] <> '') and (AdoQryPAna.TSLResult[1] <> '') and (AdoQryPAna.TSLResult[2] <> ''))
+            else
+              Result := False;
+          except
+            if DebugEvents then
+              WriteLog(ssbylLog, Format('%s - %s - TSvcSyncBTPY2Execute.ServiceExecute. Erreur sur exécution de %s / %s / %s', [WSCDS_DebugMsg, WSCDS_ErrorMsg, AdoQryPAna.ServerName, AdoQryPAna.DBName, AdoQryPAna.Request]), 0);
             Result := False;
+            exit;
+          end;
         finally
            AdoQryPAna.Free;
         end;
@@ -2836,7 +2914,7 @@ begin
   finally
     WriteLog(ssbylLog, 'Fin d''exécution du service.', 0);
     if DebugEvents then
-      WriteLog(ssbylWindows, 'End TSvcSyncBTPY2Execute.ServiceExecute', 0);
+      WriteLog(ssbylLog, Format('%s - End TSvcSyncBTPY2Execute.ServiceExecute', [WSCDS_DebugMsg]), 0);
   end;
 end;
 

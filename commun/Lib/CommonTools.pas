@@ -56,7 +56,7 @@ type
 
     Constructor Create;
     Destructor Destroy; override;
-    procedure SingleTableSelect;
+    function SingleTableSelect : string;
     procedure InsertUpdate;
   end;
 
@@ -174,7 +174,7 @@ end;
       lAdoQry.Free;
     end;
 }
-procedure AdoQry.SingleTableSelect;
+function AdoQry.SingleTableSelect : string;
 var
   Connect     : TADOConnection;
   Qry         : TADOQuery;
@@ -186,6 +186,7 @@ var
   Start       : integer;
   FieldsArray : Array of string;
 begin
+  Result := '';
   if     (ServerName <> '') // Nom du serveur
      and (DBName <> '')     // Nom de la BDD
      and (Request <> '')    // Requête
@@ -216,42 +217,62 @@ begin
            + Select
            + Copy(Request, pos('*', Request) + 1, Length(Request));
     end;
-    Connect                  := TADOConnection.Create(application);
-    Connect.ConnectionString := GetConnectionString;
-    Connect.LoginPrompt      := False;
+    Connect := TADOConnection.Create(application);
     try
-      Connect.Connected := True;
-      Connect.BeginTrans;
+      Connect.ConnectionString := GetConnectionString;
+      Connect.LoginPrompt      := False;
+      Connect.Connected        := True;
       try
-        Qry            := TADOQuery.Create(Application);
-        Qry.Connection := Connect;
-        Qry.SQL.Text   := Sql;
-        Qry.Prepared   := True;
-        Qry.Open;
+        Connect.BeginTrans;
+        Qry := TADOQuery.Create(Application);
         try
-          RecordCount := Qry.RecordCount;
-          if not Qry.Eof then
-          begin
-            while not Qry.Eof do
+          Qry.Connection := Connect;
+          Qry.SQL.Text   := Sql;
+          Qry.Prepared   := True;
+          try
+            Qry.Open;
+            RecordCount := Qry.RecordCount;
+            if not Qry.Eof then
             begin
-              for Cpt := 0 to pred(Length(FieldsArray)) do
-                ResultValue := ResultValue + TSLResult.Delimiter + VarToStr(Qry.FieldValues[FieldsArray[Cpt]]);
-              ResultValue := Copy(ResultValue, 2, Length(ResultValue));
-              TSLResult.Add(ResultValue);
-              ResultValue := '';
-              Qry.Next;
+              while not Qry.Eof do
+              begin
+                for Cpt := 0 to pred(Length(FieldsArray)) do
+                  ResultValue := ResultValue + TSLResult.Delimiter + VarToStr(Qry.FieldValues[FieldsArray[Cpt]]);
+                ResultValue := Copy(ResultValue, 2, Length(ResultValue));
+                TSLResult.Add(ResultValue);
+                ResultValue := '';
+                Qry.Next;
+              end;
             end;
+          except
+            begin
+              Result := Format('Erreur sur %s', [Qry.SQL.Text]);
+              Connect.RollbackTrans;
+              Raise Exception.Create(Result);
+            end;  
+(*            on E:Exception do
+            begin
+              if E.Message <> '' then
+                Result := E.Message
+              else
+                Result := Format('Erreur sur %s', [Qry.SQL.Text]);
+              Connect.RollbackTrans;
+              Raise Exception.Create(Result);
+            end;
+*)
           end;
         finally
           Qry.active := False;
           Qry.Free;
         end;
-        Connect.CommitTrans;
+        if Result = '' then
+          Connect.CommitTrans;
       except
         on E:Exception do
         begin
+          Result := E.Message;
           Connect.RollbackTrans;
-          Raise;
+          //Raise;
         end;
       end;
     finally
@@ -540,9 +561,9 @@ begin
     HourOffset := -1 * HourOffset;
     MinOffset  := -1 * MinOffset;
   end;
-  Time := EncodeDateTime(Year, Month, Day, Hour, Minute, Second, Mlsecond);
-  Time := IncHour(Time, hourOffset);
-  Time := IncMinute(Time, minOffset);
+  Time   := EncodeDateTime(Year, Month, Day, Hour, Minute, Second, Mlsecond);
+  Time   := IncHour(Time, hourOffset);
+  Time   := IncMinute(Time, minOffset);
   Result := DateTimeToStr(Time);
 end;
 

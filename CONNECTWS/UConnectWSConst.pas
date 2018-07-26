@@ -112,6 +112,7 @@ const
   WSCDS_XmlTrue                   = 'true';
   WSCDS_XmlFalse                  = 'false';
   WSCDS_ErrorMsg                  = '##### ERREUR';
+  WSCDS_DebugMsg                  = 'DEBUG : ';
   WSCDS_ServiceName               = 'SvcSynBTPY2';
 
 implementation
@@ -185,28 +186,28 @@ end;
 class function TGetFromDSType.dstViewName(DSType: T_WSDataService): string;
 begin
   case DSType of
-    wsdsAccount           : Result := 'ZLSEACCOUNT';
-    wsdsAnalyticalSection : Result := 'ZLSEANALYTICALSECTION';
-    wsdsBankId            : Result := 'ZLSEBANKID';
-    wsdsChangeRate        : Result := 'ZLSECHANGERATE';
-    wsdsChoixCod          : Result := 'ZLSECHXOIXCOD';
-    wsdsChoixExt          : Result := 'ZLSECHOIXEXT';
-    wsdsCommon            : Result := 'ZLSECOMMUN';
-    wsdsContact           : Result := 'ZLSECONTACT';
-    wsdsCorrespondence    : Result := 'ZLSECORRESP';
-    wsdsCountry           : Result := 'ZLSECOUNTRY';
-    wsdsCurrency          : Result := 'ZLSECURRENCY';
-    wsdsAccForPayment     : Result := 'ZLSEECRPOURRGT';
-    wsdsEstablishment     : Result := 'ZLSEESTABLISHMENT';
-    wsdsFieldsList        : Result := 'ZLSEFIELDSLIST';
-    wsdsFiscalYear        : Result := 'ZLSEFISCALYEAR';
-    wsdsJournal           : Result := 'ZLSEJOURNAL';
-    wsdsPaymenChoice      : Result := 'ZLSEPAYMENT';
-    wsdsPaymentMode       : Result := 'ZLSEPAYMENTMODE';
-    wsdsRecovery          : Result := 'ZLSERECOVERY';
-    wsdsSocietyParameters : Result := 'ZLSESOCIETYPARAM';
-    wsdsThird             : Result := 'ZLSETHIRDSLIST';
-    wsdsZipCode           : Result := 'ZLSEZIPCODE';
+    wsdsAccount           : Result := 'ZCDSBACCOUNT';
+    wsdsAnalyticalSection : Result := 'ZCDSBANALYTICALSECTION';
+    wsdsBankId            : Result := 'ZCDSBBANKID';
+    wsdsChangeRate        : Result := 'ZCDSBCHANGERATE';
+    wsdsChoixCod          : Result := 'ZCDSBCHXOIXCOD';
+    wsdsChoixExt          : Result := 'ZCDSBCHOIXEXT';
+    wsdsCommon            : Result := 'ZCDSBCOMMUN';
+    wsdsContact           : Result := 'ZCDSBCONTACT';
+    wsdsCorrespondence    : Result := 'ZCDSBCORRESP';
+    wsdsCountry           : Result := 'ZCDSBCOUNTRY';
+    wsdsCurrency          : Result := 'ZCDSBCURRENCY';
+    wsdsAccForPayment     : Result := 'ZCDSBECRPOURRGT';
+    wsdsEstablishment     : Result := 'ZCDSBESTABLISHMENT';
+    wsdsFieldsList        : Result := 'ZCDSBFIELDSLIST';
+    wsdsFiscalYear        : Result := 'ZCDSBFISCALYEAR';
+    wsdsJournal           : Result := 'ZCDSBJOURNAL';
+    wsdsPaymenChoice      : Result := 'ZCDSBPAYMENT';
+    wsdsPaymentMode       : Result := 'ZCDSBPAYMENTMODE';
+    wsdsRecovery          : Result := 'ZCDSBRECOVERY';
+    wsdsSocietyParameters : Result := 'ZCDSBSOCIETYPARAM';
+    wsdsThird             : Result := 'ZCDSBTHIRDSLIST';
+    wsdsZipCode           : Result := 'ZCDSBZIPCODE';
   else
     Result := '';
   end;

@@ -78,6 +78,7 @@ var
   IniPath   : string;
   AppPath   : string;
   LogPath   : string;
+  FirstExec : boolean;  
   //uExecute  : SynchroThread;
 begin
   IniPath := GetFilePath('ini');
@@ -88,6 +89,7 @@ begin
     LogMessage(Format('Impossible d''initialiser le service %s. Le fichier de configuration "%s" est inexistant.', [WSCDS_ServiceName, GetFilePath('ini')]), EVENTLOG_ERROR_TYPE);
   end else
   begin
+    FirstExec := True;
     BTPY2Exec := TSvcSyncBTPY2Execute.Create;
     try
       BTPY2Exec.CreateObjects;
@@ -101,9 +103,10 @@ begin
           while not Terminated do
           begin
             Inc(Count);
-            if Count >= BTPY2Exec.SecondTimeout then
+            if (Count >= BTPY2Exec.SecondTimeout) or (FirstExec) then
             begin
-              Count := 0;
+              FirstExec := False;
+              Count     := 0;
               try
                 LogMessage('Début d''exécution du service.', EVENTLOG_INFORMATION_TYPE);
                 BTPY2Exec.ServiceExecute;
