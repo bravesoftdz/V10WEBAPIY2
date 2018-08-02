@@ -99,7 +99,7 @@ type
     function SendEntryCEGID(WsEt: T_WSEntryType; TOBecr: TOB; DocInfo : T_WSDocumentInf) : integer; overload; //DocType: string; DocNumber: integer): integer; overload;
   	{$IFEND !APPSRV}
     function SendEntryCEGID(WsEt: T_WSEntryType; TSlEcr: TStringList; DocInfo : T_WSDocumentInf) : integer; overload; //DocType: string; DocNumber: integer): integer; overload;
-    function SendAccountingParameters(TSLFullPathFiles : TStringList; WithDebugWs : boolean): boolean;
+    function SendAccountingParameters(TSLFullPathFiles : TStringList; LogValues : T_WSLogValues) : boolean; //WithDebugWs : boolean): boolean;
 
   end;
 
@@ -797,7 +797,7 @@ begin
   end;
 end;
 
-function TSendEntryY2.SendAccountingParameters(TSLFullPathFiles : TStringList; WithDebugWs : boolean): boolean;
+function TSendEntryY2.SendAccountingParameters(TSLFullPathFiles : TStringList; LogValues : T_WSLogValues) : boolean; //WithDebugWs : boolean): boolean;
 var
   CegidConnect             : TconnectCEGID;
   ResponseImportEntries    : T_WSResponseImportEntries;
@@ -806,18 +806,9 @@ var
   TSLTraGuid               : TStringList;
 
   procedure AddWindowsLog(Text : string);
-  var
-    WindowsLog : TEventLogger;
   begin
-    if WithDebugWs then
-    begin
-      WindowsLog := TEventLogger.Create(ExtractFileName(WSCDS_ServiceName));
-      try
-        WindowsLog.LogMessage(Text, EVENTLOG_INFORMATION_TYPE);
-      finally
-        WindowsLog.Free;
-      end;
-    end;
+    if LogValues.DebugEvents > 0 then
+      TGetFromDSType.WriteLog(ssbylLog, Text, LogValues, 0);
   end;
 
   procedure AnalyseStateReport(HttpResponse: Widestring; wsType : T_WSType);
@@ -889,7 +880,7 @@ var
                              urlSuffix := WSCDS_EndUrlImportEntriesReport + '/' + ResponseImportEntriesEnd.ReportFileId;
                            end;
         end;
-        AddWindowsLog(Format('Start CallWS : %s', [urlSuffix]));
+        AddWindowsLog(Format('%sStart CallWS : %s', [WSCDS_DebugMsg, urlSuffix]));
         url := Format('%s/%s/%s', [CegidConnect.GetStartUrl, CegidConnect.fDossier, urlSuffix]);
         http.SetAutoLogonPolicy(0);
         http.Open(HttpVerb, url, False);
@@ -943,7 +934,7 @@ var
         if ReportMsg <> '' then
           TslResult.Add(Format('%s= Rapport : %s', [DateTimeToStr(Now), ReportMsg]));
       finally
-        AddWindowsLog(Format('End CallWS : %s (msg = %s)', [urlSuffix, HttpStateMsg]));
+        AddWindowsLog(Format('%sEnd CallWS : %s (msg = %s)', [WSCDS_DebugMsg, urlSuffix, HttpStateMsg]));
         MemFile.free;
       end;
     finally
@@ -953,7 +944,7 @@ var
 
   procedure AddError;
   begin
-    AddWindowsLog(Format('Execption : %s', [HttpStateMsg]));
+    AddWindowsLog(Format('%sException : %s', [WSCDS_DebugMsg, HttpStateMsg]));
     TslResult.Add(Format('%s=%s - %s', [DateTimeToStr(Now), WSCDS_ErrorMsg, HttpStateMsg]));
   end;
   
@@ -968,8 +959,8 @@ begin
         SetCegidConnectParameters(CegidConnect);
         if CegidConnect. IsActive then
         begin        
-          Result := CallWS(wstypUpload); // Upload du fichier TRA
           try
+            Result := CallWS(wstypUpload); // Upload du fichier TRA
             if Result then                 // Import du fichier
             begin
               Result := CallWS(wstypImport);
@@ -982,8 +973,8 @@ begin
           if Result then                 // Attente de la fin de l'import
           begin
             Attempt := 1;
-            Result := CallWS(wstypGetState, Attempt);
             try
+              Result := CallWS(wstypGetState, Attempt);
               if Result then // Le 1er appel doit être ok pour continuer (http.status = 200)
               begin
                 AnalyseStateReport(HttpStateMsg, wstypGetState);
@@ -992,8 +983,8 @@ begin
                   while not ResponseImportEntriesEnd.Terminated do
                   begin
                     Inc(Attempt);
-                    CallWS(wstypGetState, Attempt);
                     try
+                      CallWS(wstypGetState, Attempt);
                       AnalyseStateReport(HttpStateMsg, wstypGetState);
                       if (ResponseImportEntriesEnd.HasError) or (pos('An Error has occured', HttpStateMsg) > 0) then
                        Break;
@@ -1017,8 +1008,8 @@ begin
               AddError;
             end;
           end;
-          CallWS(wstypGetReport); // Récupération du rapport
           try
+            CallWS(wstypGetReport); // Récupération du rapport
           except
             AddError;
           end;

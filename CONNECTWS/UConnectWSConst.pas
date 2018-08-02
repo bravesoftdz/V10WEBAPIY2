@@ -62,6 +62,8 @@ type
                           LogMaxQty         : integer;
                           LogDebug          : integer;
                           LogDebugMoMaxSize : double;
+                          DebugEvents       : integer;
+                          OneLogPerDay      : boolean;
                        end;
 
   T_WSResponseImportEntries = record
@@ -87,7 +89,7 @@ type
     class function dstWSName(DSType : T_WSDataService) : string;
     class function ExtractType(TableName : string) : string; overload;
     class function ExtractType(DSType : T_WSDataService) : string; overload;
-    class procedure WriteLog(TypeDebug: T_SvcSyncBTPY2Log; Text: string; LogLevel, LineLevel: integer; WithoutDateTime: Boolean = true);
+    class procedure WriteLog(TypeDebug: T_SvcSyncBTPY2Log; Text: string; LogValues : T_WSLogValues; LineLevel: integer; WithoutDateTime: Boolean = true);
     class function dstFiedsList(DSType : T_WSDataService) : string;
   end;
 
@@ -276,22 +278,36 @@ begin
   end;
 end;
 
-class procedure TGetFromDSType.WriteLog(TypeDebug: T_SvcSyncBTPY2Log; Text: string; LogLevel, LineLevel: integer; WithoutDateTime: Boolean = true);
+class procedure TGetFromDSType.WriteLog(TypeDebug: T_SvcSyncBTPY2Log; Text: string; LogValues : T_WSLogValues; LineLevel: integer; WithoutDateTime: Boolean = true);
 var
-  LogText    : string;
-  FilePath   : string;
-  WindowsLog : TEventLogger;
-  LogFile    : TextFile;
+  LogText     : string;
+  LogFilePath : string;
+  WindowsLog  : TEventLogger;
+  LogFile     : TextFile;
+
+  procedure WriteWindowsLog;
+  begin
+    LogFilePath := Format('%s%s.%s', [ExtractFilePath(ParamStr(0)), WSCDS_ServiceName, 'exe']);
+    WindowsLog := TEventLogger.Create(ExtractFileName(LogFilePath));
+    try
+      WindowsLog.LogMessage(Text, EVENTLOG_INFORMATION_TYPE);
+    finally
+      WindowsLog.Free;
+    end;
+  end;
+
 begin
   case TypeDebug of
     ssbylLog:
       begin
-        if LogLevel > 0 then
+        if LogValues.LogLevel > 0 then
         begin
-          FilePath := Format('%s%s.%s', [ExtractFilePath(ParamStr(0)), WSCDS_ServiceName, 'log']);
-          AssignFile(LogFile, FilePath);
+          LogFilePath := Format('%s%s.%s', [ExtractFilePath(ParamStr(0)), WSCDS_ServiceName, 'log']);
+          if Logvalues.OneLogPerDay then
+            LogFilePath := Format('%s_%s.log', [Copy(LogFilePath, 1, pos('.log', LogFilePath) -1), Tools.CastDateTimeForQry(Now)]);
+          AssignFile(LogFile, LogFilePath);
           try
-            if FileExists(FilePath) then
+            if FileExists(LogFilePath) then
               Append(LogFile)
             else
               Rewrite(LogFile);
@@ -307,18 +323,14 @@ begin
           finally
             CloseFile(LogFile);
           end;
+        end else
+        begin
+          { Si pas de log métier, on écrit dans le log windows uniquement pour le débug } 
+          if (LogValues.DebugEvents > 0) and (pos(WSCDS_DebugMsg, Text) > 0 ) then
+            WriteWindowsLog;
         end;
       end;
-    ssbylWindows:
-      begin
-        FilePath := Format('%s%s.%s', [ExtractFilePath(ParamStr(0)), WSCDS_ServiceName, 'exe']);
-        WindowsLog := TEventLogger.Create(ExtractFileName(FilePath));
-        try
-          WindowsLog.LogMessage(Text, EVENTLOG_INFORMATION_TYPE);
-        finally
-          WindowsLog.Free;
-        end;
-      end;
+    ssbylWindows: WriteWindowsLog;
   end;
 end;
 

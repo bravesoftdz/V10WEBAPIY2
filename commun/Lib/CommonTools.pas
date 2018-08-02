@@ -4,6 +4,7 @@ interface
 
 uses
   Classes
+  , UConnectWSConst
   {$IF not defined(APPSRV)}
   , UTob
   , HEnt1
@@ -46,17 +47,15 @@ type
   AdoQry = class
   private
     function GetConnectionString : string;
-    procedure AddWindowsLog(Text : string);
 
   public
     ServerName  : string;
     DBName      : string;
     Request     : string;
-    FieldsList  : string;                                           
+    FieldsList  : string;
     TSLResult   : TStringList;
     RecordCount : integer;
-    LogLevel    : integer; 
-    DebugEvents : boolean;
+    LogValues   : T_WSLogValues;
 
     Constructor Create;
     Destructor Destroy; override;
@@ -123,7 +122,7 @@ uses
   , StrUtils
   , Variants
   , DateUtils
-  , UConnectWSConst
+//  , UConnectWSConst
   , Zip
   , UConnectWSCEGID
   , SvcMgr
@@ -152,23 +151,6 @@ begin
           + ';Tag with column collation when possible=False';
 end;
 
-procedure AdoQry.AddWindowsLog(Text : string);
-var
-  WindowsLog : TEventLogger;
-  AppFilePath : string;
-begin
-  if DebugEvents then
-  begin
-    AppFilePath := Format('%s%s.%s', [ExtractFilePath(ParamStr(0)), WSCDS_ServiceName, 'exe']);
-    WindowsLog := TEventLogger.Create(ExtractFileName(AppFilePath));
-    try
-      WindowsLog.LogMessage(Text, EVENTLOG_INFORMATION_TYPE);
-    finally
-      WindowsLog.Free;
-    end;
-  end;
-end;
-  
 constructor AdoQry.Create;
 begin
   TSLResult           := TStringList.Create;
@@ -248,17 +230,16 @@ begin
       try
         Connect.BeginTrans;
         Qry := TADOQuery.Create(Application);
-        if DebugEvents then TGetFromDSType.WriteLog(ssbylLog, Format('AdoQry.SingleTableSelect - TADOQuery.Create', []), LogLevel, 0);
-        AddWindowsLog(Format('AdoQry.SingleTableSelect - TADOQuery.Create', []));
+        if LogValues.DebugEvents = 2 then TGetFromDSType.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - TADOQuery.Create', [WSCDS_DebugMsg]), LogValues, 0);
         try
           Qry.Connection := Connect;
           Qry.SQL.Text   := Sql;
           Qry.Prepared   := True;
           try
-            AddWindowsLog(Format('AdoQry.SingleTableSelect - Qry.SQL.Text =%s', [Qry.SQL.Text]));
+            if LogValues.DebugEvents = 2 then TGetFromDSType.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Qry.SQL.Text =%s', [WSCDS_DebugMsg, Qry.SQL.Text]), LogValues, 0);
             Qry.Open;
             RecordCount := Qry.RecordCount;
-            AddWindowsLog(Format('AdoQry.SingleTableSelect - Qry.RecordCount =%s', [IntToStr(Qry.RecordCount)]));
+            if LogValues.DebugEvents = 2 then TGetFromDSType.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Qry.RecordCount =%s', [WSCDS_DebugMsg, IntToStr(Qry.RecordCount)]), LogValues, 0);
             if not Qry.Eof then
             begin
               Qry.first;
@@ -268,10 +249,10 @@ begin
                   ResultValue := ResultValue + TSLResult.Delimiter + VarToStr(Qry.FieldValues[FieldsArray[Cpt]]);
                 ResultValue := Copy(ResultValue, 2, Length(ResultValue));
                 TSLResult.Add(ResultValue);
-                AddWindowsLog(Format('AdoQry.SingleTableSelect - ResultValue =%s', [ResultValue]));
+                if LogValues.DebugEvents = 2 then TGetFromDSType.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - ResultValue =%s', [WSCDS_DebugMsg, ResultValue]), LogValues, 0);
                 ResultValue := '';
                 Qry.Next;
-                AddWindowsLog(Format('AdoQry.SingleTableSelect - After Qry.Next', []));
+                if LogValues.DebugEvents = 2 then TGetFromDSType.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - After Qry.Next', [WSCDS_DebugMsg]), LogValues, 0);
               end;
             end;
           except
@@ -292,27 +273,27 @@ begin
 *)
           end;
         finally
-          AddWindowsLog(Format('AdoQry.SingleTableSelect - Start finally Qry', []));
+          if LogValues.DebugEvents = 2 then TGetFromDSType.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Start finally Qry', [WSCDS_DebugMsg]), LogValues, 0);
           Qry.active := False;
           Qry.Free;
-          AddWindowsLog(Format('AdoQry.SingleTableSelect - Stop finally Qry', []));
+          if LogValues.DebugEvents = 2 then TGetFromDSType.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Stop finally Qry', [WSCDS_DebugMsg]), LogValues, 0);
         end;
         if Result = '' then
           Connect.CommitTrans;
       except
         on E:Exception do
         begin
-          AddWindowsLog(Format('AdoQry.SingleTableSelect - Exception = %s', [E.Message]));
+          if LogValues.DebugEvents = 2 then TGetFromDSType.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Exception = %s', [WSCDS_DebugMsg, E.Message]), LogValues, 0);
           Result := E.Message;
           Connect.RollbackTrans;
           //Raise;
         end;
       end;
     finally
-      AddWindowsLog(Format('AdoQry.SingleTableSelect - Start finally Connect', []));
+      if LogValues.DebugEvents = 2 then TGetFromDSType.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Start finally Connect', [WSCDS_DebugMsg]), LogValues, 0);
       Connect.Close;
       Connect.Free;
-      AddWindowsLog(Format('AdoQry.SingleTableSelect - Stop finally Connect', []));
+      if LogValues.DebugEvents = 2 then TGetFromDSType.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Stop finally Connect', [WSCDS_DebugMsg]), LogValues, 0);
     end;
   end;
 end;
