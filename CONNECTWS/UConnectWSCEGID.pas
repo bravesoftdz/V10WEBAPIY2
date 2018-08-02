@@ -19,6 +19,7 @@ uses
   , xmlintf
   , DateUtils
   , UConnectWSConst
+  , ConstServices
   {$IF not defined(APPSRV)}
   , UTOB
   , HMsgBox
@@ -808,7 +809,7 @@ var
   procedure AddWindowsLog(Text : string);
   begin
     if LogValues.DebugEvents > 0 then
-      TGetFromDSType.WriteLog(ssbylLog, Text, LogValues, 0);
+      Tools.WriteLog(ssbylLog, Text, ServiceName_BTPY2, LogValues, 0);
   end;
 
   procedure AnalyseStateReport(HttpResponse: Widestring; wsType : T_WSType);

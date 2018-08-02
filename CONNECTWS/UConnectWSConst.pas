@@ -2,6 +2,10 @@ unit UConnectWSConst;
 
 interface
 
+uses
+  ConstServices
+  ;
+
 type
   T_WSEntryType      = (wsetNone, wsetDocument, wsetPayment, wsetPayer, wsetExtourne, wsetSubContractPayment, wsetStock);
   T_WSPSocType       = (wspsNone, wspsServer, wspsPort, wspsFolder, wspsLastSynchro);
@@ -33,7 +37,6 @@ type
   T_WSInfoFromDSType = (wsidNone, wsidTableName, wsidFieldsKey, wsidExcludeFields, wsidFieldsList, wsidRequest);
   T_WSAction         = (wsacNone, wsacUpdate, wsacInsert);
   T_WSType           = (wstypNone, wstypUpload, wstypImport, wstypGetState, wstypGetReport);
-  T_SvcSyncBTPY2Log  = (ssbylNone, ssbylLog, ssbylWindows);
 
   T_WSBTPValues      = Record
                          ConnectionName : string;
@@ -56,15 +59,6 @@ type
                            Y2DataBase  : string;
                            Y2LastSync  : string;
                          end;
-  T_WSLogValues       = Record
-                          LogLevel          : integer;
-                          LogMoMaxSize      : double;
-                          LogMaxQty         : integer;
-                          LogDebug          : integer;
-                          LogDebugMoMaxSize : double;
-                          DebugEvents       : integer;
-                          OneLogPerDay      : boolean;
-                       end;
 
   T_WSResponseImportEntries = record
                                 Error        : string;
@@ -89,7 +83,6 @@ type
     class function dstWSName(DSType : T_WSDataService) : string;
     class function ExtractType(TableName : string) : string; overload;
     class function ExtractType(DSType : T_WSDataService) : string; overload;
-    class procedure WriteLog(TypeDebug: T_SvcSyncBTPY2Log; Text: string; LogValues : T_WSLogValues; LineLevel: integer; WithoutDateTime: Boolean = true);
     class function dstFiedsList(DSType : T_WSDataService) : string;
   end;
 
@@ -117,7 +110,6 @@ const
   WSCDS_XmlFalse                  = 'false';
   WSCDS_ErrorMsg                  = '##### ERREUR';
   WSCDS_DebugMsg                  = 'DEBUG : ';
-  WSCDS_ServiceName               = 'SvcSynBTPY2';
 
 implementation
 
@@ -275,62 +267,6 @@ begin
     wsdsThird    : Result := 'CLI;PRO';
   else
     Result := '';
-  end;
-end;
-
-class procedure TGetFromDSType.WriteLog(TypeDebug: T_SvcSyncBTPY2Log; Text: string; LogValues : T_WSLogValues; LineLevel: integer; WithoutDateTime: Boolean = true);
-var
-  LogText     : string;
-  LogFilePath : string;
-  WindowsLog  : TEventLogger;
-  LogFile     : TextFile;
-
-  procedure WriteWindowsLog;
-  begin
-    LogFilePath := Format('%s%s.%s', [ExtractFilePath(ParamStr(0)), WSCDS_ServiceName, 'exe']);
-    WindowsLog := TEventLogger.Create(ExtractFileName(LogFilePath));
-    try
-      WindowsLog.LogMessage(Text, EVENTLOG_INFORMATION_TYPE);
-    finally
-      WindowsLog.Free;
-    end;
-  end;
-
-begin
-  case TypeDebug of
-    ssbylLog:
-      begin
-        if LogValues.LogLevel > 0 then
-        begin
-          LogFilePath := Format('%s%s.%s', [ExtractFilePath(ParamStr(0)), WSCDS_ServiceName, 'log']);
-          if Logvalues.OneLogPerDay then
-            LogFilePath := Format('%s_%s.log', [Copy(LogFilePath, 1, pos('.log', LogFilePath) -1), Tools.CastDateTimeForQry(Now)]);
-          AssignFile(LogFile, LogFilePath);
-          try
-            if FileExists(LogFilePath) then
-              Append(LogFile)
-            else
-              Rewrite(LogFile);
-            if Text <> '' then
-            begin
-              if WithoutDateTime then
-                LogText := Format('%s : %s%s', [DateTimeToStr(Now), StringOfChar(' ', LineLevel), Text])
-              else
-                LogText := Format('%s : %s%s', [Copy(Text, 1, pos('=', Text) - 1), StringOfChar(' ', LineLevel), Copy(Text, Pos('=', Text) + 1, length(Text))]);
-            end else
-              LogText := '';
-            Writeln(LogFile, LogText);
-          finally
-            CloseFile(LogFile);
-          end;
-        end else
-        begin
-          { Si pas de log métier, on écrit dans le log windows uniquement pour le débug } 
-          if (LogValues.DebugEvents > 0) and (pos(WSCDS_DebugMsg, Text) > 0 ) then
-            WriteWindowsLog;
-        end;
-      end;
-    ssbylWindows: WriteWindowsLog;
   end;
 end;
 

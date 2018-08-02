@@ -39,6 +39,7 @@ uses
   , WinSVC
   , UConnectWSConst
   , ShellAPI
+  , ConstServices
   ;
 
 {$R *.DFM}
@@ -86,7 +87,7 @@ begin
   LogPath := GetFilePath('log');
   if not FileExists(IniPath) then
   begin
-    LogMessage(Format('Impossible d''initialiser le service %s. Le fichier de configuration "%s" est inexistant.', [WSCDS_ServiceName, GetFilePath('ini')]), EVENTLOG_ERROR_TYPE);
+    LogMessage(Format('Impossible d''initialiser le service %s. Le fichier de configuration "%s" est inexistant.', [ServiceName_BTPY2, GetFilePath('ini')]), EVENTLOG_ERROR_TYPE);
   end else
   begin
     FirstExec := True;
@@ -124,7 +125,7 @@ begin
               end;
             end;
             Sleep(1000);
-            ServiceThread.ProcessRequests(False);
+            //ServiceThread.ProcessRequests(False);
           end;
         finally
         end;
@@ -140,18 +141,18 @@ end;
 procedure TSvcSyncBTPY2.ServiceStop(Sender: TService; var Stopped: Boolean);
 begin
   CoUnInitialize;
-  LogMessage(Format('Arrêt de %s.', [WSCDS_ServiceName]), EVENTLOG_INFORMATION_TYPE);
+  LogMessage(Format('Arrêt de %s.', [ServiceName_BTPY2]), EVENTLOG_INFORMATION_TYPE);
 end;
 
 procedure TSvcSyncBTPY2.ServiceStart(Sender: TService; var Started: Boolean);                                             
 begin
-  LogMessage(Format('Démarrage de de %s.', [WSCDS_ServiceName]), EVENTLOG_INFORMATION_TYPE);
+  LogMessage(Format('Démarrage de de %s.', [ServiceName_BTPY2]), EVENTLOG_INFORMATION_TYPE);
   Coinitialize(nil);
 end;
 
 function TSvcSyncBTPY2.GetFilePath(Extension: string): string;
 begin
-  Result := Format('%s%s.%s', [ExtractFilePath(ParamStr(0)), WSCDS_ServiceName, Extension]);
+  Result := Format('%s%s.%s', [ExtractFilePath(ParamStr(0)), ServiceName_BTPY2, Extension]);
 end;
 
 end.

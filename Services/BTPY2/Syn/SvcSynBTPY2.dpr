@@ -14,8 +14,9 @@ uses
   TRAFileUtil in '..\..\..\commun\Lib\TRAFileUtil.pas',
   Ulog in '..\..\..\commun\Lib\Ulog.pas',
   Zip in '..\..\..\commun\Lib\Zip.pas',
-  ZipDlls in '..\..\..\commun\Lib\ZipDlls.pas';
-  
+  ZipDlls in '..\..\..\commun\Lib\ZipDlls.pas',
+  ConstServices in '..\..\..\commun\Lib\ConstServices.pas';
+
 {$R *.RES}
 
 begin
