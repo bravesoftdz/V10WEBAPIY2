@@ -5,16 +5,16 @@ uses
   uMainService in '..\Lib\uMainService.pas' {SvcSyncBTPY2: TService},
   uThreadExecute in '..\Lib\uThreadExecute.pas',
   uWSDataService in '..\Lib\uWSDataService.pas',
-  CommonTools in '..\..\commun\Lib\CommonTools.pas',
-  WinHttp_TLB in '..\..\CONNECTWS\WinHttp_TLB.pas',
-  uLkJSON in '..\..\CONNECTWS\uLkJSON.pas',
-  UConnectWSConst in '..\..\CONNECTWS\UConnectWSConst.pas',
+  CommonTools in '..\..\..\commun\Lib\CommonTools.pas',
+  WinHttp_TLB in '..\..\..\CONNECTWS\WinHttp_TLB.pas',
+  uLkJSON in '..\..\..\CONNECTWS\uLkJSON.pas',
+  UConnectWSConst in '..\..\..\CONNECTWS\UConnectWSConst.pas',
   uExecuteService in '..\Lib\uExecuteService.pas',
-  UConnectWSCEGID in '..\..\CONNECTWS\UConnectWSCEGID.pas',
-  TRAFileUtil in '..\..\commun\Lib\TRAFileUtil.pas',
-  Ulog in '..\..\commun\Lib\Ulog.pas',
-  Zip in '..\..\commun\Lib\Zip.pas',
-  ZipDlls in '..\..\commun\Lib\ZipDlls.pas';
+  UConnectWSCEGID in '..\..\..\CONNECTWS\UConnectWSCEGID.pas',
+  TRAFileUtil in '..\..\..\commun\Lib\TRAFileUtil.pas',
+  Ulog in '..\..\..\commun\Lib\Ulog.pas',
+  Zip in '..\..\..\commun\Lib\Zip.pas',
+  ZipDlls in '..\..\..\commun\Lib\ZipDlls.pas';
   
 {$R *.RES}
 
