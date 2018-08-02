@@ -80,13 +80,13 @@ begin
   inherited Create(CreateSuspended);
   FreeOnTerminate := True;
   Priority        := tpNormal;
-  Tools.WriteLog(ssbylWindows, TUtilBTPVerdon.GetMsg(tnChantier, True), ServiceName_BTPVerdon, LogValues, 0);
+  TServicesLog.WriteLog(ssbylWindows, TUtilBTPVerdon.GetMsg(tnChantier, True), ServiceName_BTPVerdon, LogValues, 0);
 end;
 
 destructor ThreadChantiers.Destroy;
 begin
   inherited;
-  Tools.WriteLog(ssbylWindows, TUtilBTPVerdon.GetMsg(tnChantier, False), ServiceName_BTPVerdon, LogValues, 0);
+  TServicesLog.WriteLog(ssbylWindows, TUtilBTPVerdon.GetMsg(tnChantier, False), ServiceName_BTPVerdon, LogValues, 0);
 end;
 
 procedure ThreadChantiers.Execute;

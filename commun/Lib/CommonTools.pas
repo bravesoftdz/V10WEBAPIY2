@@ -109,7 +109,6 @@ type
     class procedure DecodeAccDocReferency(DocReferency : string; var DocType : string; var Stump : string; var DocDate : TDateTime; var DocNumber : integer; var Index : integer);
     class function GetParamSocSecur_(PSocName : string; DefaultValue : string{$IFDEF APPSRV}; ServerName, FolderName : string{$ENDIF APPSRV}) : string;
     class function CastDateTimeForQry(lDate : TDateTime) : string;
-    class procedure WriteLog(TypeDebug: T_SvcTypeLog; Text, ServiceName: string; LogValues : T_WSLogValues; LineLevel: integer; WithoutDateTime: Boolean = true);
     {$IF not defined(APPSRV)}
     class procedure TobToTStringList(TobOrig : TOB; TSlResult : TStringList; Level : Integer=1);
     {$IFEND !APPSRV}
@@ -232,16 +231,16 @@ begin
       try
         Connect.BeginTrans;
         Qry := TADOQuery.Create(Application);
-        if LogValues.DebugEvents = 2 then Tools.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - TADOQuery.Create', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
+        if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - TADOQuery.Create', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
         try
           Qry.Connection := Connect;
           Qry.SQL.Text   := Sql;
           Qry.Prepared   := True;
           try
-            if LogValues.DebugEvents = 2 then Tools.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Qry.SQL.Text =%s', [WSCDS_DebugMsg, Qry.SQL.Text]), ServiceName, LogValues, 0);
+            if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Qry.SQL.Text =%s', [WSCDS_DebugMsg, Qry.SQL.Text]), ServiceName, LogValues, 0);
             Qry.Open;
             RecordCount := Qry.RecordCount;
-            if LogValues.DebugEvents = 2 then Tools.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Qry.RecordCount =%s', [WSCDS_DebugMsg, IntToStr(Qry.RecordCount)]), ServiceName, LogValues, 0);
+            if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Qry.RecordCount =%s', [WSCDS_DebugMsg, IntToStr(Qry.RecordCount)]), ServiceName, LogValues, 0);
             if not Qry.Eof then
             begin
               Qry.first;
@@ -251,10 +250,10 @@ begin
                   ResultValue := ResultValue + TSLResult.Delimiter + VarToStr(Qry.FieldValues[FieldsArray[Cpt]]);
                 ResultValue := Copy(ResultValue, 2, Length(ResultValue));
                 TSLResult.Add(ResultValue);
-                if LogValues.DebugEvents = 2 then Tools.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - ResultValue =%s', [WSCDS_DebugMsg, ResultValue]), ServiceName, LogValues, 0);
+                if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - ResultValue =%s', [WSCDS_DebugMsg, ResultValue]), ServiceName, LogValues, 0);
                 ResultValue := '';
                 Qry.Next;
-                if LogValues.DebugEvents = 2 then Tools.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - After Qry.Next', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
+                if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - After Qry.Next', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
               end;
             end;
           except
@@ -275,27 +274,27 @@ begin
 *)
           end;
         finally
-          if LogValues.DebugEvents = 2 then Tools.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Start finally Qry', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
+          if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Start finally Qry', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
           Qry.active := False;
           Qry.Free;
-          if LogValues.DebugEvents = 2 then Tools.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Stop finally Qry', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
+          if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Stop finally Qry', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
         end;
         if Result = '' then
           Connect.CommitTrans;
       except
         on E:Exception do
         begin
-          if LogValues.DebugEvents = 2 then Tools.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Exception = %s', [WSCDS_DebugMsg, E.Message]), ServiceName, LogValues, 0);
+          if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Exception = %s', [WSCDS_DebugMsg, E.Message]), ServiceName, LogValues, 0);
           Result := E.Message;
           Connect.RollbackTrans;
           //Raise;
         end;
       end;
     finally
-      if LogValues.DebugEvents = 2 then Tools.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Start finally Connect', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
+      if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Start finally Connect', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
       Connect.Close;
       Connect.Free;
-      if LogValues.DebugEvents = 2 then Tools.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Stop finally Connect', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
+      if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Stop finally Connect', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
     end;
   end;
 end;
@@ -1230,62 +1229,6 @@ end;
 class function Tools.CastDateTimeForQry(lDate: TDateTime): string;
 begin
   Result := FormatDateTime('yyyymmdd', lDate);
-end;
-
-class procedure Tools.WriteLog(TypeDebug: T_SvcTypeLog; Text, ServiceName: string; LogValues : T_WSLogValues; LineLevel: integer; WithoutDateTime: Boolean = true);
-var
-  LogText     : string;
-  LogFilePath : string;
-  WindowsLog  : TEventLogger;
-  LogFile     : TextFile;
-
-  procedure WriteWindowsLog;
-  begin
-    LogFilePath := Format('%s%s.%s', [ExtractFilePath(ParamStr(0)), ServiceName, 'exe']);
-    WindowsLog := TEventLogger.Create(ExtractFileName(LogFilePath));
-    try
-      WindowsLog.LogMessage(Text, EVENTLOG_INFORMATION_TYPE);
-    finally
-      WindowsLog.Free;
-    end;
-  end;
-
-begin
-  case TypeDebug of
-    ssbylLog:
-      begin
-        if LogValues.LogLevel > 0 then
-        begin
-          LogFilePath := Format('%s%s.%s', [ExtractFilePath(ParamStr(0)), ServiceName, 'log']);
-          if Logvalues.OneLogPerDay then
-            LogFilePath := Format('%s_%s.log', [Copy(LogFilePath, 1, pos('.log', LogFilePath) -1), Tools.CastDateTimeForQry(Now)]);
-          AssignFile(LogFile, LogFilePath);
-          try
-            if FileExists(LogFilePath) then
-              Append(LogFile)
-            else
-              Rewrite(LogFile);
-            if Text <> '' then
-            begin
-              if WithoutDateTime then
-                LogText := Format('%s : %s%s', [DateTimeToStr(Now), StringOfChar(' ', LineLevel), Text])
-              else
-                LogText := Format('%s : %s%s', [Copy(Text, 1, pos('=', Text) - 1), StringOfChar(' ', LineLevel), Copy(Text, Pos('=', Text) + 1, length(Text))]);
-            end else
-              LogText := '';
-            Writeln(LogFile, LogText);
-          finally
-            CloseFile(LogFile);
-          end;
-        end else
-        begin
-          { Si pas de log métier, on écrit dans le log windows uniquement pour le débug } 
-          if (LogValues.DebugEvents > 0) and (pos(WSCDS_DebugMsg, Text) > 0 ) then
-            WriteWindowsLog;
-        end;
-      end;
-    ssbylWindows: WriteWindowsLog;
-  end;
 end;
 
 end.
