@@ -30,10 +30,10 @@ type
     ChantierValues : T_ChantierValues;
     DevisValues    : T_DevisValues;
     LignesBRValues : T_LignesBRValues;
+    FolderValues   : T_FolderValues;
 
     procedure ClearTablesValues;
     function ReadSettings : boolean;
-    function GetFilePath(Extension : string) : string;
   public
     function GetServiceController: TServiceController; override;
   end;
@@ -51,6 +51,8 @@ uses
   , ShellAPI
   , tThreadTiers
   , tThreadChantiers
+  , tThreadDevis
+  , tThreadLignesBR
   , IniFiles
   ;
 
@@ -59,11 +61,6 @@ uses
 procedure ServiceController(CtrlCode: DWord); stdcall;
 begin
   SvcSyncBTPVerdon.Controller(CtrlCode);
-end;
-
-function TSvcSyncBTPVerdon.GetFilePath(Extension: string): string;
-begin
-  Result := Format('%s%s.%s', [ExtractFilePath(ParamStr(0)), ServiceName_BTPVerdon, Extension]);
 end;
 
 procedure TSvcSyncBTPVerdon.ClearTablesValues;
@@ -95,11 +92,22 @@ begin
     LogValues.LogMoMaxSize := SettingFile.ReadInteger(Section, 'LogMoMaxSize', 0);
     LogValues.DebugEvents  := SettingFile.ReadInteger(Section, 'DebugEvents', 0);
     LogValues.OneLogPerDay := (SettingFile.ReadInteger(Section, 'OneLogPerDay', 0) = 1);
+    Section := 'FOLDER';
+    FolderValues.BTPUserAdmin := SettingFile.ReadString(Section, 'BTPUser'     , '');
+    FolderValues.BTPServer    := SettingFile.ReadString(Section, 'BTPServer'   , '');
+    FolderValues.BTPDataBase  := SettingFile.ReadString(Section, 'BTPFolder'   , '');
+    FolderValues.TMPServer    := SettingFile.ReadString(Section, 'TMPSRVServer', '');
+    FolderValues.TMPDataBase  := SettingFile.ReadString(Section, 'TMPBDDFolder', '');
     Section := 'TABLESTRIGGERTIME';
-    TiersValues.TimeOut    := SettingFile.ReadInteger(Section, TUtilBTPVerdon.GetSynchroTableName(tnTiers)   , 0);
-    ChantierValues.TimeOut := SettingFile.ReadInteger(Section, TUtilBTPVerdon.GetSynchroTableName(tnChantier), 0);
-    DevisValues.TimeOut    := SettingFile.ReadInteger(Section, TUtilBTPVerdon.GetSynchroTableName(tnDevis), 0);
-    LignesBRValues.TimeOut := SettingFile.ReadInteger(Section, TUtilBTPVerdon.GetSynchroTableName(tnLignesBR), 0);
+    TiersValues.TimeOut    := SettingFile.ReadInteger(Section, TUtilBTPVerdon.GetTMPTableName(tnTiers)   , 0);
+    ChantierValues.TimeOut := SettingFile.ReadInteger(Section, TUtilBTPVerdon.GetTMPTableName(tnChantier), 0);
+    DevisValues.TimeOut    := SettingFile.ReadInteger(Section, TUtilBTPVerdon.GetTMPTableName(tnDevis), 0);
+    LignesBRValues.TimeOut := SettingFile.ReadInteger(Section, TUtilBTPVerdon.GetTMPTableName(tnLignesBR), 0);
+    Section := 'TABLESLASTSYNCHRO';
+    TiersValues.LastSynchro    := SettingFile.ReadString(Section, TUtilBTPVerdon.GetTMPTableName(tnTiers)   , '');
+    ChantierValues.LastSynchro := SettingFile.ReadString(Section, TUtilBTPVerdon.GetTMPTableName(tnChantier), '');
+    DevisValues.LastSynchro    := SettingFile.ReadString(Section, TUtilBTPVerdon.GetTMPTableName(tnDevis), '');
+    LignesBRValues.LastSynchro := SettingFile.ReadString(Section, TUtilBTPVerdon.GetTMPTableName(tnLignesBR), '');
   finally
     SettingFile.Free;
   end;
@@ -132,10 +140,89 @@ procedure TSvcSyncBTPVerdon.ServiceExecute(Sender: TService);
 var
   uThreadTiers    : ThreadTiers;
   uThreadChantier : ThreadChantiers;
+  uThreadDevis    : ThreadDevis;
+  uThreadLignesBR : ThreadLignesBR;
+
+  procedure CallThreadTiers;
+  begin
+    if (TiersValues.Count >= TiersValues.TimeOut) or (TiersValues.FirstExec) then
+    begin
+      TiersValues.FirstExec := False;
+      TiersValues.Count     := 0;
+      try
+        uThreadTiers := ThreadTiers.Create(True);
+        uThreadTiers.TiersValues  := TiersValues;
+        uThreadTiers.LogValues    := LogValues;
+        uThreadTiers.FolderValues := FolderValues;
+        uThreadTiers.Resume;
+      except
+        on E: Exception do
+          LogMessage(Format('Fin exécution du service avec erreur : %s', [E.Message]), EVENTLOG_ERROR_TYPE);
+      end;
+    end;
+  end;
+
+  procedure CallThreadChantiers;
+  begin
+    if (ChantierValues.Count >= ChantierValues.TimeOut) or (ChantierValues.FirstExec) then
+    begin
+      ChantierValues.FirstExec := False;
+      ChantierValues.Count     := 0;
+      try
+        uThreadChantier                := ThreadChantiers.Create(True);
+        uThreadChantier.ChantierValues := ChantierValues;
+        uThreadChantier.LogValues      := LogValues;
+        uThreadChantier.FolderValues   := FolderValues;
+        uThreadChantier.Resume;
+      except
+        on E: Exception do
+          LogMessage(Format('Fin exécution du service avec erreur : %s', [E.Message]), EVENTLOG_ERROR_TYPE);
+      end;
+    end;
+  end;
+
+  procedure CallThreadDevis;
+  begin
+    if (DevisValues.Count >= DevisValues.TimeOut) or (DevisValues.FirstExec) then
+    begin
+      DevisValues.FirstExec := False;
+      DevisValues.Count     := 0;
+      try
+        uThreadDevis              := ThreadDevis.Create(True);
+        uThreadDevis.DevisValues  := DevisValues;
+        uThreadDevis.LogValues    := LogValues;
+        uThreadDevis.FolderValues := FolderValues;
+        uThreadDevis.Resume;
+      except
+        on E: Exception do
+          LogMessage(Format('Fin exécution du service avec erreur : %s', [E.Message]), EVENTLOG_ERROR_TYPE);
+      end;
+    end;
+  end;
+
+  procedure CallThreadLignesBR;
+  begin
+    if (LignesBRValues.Count >= LignesBRValues.TimeOut) or (LignesBRValues.FirstExec) then
+    begin
+      LignesBRValues.FirstExec := False;
+      LignesBRValues.Count     := 0;
+      try
+        uThreadLignesBR                := ThreadLignesBR.Create(True);
+        uThreadLignesBR.LignesBRValues := LignesBRValues;
+        uThreadLignesBR.LogValues      := LogValues;
+        uThreadLignesBR.FolderValues   := FolderValues;
+        uThreadLignesBR.Resume;
+      except
+        on E: Exception do
+          LogMessage(Format('Fin exécution du service avec erreur : %s', [E.Message]), EVENTLOG_ERROR_TYPE);
+      end;
+    end;
+  end;
+
 begin
-  IniPath := GetFilePath('ini');
-  AppPath := GetFilePath('exe');
-  LogPath := GetFilePath('log');
+  IniPath := TServicesLog.GetFilePath(ServiceName_BTPVerdon, 'ini');
+  AppPath := TServicesLog.GetFilePath(ServiceName_BTPVerdon, 'exe');
+  LogPath := TServicesLog.GetFilePath(ServiceName_BTPVerdon, 'log');
   if not FileExists(IniPath) then
   begin
     LogMessage(Format('Impossible d''initialiser le service %s. Le fichier de configuration "%s" est inexistant.', [ServiceName_BTPVerdon, IniPath]), EVENTLOG_ERROR_TYPE);
@@ -149,37 +236,12 @@ begin
       Inc(ChantierValues.Count);
       Inc(DevisValues.Count);
       Inc(LignesBRValues.Count);
-      { Traitement des tiers }
-      if (TiersValues.Count >= TiersValues.TimeOut) or (TiersValues.FirstExec) then
-      begin
-        TiersValues.FirstExec := False;
-        TiersValues.Count    := 0;
-        try
-          uThreadTiers := ThreadTiers.Create(True);
-          uThreadTiers.TiersValues := TiersValues;
-          uThreadTiers.LogValues   := LogValues;
-          uThreadTiers.Resume;
-        except
-          on E: Exception do
-            LogMessage(Format('Fin exécution du service avec erreur : %s', [E.Message]), EVENTLOG_ERROR_TYPE);
-        end;
-      end;
-      { Traitement des chantiers }
-      if (ChantierValues.Count >= ChantierValues.TimeOut) or (ChantierValues.FirstExec) then
-      begin
-        ChantierValues.FirstExec := False;
-        ChantierValues.Count    := 0;
-        try
-          uThreadChantier                := ThreadChantiers.Create(True);
-          uThreadChantier.ChantierValues := ChantierValues;
-          uThreadChantier.LogValues      := LogValues;
-          uThreadChantier.Resume;
-        except
-          on E: Exception do
-            LogMessage(Format('Fin exécution du service avec erreur : %s', [E.Message]), EVENTLOG_ERROR_TYPE);
-        end;
-      end;
-
+      CallThreadTiers;
+(*
+      CallThreadChantiers;
+      CallThreadDevis;
+      CallThreadLignesBR;
+*)
       Sleep(1000);
       ServiceThread.ProcessRequests(False);
     end;

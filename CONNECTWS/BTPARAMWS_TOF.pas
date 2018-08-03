@@ -50,6 +50,7 @@ Type
     procedure SetFloderList(Sender : TObject);
    {$IF defined(APPSRV)}
     procedure TstWApi_Onclick(Sender : TObject);
+    procedure TstWApiV_Onclick(Sender : TObject);
    {$IFEND APPSRV}
 
   public
@@ -73,6 +74,7 @@ uses
  {$IF defined(APPSRV)}
   , uExecuteService
   , CommonTools
+  , uMainService
  {$IFEND APPSRV}
   ;
 
@@ -130,8 +132,11 @@ begin
  {$IF defined(APPSRV)}
   TToolbarButton97(GetControl('TSTWEBAPI')).Visible := True;
   TToolbarButton97(GetControl('TSTWEBAPI')).OnClick := TstWApi_Onclick;
+  TToolbarButton97(GetControl('TSTWEBAPIV')).Visible := True;
+  TToolbarButton97(GetControl('TSTWEBAPIV')).OnClick := TstWApiV_Onclick;
  {$ELSE APPSRV}
   TToolbarButton97(GetControl('TSTWEBAPI')).Visible := False;
+  TToolbarButton97(GetControl('TSTWEBAPIV')).Visible := False;
  {$IFEND APPSRV}
 end ;
 
@@ -235,6 +240,18 @@ begin
     end;
   finally
     BTPY2Exec.Free;
+  end;
+end;
+
+procedure TOF_BTPARAMWS.TstWApiV_Onclick(Sender : TObject);
+var
+  BTPVerdonExec : TSvcSyncBTPVerdon;
+begin
+  BTPVerdonExec := TSvcSyncBTPVerdon.Create(nil);
+  try
+    BTPVerdonExec.ServiceExecute(nil);
+  finally
+    BTPVerdonExec.Free;
   end;
 end;
 {$IFEND APPSRV}

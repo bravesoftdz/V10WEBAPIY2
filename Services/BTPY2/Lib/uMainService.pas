@@ -19,8 +19,7 @@ type
     procedure ServiceExecute(Sender: TService);
     procedure ServiceStop(Sender: TService; var Stopped: Boolean);
     procedure ServiceStart(Sender: TService; var Started: Boolean);
-  private
-    function GetFilePath(Extension : string) : string;
+
   public
     function GetServiceController: TServiceController; override;
   end;
@@ -82,12 +81,12 @@ var
   FirstExec : boolean;  
   //uExecute  : SynchroThread;
 begin
-  IniPath := GetFilePath('ini');
-  AppPath := GetFilePath('exe');
-  LogPath := GetFilePath('log');
+  IniPath := TServicesLog.GetFilePath(ServiceName_BTPY2, 'ini');
+  AppPath := TServicesLog.GetFilePath(ServiceName_BTPY2, 'exe');
+  LogPath := TServicesLog.GetFilePath(ServiceName_BTPY2, 'log');
   if not FileExists(IniPath) then
   begin
-    LogMessage(Format('Impossible d''initialiser le service %s. Le fichier de configuration "%s" est inexistant.', [ServiceName_BTPY2, GetFilePath('ini')]), EVENTLOG_ERROR_TYPE);
+    LogMessage(Format('Impossible d''initialiser le service %s. Le fichier de configuration "%s" est inexistant.', [ServiceName_BTPY2, TServicesLog.GetFilePath(ServiceName_BTPY2, 'ini')]), EVENTLOG_ERROR_TYPE);
   end else
   begin
     FirstExec := True;
@@ -148,11 +147,6 @@ procedure TSvcSyncBTPY2.ServiceStart(Sender: TService; var Started: Boolean);
 begin
   LogMessage(Format('Démarrage de de %s.', [ServiceName_BTPY2]), EVENTLOG_INFORMATION_TYPE);
   Coinitialize(nil);
-end;
-
-function TSvcSyncBTPY2.GetFilePath(Extension: string): string;
-begin
-  Result := Format('%s%s.%s', [ExtractFilePath(ParamStr(0)), ServiceName_BTPY2, Extension]);
 end;
 
 end.

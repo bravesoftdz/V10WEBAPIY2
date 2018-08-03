@@ -1,4 +1,4 @@
-unit tThreadChantiers;
+unit tThreadLignesBR;
 
 interface
 
@@ -12,9 +12,9 @@ uses
   ;
 
 type
-  ThreadChantiers = class(TThread)
+  ThreadLignesBR = class(TThread)
   public
-    ChantierValues : T_ChantierValues;
+    LignesBRValues : T_LignesBRValues;
     LogValues      : T_WSLogValues;
     FolderValues   : T_FolderValues;
 
@@ -22,28 +22,21 @@ type
     destructor Destroy; override;
   private
     lTn : T_TablesName;
-
 //    procedure SetName;
-
   protected
     procedure Execute; override;
   end;
 
 implementation
 
-uses
-  CommonTools
-  , SysUtils
-  ;
-
-  { Important : les méthodes et propriétés des objets de la VCL peuvent uniquement être
+{ Important : les méthodes et propriétés des objets de la VCL peuvent uniquement être
   utilisés dans une méthode appelée en utilisant Synchronize, comme : 
 
       Synchronize(UpdateCaption);
 
   où UpdateCaption serait de la forme
 
-    procedure ThreadChantiers.UpdateCaption;
+    procedure ThreadLignesBR.UpdateCaption;
     begin
       Form1.Caption := 'Mis à jour dans un thread';
     end; }
@@ -58,10 +51,10 @@ type
   end;
 {$ENDIF}
 
-{ ThreadChantiers }
+{ ThreadLignesBR }
 
 (*
-procedure ThreadChantiers.SetName;
+procedure ThreadLignesBR.SetName;
 {$IFDEF MSWINDOWS}
 var
   ThreadNameInfo: TThreadNameInfo;
@@ -69,7 +62,7 @@ var
 begin
 {$IFDEF MSWINDOWS}
   ThreadNameInfo.FType := $1000;
-  ThreadNameInfo.FName := 'ThreadNameChantiers';
+  ThreadNameInfo.FName := 'ThreadNameLignesBR';
   ThreadNameInfo.FThreadID := $FFFFFFFF;
   ThreadNameInfo.FFlags := 0;
 
@@ -81,27 +74,25 @@ begin
 end;
 *)
 
-constructor ThreadChantiers.Create(CreateSuspended: boolean);
+constructor ThreadLignesBR.Create(CreateSuspended: boolean);
 begin
   inherited Create(CreateSuspended);
   FreeOnTerminate := True;
   Priority        := tpNormal;
-  lTn             := tnChantier;
-
+  lTn             := tnLignesBR;
 end;
 
-destructor ThreadChantiers.Destroy;
+destructor ThreadLignesBR.Destroy;
 begin
   inherited;
-  TUtilBTPVerdon.AddLog(lTn, TUtilBTPVerdon.GetMsgStartEnd(lTn, False, ChantierValues.LastSynchro), LogValues, 0);
+  TUtilBTPVerdon.AddLog(lTn, TUtilBTPVerdon.GetMsgStartEnd(lTn, False, LignesBRValues.LastSynchro), LogValues, 0);
 end;
 
-procedure ThreadChantiers.Execute;
+procedure ThreadLignesBR.Execute;
 begin
 //  SetName;
   try
-    TUtilBTPVerdon.AddLog(lTn, TUtilBTPVerdon.GetMsgStartEnd(lTn, True, ChantierValues.LastSynchro), LogValues, 0);
-    Sleep(10000);
+    TUtilBTPVerdon.AddLog(lTn, TUtilBTPVerdon.GetMsgStartEnd(lTn, True, LignesBRValues.LastSynchro), LogValues, 0);
     TUtilBTPVerdon.SetLastSynchro(lTn);
   except
   end;

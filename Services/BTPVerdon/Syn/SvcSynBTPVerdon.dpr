@@ -15,7 +15,9 @@ uses
   WinHttp_TLB in '..\..\..\CONNECTWS\WinHttp_TLB.pas',
   UConnectWSConst in '..\..\..\CONNECTWS\UConnectWSConst.pas',
   uLkJSON in '..\..\..\CONNECTWS\uLkJSON.pas',
-  tThreadChantiers in '..\Lib\tThreadChantiers.pas';
+  tThreadChantiers in '..\Lib\tThreadChantiers.pas',
+  tThreadDevis in '..\Lib\tThreadDevis.pas',
+  tThreadLignesBR in '..\Lib\tThreadLignesBR.pas';
 
 {$R *.RES}
 

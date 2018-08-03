@@ -47,7 +47,7 @@ type
 
   AdoQry = class
   private
-    function GetConnectionString : string;
+    function GetConnectionString(PgiDB : boolean) : string;
 
   public
     ServerName  : string;
@@ -55,6 +55,7 @@ type
     Request     : string;
     FieldsList  : string;
     ServiceName : string;
+    PgiDB       : string;
     TSLResult   : TStringList;
     RecordCount : integer;
     LogValues   : T_WSLogValues;
@@ -136,26 +137,36 @@ uses
   ;
 
 { AdoQry }
-function AdoQry.GetConnectionString : string;
+function AdoQry.GetConnectionString(PgiDB : boolean) : string;
 begin
-  Result := 'Provider=SQLOLEDB.1'
-          + ';Password=ADMIN'
-          + ';Persist Security Info=True'
-          + ';User ID=ADMIN'
-          + ';Initial Catalog=' + DBName
-          + ';Data Source=' + ServerName
-          + ';Use Procedure for Prepare=1'
-          + ';Auto Translate=True'
-          + ';Packet Size=4096'
-          + ';Workstation ID=LOCALST'
-          + ';Use Encryption for Data=False'
-          + ';Tag with column collation when possible=False';
+  if PgiDB then
+    Result := 'Provider=SQLOLEDB.1'
+            + ';Password=ADMIN'
+            + ';Persist Security Info=True'
+            + ';User ID=ADMIN'
+            + ';Initial Catalog=' + DBName
+            + ';Data Source=' + ServerName
+            + ';Use Procedure for Prepare=1'
+            + ';Auto Translate=True'
+            + ';Packet Size=4096'
+            + ';Workstation ID=LOCALST'
+            + ';Use Encryption for Data=False'
+            + ';Tag with column collation when possible=False'
+  else
+    Result := 'Provider=SQLOLEDB.1'
+            + ';Password=cegid.2012'
+            + ';Persist Security Info=True'
+            + ';User ID=sa'
+            + ';Initial Catalog=' + DBName
+            + ';Data Source=' + ServerName
+  ;
 end;
 
 constructor AdoQry.Create;
 begin
   TSLResult           := TStringList.Create;
   TSLResult.Delimiter := ToolsTobToTsl_Separator;
+  PgiDB               := Tools.iif(PgiDB = '', 'X', PgiDB);
 end;
 
 destructor AdoQry.Destroy;
@@ -225,7 +236,7 @@ begin
     end;
     Connect := TADOConnection.Create(application);
     try
-      Connect.ConnectionString := GetConnectionString;
+      Connect.ConnectionString := GetConnectionString((PgiDB = 'X'));
       Connect.LoginPrompt      := False;
       Connect.Connected        := True;
       try
@@ -310,7 +321,7 @@ begin
   then
   begin
     Connect                  := TADOConnection.Create(application);
-    Connect.ConnectionString := GetConnectionString;
+    Connect.ConnectionString := GetConnectionString((PgiDB = 'X'));
     Connect.LoginPrompt      := False;
     try
       Connect.Connected := True;
@@ -322,7 +333,6 @@ begin
         Qry.Prepared   := True;
         RecordCount    := Qry.ExecSQL;
         try
-
         finally
           Qry.active := False;
           Qry.Free;

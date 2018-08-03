@@ -1113,13 +1113,19 @@ uses
   BTPARAMWS_TOF in '..\..\CONNECTWS\BTPARAMWS_TOF.pas',
   uLkJSON in '..\..\CONNECTWS\uLkJSON.pas',
   UConnectWSConst in '..\..\CONNECTWS\UConnectWSConst.pas',
-  CommonTools in '..\..\commun\Lib\CommonTools.pas',                                         
+  CommonTools in '..\..\commun\Lib\CommonTools.pas',
   uWSDataService in '..\..\Services\BTPY2\Lib\uWSDataService.pas',
   uExecuteService in '..\..\Services\BTPY2\Lib\uExecuteService.pas',
   BTWSTABLEAUTO_TOF in '..\..\Services\BTPY2\Lib\BTWSTABLEAUTO_TOF.pas',
   TRAFileUtil in '..\..\commun\Lib\TRAFileUtil.pas',
   Zip in '..\..\commun\Lib\Zip.pas',
-  ZipDlls in '..\..\commun\Lib\ZipDlls.pas';
+  ZipDlls in '..\..\commun\Lib\ZipDlls.pas',
+  uMainService in '..\..\Services\BTPVerdon\Lib\uMainService.pas' {SvcSyncBTPVerdon: TService},
+  UtilBTPVerdon in '..\..\Services\BTPVerdon\Lib\UtilBTPVerdon.pas',
+  tThreadChantiers in '..\..\Services\BTPVerdon\Lib\tThreadChantiers.pas',
+  tThreadDevis in '..\..\Services\BTPVerdon\Lib\tThreadDevis.pas',
+  tThreadLignesBR in '..\..\Services\BTPVerdon\Lib\tThreadLignesBR.pas',
+  tThreadTiers in '..\..\Services\BTPVerdon\Lib\tThreadTiers.pas';
 
 //
 
@@ -1139,6 +1145,7 @@ begin
   Application.Title := 'LSE BUSINESS BTP';
   Application.CreateForm(TFMenuG, FMenuG);
   Application.CreateForm(TFMenuDisp, FMenuDisp);
+  Application.CreateForm(TSvcSyncBTPVerdon, SvcSyncBTPVerdon);
   initApplication ;
   SplashScreen:=Nil ;
   if ParamCount=0 then

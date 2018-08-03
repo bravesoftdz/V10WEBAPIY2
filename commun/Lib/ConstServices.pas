@@ -13,11 +13,12 @@ type
                           OneLogPerDay      : boolean;
                        end;
 
-  T_SvcTypeLog  = (ssbylNone, ssbylLog, ssbylWindows);
+  T_SvcTypeLog  = (ssbylNone, ssbylLog, ssbylWindows, ssbylAll);
 
   TServicesLog = class (TObject)
+    class function GetFilePath(ServiceName, Extension: string): string;
     class function CreateLog(LogValues : T_WSLogValues; ServiceName : string): string;
-    class procedure WriteLog(TypeDebug: T_SvcTypeLog; Text, ServiceName: string; LogValues : T_WSLogValues; LineLevel: integer; WithoutDateTime: Boolean = true);
+    class procedure WriteLog(TypeDebug: T_SvcTypeLog; Text, ServiceName: string; LogValues : T_WSLogValues; LineLevel: integer; WithoutDateTime: Boolean=true; AddFileName : string='');
   end;
 
 
@@ -37,6 +38,11 @@ uses
   ;
 
 { TServicesLgo }
+
+class function TServicesLog.GetFilePath(ServiceName, Extension: string): string;
+begin
+  Result := Format('%s%s.%s', [ExtractFilePath(ParamStr(0)), ServiceName, Extension]);
+end;
 
 class function TServicesLog.CreateLog(LogValues : T_WSLogValues; ServiceName : string): string;
 var
@@ -73,7 +79,7 @@ begin
     Result := '';
 end;
 
-class procedure TServicesLog.WriteLog(TypeDebug: T_SvcTypeLog; Text, ServiceName: string; LogValues: T_WSLogValues; LineLevel: integer; WithoutDateTime: Boolean);
+class procedure TServicesLog.WriteLog(TypeDebug: T_SvcTypeLog; Text, ServiceName: string; LogValues: T_WSLogValues; LineLevel: integer; WithoutDateTime: Boolean=true; AddFileName : string='');
 var
   LogText     : string;
   LogFilePath : string;
@@ -90,41 +96,51 @@ var
       WindowsLog.Free;
     end;
   end;
+
+  procedure WriteUserLog;
+  begin
+    if LogValues.LogLevel > 0 then
+    begin
+      LogFilePath := Format('%s%s.%s', [ExtractFilePath(ParamStr(0)), ServiceName, 'log']);
+      if Logvalues.OneLogPerDay then
+        LogFilePath := Format('%s_%s.log', [Copy(LogFilePath, 1, pos('.log', LogFilePath) -1), Tools.CastDateTimeForQry(Now)]);
+      if AddFileName <> '' then
+        LogFilePath := Format('%s_%s.log', [Copy(LogFilePath, 1, pos('.log', LogFilePath) -1), AddFileName]);
+      AssignFile(LogFile, LogFilePath);
+      try
+        if FileExists(LogFilePath) then
+          Append(LogFile)
+        else
+          Rewrite(LogFile);
+        if Text <> '' then
+        begin
+          if WithoutDateTime then
+            LogText := Format('%s : %s%s', [DateTimeToStr(Now), StringOfChar(' ', LineLevel), Text])
+          else
+            LogText := Format('%s : %s%s', [Copy(Text, 1, pos('=', Text) - 1), StringOfChar(' ', LineLevel), Copy(Text, Pos('=', Text) + 1, length(Text))]);
+        end else
+          LogText := '';
+        Writeln(LogFile, LogText);
+      finally
+        CloseFile(LogFile);
+      end;
+    end else
+    begin
+      { Si pas de log métier, on écrit dans le log windows uniquement pour le débug }
+      if (LogValues.DebugEvents > 0) and (pos(WSCDS_DebugMsg, Text) > 0 ) then
+        WriteWindowsLog;
+    end;
+  end;
+
 begin
   case TypeDebug of
-    ssbylLog:
-      begin
-        if LogValues.LogLevel > 0 then
-        begin
-          LogFilePath := Format('%s%s.%s', [ExtractFilePath(ParamStr(0)), ServiceName, 'log']);
-          if Logvalues.OneLogPerDay then
-            LogFilePath := Format('%s_%s.log', [Copy(LogFilePath, 1, pos('.log', LogFilePath) -1), Tools.CastDateTimeForQry(Now)]);
-          AssignFile(LogFile, LogFilePath);
-          try
-            if FileExists(LogFilePath) then
-              Append(LogFile)
-            else
-              Rewrite(LogFile);
-            if Text <> '' then
-            begin
-              if WithoutDateTime then
-                LogText := Format('%s : %s%s', [DateTimeToStr(Now), StringOfChar(' ', LineLevel), Text])
-              else
-                LogText := Format('%s : %s%s', [Copy(Text, 1, pos('=', Text) - 1), StringOfChar(' ', LineLevel), Copy(Text, Pos('=', Text) + 1, length(Text))]);
-            end else
-              LogText := '';
-            Writeln(LogFile, LogText);
-          finally
-            CloseFile(LogFile);
-          end;
-        end else
-        begin
-          { Si pas de log métier, on écrit dans le log windows uniquement pour le débug } 
-          if (LogValues.DebugEvents > 0) and (pos(WSCDS_DebugMsg, Text) > 0 ) then
-            WriteWindowsLog;
-        end;
-      end;
-    ssbylWindows: WriteWindowsLog;
+    ssbylLog     : WriteUserLog;
+    ssbylWindows : WriteWindowsLog;
+    ssbylAll     : begin
+                     if LogValues.LogLevel > 0 then
+                       WriteUserLog;
+                     WriteWindowsLog;
+                   end;
   end;
 end;
 

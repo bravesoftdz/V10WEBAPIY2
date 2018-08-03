@@ -2,7 +2,7 @@ object FFrameTreeTob: TFFrameTreeTob
   Left = 0
   Top = 0
   Width = 435
-  Height = 266
+  Height = 265
   Align = alClient
   TabOrder = 0
   OnResize = FrameResize
@@ -10,7 +10,7 @@ object FFrameTreeTob: TFFrameTreeTob
     Left = 0
     Top = 0
     Width = 435
-    Height = 249
+    Height = 248
     Align = alClient
     ColCount = 2
     DefaultRowHeight = 18
@@ -45,7 +45,7 @@ object FFrameTreeTob: TFFrameTreeTob
   end
   object PCumul: THPanel
     Left = 0
-    Top = 249
+    Top = 248
     Width = 435
     Height = 17
     Align = alBottom
