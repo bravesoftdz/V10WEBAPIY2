@@ -29,7 +29,7 @@ object FActivite: TFActivite
   TextHeight = 13
   object Dock971: TDock97
     Left = 0
-    Top = 520
+    Top = 519
     Width = 926
     Height = 33
     BackgroundTransparent = True
@@ -420,7 +420,7 @@ object FActivite: TFActivite
     Left = 0
     Top = 123
     Width = 926
-    Height = 295
+    Height = 294
     Align = alClient
     BevelOuter = bvNone
     FullRepaint = False
@@ -437,7 +437,7 @@ object FActivite: TFActivite
     end
     object HPanel2: THPanel
       Left = 0
-      Top = 276
+      Top = 275
       Width = 926
       Height = 19
       Align = alBottom
@@ -515,7 +515,7 @@ object FActivite: TFActivite
       Left = 0
       Top = 0
       Width = 926
-      Height = 276
+      Height = 275
       Align = alClient
       BorderStyle = bsNone
       ColCount = 30
@@ -861,11 +861,11 @@ object FActivite: TFActivite
       ObjectMenuPrefix = '&Object'
       LinesRTF.Strings = (
         
-          '{\rtf1\ansi\ansicpg1252\deff0\deflang1036{\fonttbl{\f0\fnil MS S' +
-          'ans Serif;}}'
-        
-          '{\*\generator Msftedit 5.41.21.2509;}\viewkind4\uc1\pard\f0\fs16' +
-          ' '
+          '{\rtf1\ansi\ansicpg1252\deff0\nouicompat\deflang1036{\fonttbl{\f' +
+          '0\fnil MS Sans Serif;}}'
+        '{\*\generator Riched20 6.3.9600}\viewkind4\uc1 '
+        '\pard\f0\fs16 '
+        '\par '
         '\par '
         '\par '
         '\par '
@@ -1404,7 +1404,7 @@ object FActivite: TFActivite
   end
   object HPBas: THPanel
     Left = 0
-    Top = 418
+    Top = 417
     Width = 926
     Height = 102
     Align = alBottom

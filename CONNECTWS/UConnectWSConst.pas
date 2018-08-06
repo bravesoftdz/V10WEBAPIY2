@@ -108,8 +108,6 @@ const
   WSCDS_XmlNone                   = 'None';
   WSCDS_XmlTrue                   = 'true';
   WSCDS_XmlFalse                  = 'false';
-  WSCDS_ErrorMsg                  = '##### ERREUR';
-  WSCDS_DebugMsg                  = 'DEBUG : ';
 
 implementation
 

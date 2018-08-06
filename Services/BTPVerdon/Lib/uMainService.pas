@@ -54,6 +54,7 @@ uses
   , tThreadDevis
   , tThreadLignesBR
   , IniFiles
+  , uTob
   ;
 
 {$R *.DFM}
@@ -142,7 +143,7 @@ var
   uThreadChantier : ThreadChantiers;
   uThreadDevis    : ThreadDevis;
   uThreadLignesBR : ThreadLignesBR;
-
+  
   procedure CallThreadTiers;
   begin
     if (TiersValues.Count >= TiersValues.TimeOut) or (TiersValues.FirstExec) then
@@ -150,7 +151,7 @@ var
       TiersValues.FirstExec := False;
       TiersValues.Count     := 0;
       try
-        uThreadTiers := ThreadTiers.Create(True);
+        uThreadTiers              := ThreadTiers.Create(True);
         uThreadTiers.TiersValues  := TiersValues;
         uThreadTiers.LogValues    := LogValues;
         uThreadTiers.FolderValues := FolderValues;

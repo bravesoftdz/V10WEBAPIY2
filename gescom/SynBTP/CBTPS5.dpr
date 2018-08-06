@@ -1125,7 +1125,8 @@ uses
   tThreadChantiers in '..\..\Services\BTPVerdon\Lib\tThreadChantiers.pas',
   tThreadDevis in '..\..\Services\BTPVerdon\Lib\tThreadDevis.pas',
   tThreadLignesBR in '..\..\Services\BTPVerdon\Lib\tThreadLignesBR.pas',
-  tThreadTiers in '..\..\Services\BTPVerdon\Lib\tThreadTiers.pas';
+  tThreadTiers in '..\..\Services\BTPVerdon\Lib\tThreadTiers.pas',
+  ConstServices in '..\..\COMMUN\LIB\ConstServices.pas';
 
 //
 

@@ -69,6 +69,7 @@ type
   Tools = class
     class function CaseFromString(Value: string; Values: array of string): integer;
     class function GetTypeFieldFromStringType(TypeString : string) : tTypeField;
+    class function GetStFieldType(FieldName: string{$IF defined(APPSRV)}; ServerName, DBName : string; DebugEvents : integer=0{$IFEND !APPSRV}): string;
     class function GetFieldType(FieldName: string{$IF defined(APPSRV)}; ServerName, DBName : string{$IFEND !APPSRV}): tTypeField;
     class function GetDefaultValueFromtTypeField(FieldType : tTypeField) : string;
     class function iif(Const Expression, TruePart, FalsePart: Boolean): Boolean; overload;
@@ -385,39 +386,50 @@ begin
       8    : Result := ttfCombo;   {COMBO}
       9    : Result := ttfBoolean; {BOOLEAN}
     else
-       Result := ttfText;
+      Result := ttfText;
     end;
   end else
     Result := ttfNone;
 end;
 
-class function Tools.GetFieldType(FieldName: string{$IF defined(APPSRV)}; ServerName, DBName : string{$IFEND !APPSRV}): tTypeField;
+class function Tools.GetStFieldType(FieldName: string{$IF defined(APPSRV)}; ServerName, DBName : string; DebugEvents : integer=0{$IFEND !APPSRV}): string;
 var
-  FieldType : string;
   {$IF defined(APPSRV)}
-  lAdoQry : AdoQry;
+  lAdoQry  : AdoQry;
+  LogValue : T_WSLogValues;
   {$IFEND !APPSRV}
 begin
   if FieldName <> '' then
   begin
     {$IF not defined(APPSRV)}
-    FieldType :=  ChampToType(FieldName);
+    Result :=  ChampToType(FieldName);
     {$ELSE  !APPSRV}
+    if (DebugEvents > 0) then TServicesLog.WriteLog(ssbylWindows, Format('%sTools.GetStFieldType / Srv=%s, Folder=%s', [WSCDS_DebugMsg, ServerName, DBName]), 'Debug service', LogValue, 0);
     lAdoQry := AdoQry.Create;
     try
-      lAdoQry.ServerName := ServerName;
-      lAdoQry.DBName     := DBName;
-      lAdoQry.FieldsList := 'DH_TYPECHAMP';
-      lAdoQry.Request    := 'SELECT ' + lAdoQry.FieldsList + ' FROM DECHAMPS WHERE DH_NOMCHAMP =''' + FieldName + '''';
+      if (DebugEvents > 0) then TServicesLog.WriteLog(ssbylWindows, Format('%sTools.GetStFieldType', [WSCDS_DebugMsg]), 'Debug service', LogValue, 0);
+      lAdoQry.ServerName            := ServerName;
+      lAdoQry.DBName                := DBName;
+      lAdoQry.LogValues.DebugEvents := DebugEvents;
+      lAdoQry.FieldsList            := 'DH_TYPECHAMP';
+      lAdoQry.Request               := 'SELECT ' + lAdoQry.FieldsList + ' FROM DECHAMPS WHERE DH_NOMCHAMP =''' + FieldName + '''';
+      if (DebugEvents > 0) then TServicesLog.WriteLog(ssbylWindows, Format('%sTools.GetStFieldType - Request = %s', [WSCDS_DebugMsg, lAdoQry.Request]), 'Debug service', LogValue, 0);
       lAdoQry.SingleTableSelect;
-      FieldType := lAdoQry.TSLResult[0];
+      Result := lAdoQry.TSLResult[0];
     finally
       lAdoQry.Free;
     end;
     {$IFEND !APPSRV}
-    Result := Tools.GetTypeFieldFromStringType(FieldType);
   end else
-    Result := ttfNone;
+    Result := '';
+end;
+
+class function Tools.GetFieldType(FieldName: string{$IF defined(APPSRV)}; ServerName, DBName : string{$IFEND !APPSRV}): tTypeField;
+var
+  FieldType : string;
+begin
+  FieldType := Tools.GetStFieldType(FieldName{$IF defined(APPSRV)}, ServerName, DBName{$IFEND !APPSRV});
+  Result    := Tools.GetTypeFieldFromStringType(FieldType);
 end;
 
 class function Tools.GetDefaultValueFromtTypeField(FieldType : tTypeField) : string;

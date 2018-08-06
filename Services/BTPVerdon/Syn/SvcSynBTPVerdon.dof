@@ -90,7 +90,7 @@ MaxStackSize=1048576
 ImageBase=4194304
 ExeDescription=
 [Directories]
-OutputDir=$(CBP_ROOT)\binBTPVerdon
+OutputDir=$(CBP_ROOT)\BinWS
 UnitOutputDir=C:\CBP\CBP7\CBP.7.9.430\DCU\SvcSynBTPVerdon
 PackageDLLOutputDir=
 PackageDCPOutputDir=
@@ -149,7 +149,7 @@ Item0=C:\CBP\CBP7\CBP.7.9.430\DCU\SvcSynBTPVerdon
 Item1=$(CBP_ROOT)\DCU\CBTPS5WS
 [HistoryLists\hlOutputDirectorry]
 Count=4
-Item0=$(CBP_ROOT)\binBTPVerdon
-Item1=$(CBP_ROOT)\bin
-Item2=C:\CBP\CBP7\CBP.7.9.430\BinBTPVerdon
-Item3=$(CBP_ROOT)\binWS
+Item0=$(CBP_ROOT)\BinWS
+Item1=$(CBP_ROOT)\binBTPVerdon
+Item2=$(CBP_ROOT)\bin
+Item3=C:\CBP\CBP7\CBP.7.9.430\BinBTPVerdon
