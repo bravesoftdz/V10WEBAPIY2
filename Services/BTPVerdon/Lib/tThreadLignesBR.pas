@@ -93,7 +93,7 @@ begin
 //  SetName;
   try
     TUtilBTPVerdon.AddLog(lTn, TUtilBTPVerdon.GetMsgStartEnd(lTn, True, LignesBRValues.LastSynchro), LogValues, 0);
-    TUtilBTPVerdon.SetLastSynchro(lTn);
+//    TUtilBTPVerdon.SetLastSynchro(lTn);
   except
   end;
 end;

@@ -665,10 +665,10 @@ begin
                 end;
             end;
         end
-    else
+    else                                                           
     begin
       if (stNatureAuxi = 'CLI') or (stNatureAuxi = 'PRO') then
-        CanInsertChoixCod := Tools.CanInsertedInTable('CHOIXCOD'{$IFDEF APPSRV}, '', '' {$ENDIF APPSRV})
+        CanInsertChoixCod := Tools.CanInsertedInTable('TIERS'{$IFDEF APPSRV}, '', '' {$ENDIF APPSRV})
       else
         CanInsertChoixCod := True;
       cc:=THEdit(GetControl('T_MODEREGLE'));

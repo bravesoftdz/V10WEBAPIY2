@@ -69,7 +69,7 @@ type
   Tools = class
     class function CaseFromString(Value: string; Values: array of string): integer;
     class function GetTypeFieldFromStringType(TypeString : string) : tTypeField;
-    class function GetStFieldType(FieldName: string{$IF defined(APPSRV)}; ServerName, DBName : string; DebugEvents : integer=0{$IFEND !APPSRV}): string;
+    class function GetStFieldType(FieldName: string{$IFDEF APPSRV}; ServerName, DBName : string; DebugEvents : integer=0{$ENDIF APPSRV}): string;
     class function GetFieldType(FieldName: string{$IF defined(APPSRV)}; ServerName, DBName : string{$IFEND !APPSRV}): tTypeField;
     class function GetDefaultValueFromtTypeField(FieldType : tTypeField) : string;
     class function iif(Const Expression, TruePart, FalsePart: Boolean): Boolean; overload;
@@ -97,7 +97,7 @@ type
     class function GetTSlIndexFromFieldName(TslLine, FieldName : string; Separator : string=',') : integer;
     class function GetTableNameFromTtn(Ttn : tTableName) : string;
     class function GetTtnFromTableName(TableName : string) : tTableName;
-    class function CanInsertedInTable(TableName: string{$IF defined(APPSRV)}; ServerName, DBName : string{$IFEND APPSRV}): Boolean;
+    class function CanInsertedInTable(TableName: string{$IFDEF APPSRV}; ServerName, DBName : string{$ENDIF APPSRV}): Boolean;
     class function GetPSocTreeToExport(OnlyAccounting : Boolean=False) : string;
     class function SetTRAFileFromTSl(lTSL : TStringList) : Boolean;
     class function FormatValue(Value : string; Align : tTypeAlign; iLength : integer; NbDec : Integer=0; TypeDate : tFormatValueTypeDate=tvtNone) : string;
@@ -111,6 +111,7 @@ type
     class procedure DecodeAccDocReferency(DocReferency : string; var DocType : string; var Stump : string; var DocDate : TDateTime; var DocNumber : integer; var Index : integer);
     class function GetParamSocSecur_(PSocName : string; DefaultValue : string{$IFDEF APPSRV}; ServerName, FolderName : string{$ENDIF APPSRV}) : string;
     class function CastDateTimeForQry(lDate : TDateTime) : string;
+    class function UsDateTime_(dDateTime : TDateTime) : string;
     {$IF not defined(APPSRV)}
     class procedure TobToTStringList(TobOrig : TOB; TSlResult : TStringList; Level : Integer=1);
     {$IFEND !APPSRV}
@@ -154,12 +155,14 @@ begin
             + ';Use Encryption for Data=False'
             + ';Tag with column collation when possible=False'
   else
+//************************************
     Result := 'Provider=SQLOLEDB.1'
             + ';Password=cegid.2012'
             + ';Persist Security Info=True'
             + ';User ID=sa'
             + ';Initial Catalog=' + DBName
             + ';Data Source=' + ServerName
+//************************************
   ;
 end;
 
@@ -204,6 +207,13 @@ var
   Start       : integer;
   FieldsArray : Array of string;
 begin
+  if LogValues.DebugEvents > 0 then TServicesLog.WriteLog(ssbylLog, Format('%s #01 AdoQry.SingleTableSelect - Srv = %s, Folder = %s, Request = %s, FieldsList = %s'
+                                                                           , [WSCDS_DebugMsg
+                                                                              , ServerName
+                                                                              , DBName
+                                                                              , Request
+                                                                              , FieldsList
+                                                                          ]), ServiceName, LogValues, 0);
   Result := '';
   if     (ServerName <> '') // Nom du serveur
      and (DBName <> '')     // Nom de la BDD
@@ -211,6 +221,7 @@ begin
      and (FieldsList <> '') // Liste des champs
   then
   begin
+    if LogValues.DebugEvents > 0 then TServicesLog.WriteLog(ssbylLog, Format('%s#02 AdoQry.SingleTableSelect - ', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
     lFieldsList := FieldsList;
     SetLength(FieldsArray, Tools.CountOccurenceString(lFieldsList, ',') + 1);
     Cpt := 0;
@@ -235,7 +246,9 @@ begin
            + Select
            + Copy(Request, pos('*', Request) + 1, Length(Request));
     end;
+    if LogValues.DebugEvents > 0 then TServicesLog.WriteLog(ssbylLog, Format('%s#03 AdoQry.SingleTableSelect - Before create "Connect"', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
     Connect := TADOConnection.Create(application);
+    if LogValues.DebugEvents > 0 then TServicesLog.WriteLog(ssbylLog, Format('%s#031 AdoQry.SingleTableSelect - After create "Connect"', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
     try
       Connect.ConnectionString := GetConnectionString((PgiDB = 'X'));
       Connect.LoginPrompt      := False;
@@ -248,6 +261,7 @@ begin
           Qry.Connection := Connect;
           Qry.SQL.Text   := Sql;
           Qry.Prepared   := True;
+          if LogValues.DebugEvents > 0 then TServicesLog.WriteLog(ssbylLog, Format('%s AdoQry.SingleTableSelect / Connected ', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
           try
             if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Qry.SQL.Text =%s', [WSCDS_DebugMsg, Qry.SQL.Text]), ServiceName, LogValues, 0);
             Qry.Open;
@@ -273,7 +287,7 @@ begin
               Result := Format('Erreur sur %s', [Qry.SQL.Text]);
               Connect.RollbackTrans;
               Raise Exception.Create(Result);
-            end;  
+            end;
 (*            on E:Exception do
             begin
               if E.Message <> '' then
@@ -392,16 +406,16 @@ begin
     Result := ttfNone;
 end;
 
-class function Tools.GetStFieldType(FieldName: string{$IF defined(APPSRV)}; ServerName, DBName : string; DebugEvents : integer=0{$IFEND !APPSRV}): string;
+class function Tools.GetStFieldType(FieldName: string{$IFDEF APPSRV}; ServerName, DBName : string; DebugEvents : integer=0{$ENDIF !APPSRV}): string;
+{$IFDEF APPSRV}
 var
-  {$IF defined(APPSRV)}
   lAdoQry  : AdoQry;
   LogValue : T_WSLogValues;
-  {$IFEND !APPSRV}
+{$ENDIF!APPSRV}
 begin
   if FieldName <> '' then
   begin
-    {$IF not defined(APPSRV)}
+    {$IFNDEF APPSRV}
     Result :=  ChampToType(FieldName);
     {$ELSE  !APPSRV}
     if (DebugEvents > 0) then TServicesLog.WriteLog(ssbylWindows, Format('%sTools.GetStFieldType / Srv=%s, Folder=%s', [WSCDS_DebugMsg, ServerName, DBName]), 'Debug service', LogValue, 0);
@@ -419,7 +433,7 @@ begin
     finally
       lAdoQry.Free;
     end;
-    {$IFEND !APPSRV}
+    {$ENDIF !APPSRV}
   end else
     Result := '';
 end;
@@ -887,7 +901,7 @@ begin
   end;
 end;
 
-class function Tools.CanInsertedInTable(TableName: string{$IF defined(APPSRV)}; ServerName, DBName : string{$IFEND APPSRV}): Boolean;
+class function Tools.CanInsertedInTable(TableName: string{$IFDEF APPSRV}; ServerName, DBName : string{$ENDIF APPSRV}): Boolean;
 {$IF defined(APPSRV)}
 var
   AdoQryAut : AdoQry;
@@ -1251,6 +1265,11 @@ end;
 class function Tools.CastDateTimeForQry(lDate: TDateTime): string;
 begin
   Result := FormatDateTime('yyyymmdd', lDate);
+end;
+
+class function Tools.UsDateTime_(dDateTime: TDateTime): string;
+begin
+  Result := FormatDateTime('yyyymmdd hh:nn:ss', dDateTime);
 end;
 
 end.

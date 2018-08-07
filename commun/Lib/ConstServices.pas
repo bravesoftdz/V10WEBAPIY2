@@ -26,7 +26,7 @@ const
   ServiceName_BTPY2     = 'SvcSynBTPY2';
   ServiceName_BTPVerdon = 'SvcSynBTPVerdon';
   WSCDS_ErrorMsg        = '##### ERREUR';
-  WSCDS_DebugMsg        = 'DEBUG : ';
+  WSCDS_DebugMsg        = '***** DEBUG : ';
 
 
 implementation
