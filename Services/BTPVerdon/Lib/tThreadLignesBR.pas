@@ -6,6 +6,8 @@ uses
   Classes
   , UtilBTPVerdon
   , ConstServices
+  , uTob
+  , CbpMCD
   {$IFDEF MSWINDOWS}
   , Windows
   {$ENDIF}
@@ -28,6 +30,14 @@ type
   end;
 
 implementation
+
+uses
+  CommonTools
+  , SysUtils
+  , hCtrls
+  , hEnt1
+  , StrUtils
+  ;
 
 { Important : les méthodes et propriétés des objets de la VCL peuvent uniquement être
   utilisés dans une méthode appelée en utilisant Synchronize, comme : 
@@ -89,12 +99,45 @@ begin
 end;
 
 procedure ThreadLignesBR.Execute;
+var
+  TobT      : TOB;
+  TobQry    : TOB;
+  AdoQryL   : AdoQry;
+  Treatment : TTnTreatment;
 begin
 //  SetName;
+  TUtilBTPVerdon.AddLog(lTn, '', LogValues, 0);
+  TUtilBTPVerdon.AddLog(lTn, DupeString('*', 50), LogValues, 0);
+  if (LogValues.DebugEvents > 0) then
+    TUtilBTPVerdon.AddLog(lTn, Format('%sThreadTiers.Execute / BTPSrv=%s, BTPFolder=%s, TMPSrv=%s, TMPFolder=%s', [WSCDS_DebugMsg, FolderValues.BTPServer, FolderValues.BTPDataBase, FolderValues.TMPServer, FolderValues.TMPDataBase]), LogValues, 0);
+  TUtilBTPVerdon.AddLog(lTn, TUtilBTPVerdon.GetMsgStartEnd(lTn, True, LignesBRValues.LastSynchro), LogValues, 0);
+  TobQry := TOB.Create('_QRY', nil, -1);
   try
-    TUtilBTPVerdon.AddLog(lTn, TUtilBTPVerdon.GetMsgStartEnd(lTn, True, LignesBRValues.LastSynchro), LogValues, 0);
-//    TUtilBTPVerdon.SetLastSynchro(lTn);
-  except
+    TobT := TOB.Create('_DEVIS', nil, -1);
+    try
+      AdoQryL := AdoQry.Create;
+      try
+        AdoQryL.ServerName  := FolderValues.TMPServer;
+        AdoQryL.DBName      := FolderValues.TMPDataBase;
+        AdoQryL.PgiDB       := '-';
+        Treatment := TTnTreatment.Create;
+        try
+          Treatment.Tn           := lTn;
+          Treatment.FolderValues := FolderValues;
+          Treatment.LogValues    := LogValues;
+          Treatment.LastSynchro  := LignesBRValues.LastSynchro;
+          Treatment.TnTreatment(TobT, TobQry, AdoQryL);
+        finally
+          Treatment.Free;
+        end;
+      finally
+        AdoQryL.free;
+      end;
+    finally
+      FreeAndNil(TobT);
+    end;
+  finally    
+    FreeAndNil(TobQry);
   end;
 end;
 

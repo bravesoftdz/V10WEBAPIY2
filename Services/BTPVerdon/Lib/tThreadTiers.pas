@@ -130,13 +130,8 @@ begin
 //  SetName;
   TUtilBTPVerdon.AddLog(lTn, '', LogValues, 0);
   TUtilBTPVerdon.AddLog(lTn, DupeString('*', 50), LogValues, 0);
-  if (LogValues.DebugEvents > 0) then TUtilBTPVerdon.AddLog(lTn, Format('%sThreadTiers.Execute / BTPSrv=%s, BTPFolder=%s, TMPSrv=%s, TMPFolder=%s'
-                                                                        , [WSCDS_DebugMsg
-                                                                           , FolderValues.BTPServer
-                                                                           , FolderValues.BTPDataBase
-                                                                           , FolderValues.TMPServer
-                                                                           , FolderValues.TMPDataBase
-                                                                          ]), LogValues, 0);
+  if (LogValues.DebugEvents > 0) then
+    TUtilBTPVerdon.AddLog(lTn, Format('%sThreadTiers.Execute / BTPSrv=%s, BTPFolder=%s, TMPSrv=%s, TMPFolder=%s', [WSCDS_DebugMsg, FolderValues.BTPServer, FolderValues.BTPDataBase, FolderValues.TMPServer, FolderValues.TMPDataBase]), LogValues, 0);
   TUtilBTPVerdon.AddLog(lTn, TUtilBTPVerdon.GetMsgStartEnd(lTn, True, TiersValues.LastSynchro), LogValues, 0);
   TobQry := TOB.Create('_QRY', nil, -1);
   try

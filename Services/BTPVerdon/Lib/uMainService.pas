@@ -238,11 +238,9 @@ begin
       Inc(DevisValues.Count);
       Inc(LignesBRValues.Count);
       CallThreadTiers;
-(*
-      CallThreadChantiers;
-      CallThreadDevis;
-      CallThreadLignesBR;
-*)
+//    CallThreadChantiers;
+//    CallThreadDevis;
+//    CallThreadLignesBR;
       Sleep(1000);
       ServiceThread.ProcessRequests(False);
     end;
