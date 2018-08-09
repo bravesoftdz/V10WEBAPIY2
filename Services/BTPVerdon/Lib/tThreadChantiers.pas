@@ -39,6 +39,7 @@ uses
   , hCtrls
   , hEnt1
   , StrUtils
+  , ParamSoc
   ;
 
   { Important : les méthodes et propriétés des objets de la VCL peuvent uniquement être
@@ -103,10 +104,38 @@ end;
 
 procedure ThreadChantiers.Execute;
 var
-  TobT      : TOB;
-  TobQry    : TOB;
-  AdoQryL   : AdoQry;
-  Treatment : TTnTreatment;
+  TobT                   : TOB;
+  TobAdd                 : TOB;
+  TobQry                 : TOB;
+  AdoQryL                : AdoQry;
+  BTPArrFields           : array of string;
+  TMPArrFields           : array of string;
+  BTPArrAdditionalFields : array of string;
+  TMPArrAdditionalFields : array of string;
+  Treatment              : TTnTreatment;
+
+  procedure AddFieldsTobAdd;
+  begin
+    TobAdd.AddChampSupValeur('LADR_LIBELLE'    , '');
+    TobAdd.AddChampSupValeur('LADR_ADRESSE1'   , '');
+    TobAdd.AddChampSupValeur('LADR_ADRESSE2'   , '');
+    TobAdd.AddChampSupValeur('LADR_ADRESSE3'   , '');
+    TobAdd.AddChampSupValeur('LADR_CODEPOSTAL' , '');
+    TobAdd.AddChampSupValeur('LADR_VILLE'      , '');
+    TobAdd.AddChampSupValeur('LADR_PAYS'       , '');
+    TobAdd.AddChampSupValeur('LADR_TYPEADRESSE', 'INT');
+    TobAdd.AddChampSupValeur('FADR_LIBELLE'    , '');
+    TobAdd.AddChampSupValeur('FADR_ADRESSE1'   , '');
+    TobAdd.AddChampSupValeur('FADR_ADRESSE2'   , '');
+    TobAdd.AddChampSupValeur('FADR_ADRESSE3'   , '');
+    TobAdd.AddChampSupValeur('FADR_CODEPOSTAL' , '');
+    TobAdd.AddChampSupValeur('FADR_VILLE'      , '');
+    TobAdd.AddChampSupValeur('FADR_PAYS'       , '');
+    TobAdd.AddChampSupValeur('FADR_TYPEADRESSE', 'AFA');
+    TobAdd.AddChampSupValeur('LISTEDEVIS'      , '');
+    TobAdd.AddChampSupValeur('CODESOCIETE'     , GetParamSocSecur('SO_SOCIETE', ''));
+  end;
+
 begin
 //  SetName;
   TUtilBTPVerdon.AddLog(lTn, '', LogValues, 0);
@@ -118,23 +147,30 @@ begin
   try
     TobT := TOB.Create('_DEVIS', nil, -1);
     try
-      AdoQryL := AdoQry.Create;
+      TobAdd := TOB.Create('_ADDFIEDS', nil, -1);
       try
-        AdoQryL.ServerName  := FolderValues.TMPServer;
-        AdoQryL.DBName      := FolderValues.TMPDataBase;
-        AdoQryL.PgiDB       := '-';
-        Treatment := TTnTreatment.Create;
+        AdoQryL := AdoQry.Create;
         try
-          Treatment.Tn           := lTn;
-          Treatment.FolderValues := FolderValues;
-          Treatment.LogValues    := LogValues;
-          Treatment.LastSynchro  := ChantierValues.LastSynchro;
-          Treatment.TnTreatment(TobT, TobQry, AdoQryL);
+          AddFieldsTobAdd;
+          AdoQryL.ServerName  := FolderValues.TMPServer;
+          AdoQryL.DBName      := FolderValues.TMPDataBase;
+          AdoQryL.PgiDB       := '-';
+          Treatment := TTnTreatment.Create;
+          try
+            Treatment.Tn           := lTn;
+            Treatment.FolderValues := FolderValues;
+            Treatment.LogValues    := LogValues;
+            Treatment.LastSynchro  := ChantierValues.LastSynchro;
+            //Treatment.TnTreatment(TobT, TobAdd, TobQry, AdoQryL, BTPArrFields, TMPArrFields, BTPArrAdditionalFields,TMPArrAdditionalFields);
+            Treatment.TnTreatment(TobT, TobAdd, TobQry, AdoQryL);
+          finally
+            Treatment.Free;
+          end;
         finally
-          Treatment.Free;
+          AdoQryL.free;
         end;
       finally
-        AdoQryL.free;
+        FreeAndNil(TobAdd);
       end;
     finally
       FreeAndNil(TobT);

@@ -101,10 +101,15 @@ end;
 
 procedure ThreadDevis.Execute;
 var
-  TobT      : TOB;
-  TobQry    : TOB;
-  AdoQryL   : AdoQry;
-  Treatment : TTnTreatment;
+  TobT                   : TOB;
+  TobAdd                 : TOB;
+  TobQry                 : TOB;
+  AdoQryL                : AdoQry;
+  BTPArrFields           : array of string;
+  TMPArrFields           : array of string;
+  BTPArrAdditionalFields : array of string;
+  TMPArrAdditionalFields : array of string;
+  Treatment              : TTnTreatment;
 begin
 //  SetName;
   TUtilBTPVerdon.AddLog(lTn, '', LogValues, 0);
@@ -116,23 +121,29 @@ begin
   try
     TobT := TOB.Create('_DEVIS', nil, -1);
     try
-      AdoQryL := AdoQry.Create;
+      TobAdd := TOB.Create('_ADDFIEDS', nil, -1);
       try
-        AdoQryL.ServerName  := FolderValues.TMPServer;
-        AdoQryL.DBName      := FolderValues.TMPDataBase;
-        AdoQryL.PgiDB       := '-';
-        Treatment := TTnTreatment.Create;
+        AdoQryL := AdoQry.Create;
         try
-          Treatment.Tn           := lTn;
-          Treatment.FolderValues := FolderValues;
-          Treatment.LogValues    := LogValues;
-          Treatment.LastSynchro  := DevisValues.LastSynchro;
-          Treatment.TnTreatment(TobT, TobQry, AdoQryL);
+          AdoQryL.ServerName  := FolderValues.TMPServer;
+          AdoQryL.DBName      := FolderValues.TMPDataBase;
+          AdoQryL.PgiDB       := '-';
+          Treatment := TTnTreatment.Create;
+          try
+            Treatment.Tn           := lTn;
+            Treatment.FolderValues := FolderValues;
+            Treatment.LogValues    := LogValues;
+            Treatment.LastSynchro  := DevisValues.LastSynchro;
+            //Treatment.TnTreatment(TobT, TobAdd, TobQry, AdoQryL, BTPArrFields, TMPArrFields, BTPArrAdditionalFields,TMPArrAdditionalFields);
+            Treatment.TnTreatment(TobT, TobAdd, TobQry, AdoQryL);
+          finally
+            Treatment.Free;
+          end;
         finally
-          Treatment.Free;
+          AdoQryL.free;
         end;
       finally
-        AdoQryL.free;
+        FreeAndNil(TobAdd);
       end;
     finally
       FreeAndNil(TobT);

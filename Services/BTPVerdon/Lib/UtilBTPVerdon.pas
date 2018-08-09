@@ -59,27 +59,31 @@ type
   private
     BTPArrFields     : array of string;
     TMPArrFields     : array of string;
-    TobLinkedRecords : TOB;
+    BTPArrAdditionalFields : array of string;
+    TMPArrAdditionalFields : array of string;
 
     function GetPrefix : string;
+    function GetTMPFieldName(BTPFieldName : string) : string;
     function GetTMPIndexFieldName : string;
     function GetBTPIndexFieldName : string;
     function GetBTPLabelFieldName : string;
     function ExtractFieldName(Value : string) : string;
-    function ExtractFielType(Value : string) : string;
+    function ExtractFieldType(Value : string) : string;
+    //function SetFieldsArray(BTPArrFields, TMPArrFields, BTPArrAdditionalFields,TMPArrAdditionalFields : array of string) : boolean;
     function SetFieldsArray : boolean;
     function GetSqlDataExist(FieldsList, KeyValue1, KeyValue2 : string) : string;
     function GetSystemFields : string;
     function GetFieldsListFromArray(ArrData : array of string) : string;
     function GetValue(FieldNameBTP, FieldNameTMP : string; FieldType : tTypeField; TobData : TOB) : string;
     function GetSqlInsertFields : string;
-    function GetSqlInsertValues(TobData : TOB) : string;
-    function GetSqlUpdate(TobData : TOB; KeyValue1, KeyValue2 : string) : string;
-    function GetSqlInsert(TobData : TOB) : string;
+    function GetSqlInsertAdditionalFields : string;
+    function GetSqlInsertValues(TobData : TOB; IsAdditional : boolean=False) : string;
+    function GetSqlUpdate(TobData, TobAdd : TOB; KeyValue1, KeyValue2 : string) : string;
+    function GetSqlInsert(TobData, TobAdd : TOB) : string;
     function GetDataSearchSql : string;
     function GetTMPFieldSizeMax(FieldName : string) : integer;
     function InsertUpdateData(AdoQryL : AdoQry; TobData: TOB): boolean;
-    procedure SetLinkedRecords(KeyValue1, KeyValue2 : string);
+    procedure SetLinkedRecords(TobAdd, TobData : TOB);
     procedure SetLastSynchro;
 
   public
@@ -87,7 +91,8 @@ type
     LogValues    : T_WSLogValues;
     FolderValues : T_FolderValues;
     LastSynchro  : string;
-    function TnTreatment(TobTable, TobQry: TOB; AdoQryL : AdoQry): boolean;
+    //function TnTreatment(TobTable, TobAdd, TobQry: TOB; AdoQryL : AdoQry; BTPArrFields, TMPArrFields, BTPArrAdditionalFields, TMPArrAdditionalFields : array of string): boolean;
+    function TnTreatment(TobTable, TobAdd, TobQry: TOB; AdoQryL : AdoQry): boolean;
   end;
 
 const
@@ -104,6 +109,11 @@ uses
   , IniFiles
   , hCtrls
   , dpOutils
+  {$IFNDEF DBXPRESS}
+  , dbTables
+  {$ELSE !DBXPRESS}
+  , uDbxDataSet
+  {$ENDIF !DBXPRESS}
   ;
 
 { TUtilBTPVerdon }
@@ -137,31 +147,42 @@ begin
   Result := copy(Value, 1, pos(';', Value) -1)
 end;
 
-function TTnTreatment.ExtractFielType(Value : string) : string;
+function TTnTreatment.ExtractFieldType(Value : string) : string;
 begin
   Result := copy(Value, pos(';', Value) +1,length(Value));
 end;
 
+//function TTnTreatment.SetFieldsArray(BTPArrFields, TMPArrFields, BTPArrAdditionalFields,TMPArrAdditionalFields : array of string) : boolean;
 function TTnTreatment.SetFieldsArray : boolean;
 var
   Cpt       : integer;
   ArrLen    : integer;
 
-  procedure AddValues(BTPFieldName, TMPFieldName : string);
-  var                                                                                                
-    FieldType    : string;
+  procedure AddValues(BTPFieldName, TMPFieldName : string; IsAdditional : boolean=False);
+  var
+    FieldType : string;
   begin
-    FieldType := Tools.GetStFieldType(BTPFieldName{$IFDEF APPSRV}, FolderValues.BTPServer, FolderValues.BTPDataBase, LogValues.DebugEvents {$ENDIF APPSRV});
+    if not IsAdditional then
+      FieldType := Tools.GetStFieldType(BTPFieldName{$IFDEF APPSRV}, FolderValues.BTPServer, FolderValues.BTPDataBase, LogValues.DebugEvents {$ENDIF APPSRV})
+    else
+      FieldType := 'VARCHAR(100)';
     if (LogValues.DebugEvents = 2) then TUtilBTPVerdon.AddLog(Tn, Format('%sSetFieldsArray / AddValues / BTPFieldName=%s, TMPFieldName=%s, FieldType=%s', [WSCDS_DebugMsg, BTPFieldName, TMPFieldName, FieldType]), LogValues, 0);
-    BTPArrFields[Cpt] := Format('%s;%s', [BTPFieldName, FieldType]);
-    TMPArrFields[Cpt] := Format('%s;%s', [TMPFieldName, FieldType]);
+    if not IsAdditional then
+    begin
+      BTPArrFields[Cpt] := Format('%s;%s', [BTPFieldName, FieldType]);
+      TMPArrFields[Cpt] := Format('%s;%s', [TMPFieldName, FieldType]);
+    end else
+    begin
+      BTPArrAdditionalFields[Cpt] := Format('%s;%s', [BTPFieldName, FieldType]);
+      TMPArrAdditionalFields[Cpt] := Format('%s;%s', [TMPFieldName, FieldType]);
+    end;
   end;
 
 begin
   Result := True;
   if (LogValues.DebugEvents > 0) then TUtilBTPVerdon.AddLog(Tn, Format('%sThreadTiers.SetFieldsArray / Srv=%s, Folder=%s', [WSCDS_DebugMsg, FolderValues.BTPServer, FolderValues.BTPDataBase]), LogValues, 0);
   case Tn of
-    tnChantier : ArrLen := 27;
+    tnChantier : ArrLen := 11;
     tnDevis    : ArrLen := 12;
     tnLignesBR : ArrLen := 12;
     tnTiers    : ArrLen := 25;
@@ -173,7 +194,7 @@ begin
   case Tn of
     tnChantier :
       begin
-        for Cpt :=  Low(BTPArrFields) to High(BTPArrFields) do
+        for Cpt := Low(BTPArrFields) to High(BTPArrFields) do
         begin
           case Cpt of
             0  : AddValues('AFF_AFFAIRE'      , 'CHA_CODE');
@@ -185,24 +206,32 @@ begin
             6  : AddValues('AFF_BOOLLIBRE1'   , 'CHA_VISA');
             7  : AddValues('AFF_STATUTAFFAIRE', 'CHA_STATUT');
             8  : AddValues('AFF_RESPONSABLE'  , 'CHA_RESPONSABLE');
-            9  : AddValues('LISTEDEVIS'       , 'CHA_LISTEDEVIS');
-            10 : AddValues('ADR_LIBELLE'      , 'CHA_ADLLIBELLE');
-            11 : AddValues('ADR_ADRESSE1'     , 'CHA_ADLADRESSE1');
-            12 : AddValues('ADR_ADRESSE2'     , 'CHA_ADLADRESSE2');
-            13 : AddValues('ADR_ADRESSE3'     , 'CHA_ADLADRESSE3');
-            14 : AddValues('ADR_CODEPOSTAL'   , 'CHA_ADLCP');
-            15 : AddValues('ADR_VILLE'        , 'CHA_ADLVILLE');
-            16 : AddValues('ADR_PAYS'         , 'CHA_ADLPAY');
-            17 : AddValues('ADR_LIBELLE'      , 'CHA_ADFLIBELLE');
-            18 : AddValues('ADR_ADRESSE1'     , 'CHA_ADFADRESSE1');
-            19 : AddValues('ADR_ADRESSE2'     , 'CHA_ADFADRESSE2');
-            20 : AddValues('ADR_ADRESSE3'     , 'CHA_ADFADRESSE3');
-            21 : AddValues('ADR_CODEPOSTAL'   , 'CHA_ADFCP');
-            22 : AddValues('ADR_VILLE'        , 'CHA_ADFVILLE');
-            23 : AddValues('ADR_PAYS'         , 'CHA_ADFPAY');
-            24 : AddValues('CODESOCIETE'      , 'CHA_CODESOCIETE');
-            25 : AddValues('AFF_DATECREATION' , 'CHA_DATECREATION');
-            26 : AddValues('AFF_DATEMODIF'    , 'CHA_DATEMODIF');
+            9  : AddValues('AFF_DATECREATION' , 'CHA_DATECREATION');
+            10 : AddValues('AFF_DATEMODIF'    , 'CHA_DATEMODIF');
+          end;
+        end;
+        ArrLen := 16;
+        SetLength(BTPArrAdditionalFields, ArrLen);
+        SetLength(TMPArrAdditionalFields, ArrLen);
+        for Cpt :=  Low(BTPArrAdditionalFields) to High(BTPArrAdditionalFields) do
+        begin
+          case Cpt of
+            0  : AddValues('LADR_LIBELLE'   , 'CHA_ADLLIBELLE' , True);
+            1  : AddValues('LADR_ADRESSE1'  , 'CHA_ADLADRESSE1', True);
+            2  : AddValues('LADR_ADRESSE2'  , 'CHA_ADLADRESSE2', True);
+            3  : AddValues('LADR_ADRESSE3'  , 'CHA_ADLADRESSE3', True);
+            4  : AddValues('LADR_CODEPOSTAL', 'CHA_ADLCP'      , True);
+            5  : AddValues('LADR_VILLE'     , 'CHA_ADLVILLE'   , True);
+            6  : AddValues('LADR_PAYS'      , 'CHA_ADLPAY'     , True);
+            7  : AddValues('FADR_LIBELLE'   , 'CHA_ADFLIBELLE' , True);
+            8  : AddValues('FADR_ADRESSE1'  , 'CHA_ADFADRESSE1', True);
+            9  : AddValues('FADR_ADRESSE2'  , 'CHA_ADFADRESSE2', True);
+            10 : AddValues('FADR_ADRESSE3'  , 'CHA_ADFADRESSE3', True);
+            11 : AddValues('FADR_CODEPOSTAL', 'CHA_ADFCP'      , True);
+            12 : AddValues('FADR_VILLE'     , 'CHA_ADFVILLE'   , True);
+            13 : AddValues('FADR_PAYS'      , 'CHA_ADFPAY'     , True);
+            14 : AddValues('LISTEDEVIS'     , 'CHA_LISTEDEVIS' , True);
+            15 : AddValues('CODESOCIETE'    , 'CHA_CODESOCIETE', True);
           end;
         end;
       end;
@@ -294,6 +323,24 @@ begin
   end;
 end;
 
+function TTnTreatment.GetTMPFieldName(BTPFieldName : string) : string;
+var
+  Cpt : integer;
+begin
+  if BTPFieldName <> '' then
+  begin
+    for Cpt := Low(BTPArrFields) to High(BTPArrFields) do
+    begin
+     if ExtractFieldName(BTPArrFields[Cpt]) = BTPFieldName then
+      begin
+       Result := ExtractFieldName(TMPArrFields[Cpt]);
+       break;
+      end;
+    end;
+  end else
+    Result := '';
+end;
+  
 function TTnTreatment.GetTMPIndexFieldName : string;
 begin
   case Tn of
@@ -309,7 +356,7 @@ end;
 function TTnTreatment.GetBTPIndexFieldName : string;
 begin
   case Tn of
-    tnChantier : Result := 'AFF_CODE';
+    tnChantier : Result := 'AFF_AFFAIRE';
     tnDevis    : Result := 'GP_NUMERO';
     tnLignesBR : Result := 'GL_NUMERO;GL_NUMORDRE';
     tnTiers    : Result := 'T_AUXILIAIRE';
@@ -339,23 +386,108 @@ begin
   end;
 end;
 
-procedure TTnTreatment.SetLinkedRecords(KeyValue1, KeyValue2 : string);
-var
-  Sql : string;
+procedure TTnTreatment.SetLinkedRecords(TobAdd, TobData : TOB);
+
+  procedure ClearValues;
+  begin
+    TobAdd.SetString('LADR_LIBELLE'    , '');
+    TobAdd.SetString('LADR_ADRESSE1'   , '');
+    TobAdd.SetString('LADR_ADRESSE2'   , '');
+    TobAdd.SetString('LADR_ADRESSE3'   , '');
+    TobAdd.SetString('LADR_CODEPOSTAL' , '');
+    TobAdd.SetString('LADR_VILLE'      , '');
+    TobAdd.SetString('LADR_PAYS'       , '');
+    TobAdd.SetString('FADR_LIBELLE'    , '');
+    TobAdd.SetString('FADR_ADRESSE1'   , '');
+    TobAdd.SetString('FADR_ADRESSE2'   , '');
+    TobAdd.SetString('FADR_ADRESSE3'   , '');
+    TobAdd.SetString('FADR_CODEPOSTAL' , '');
+    TobAdd.SetString('FADR_VILLE'      , '');
+    TobAdd.SetString('FADR_PAYS'       , '');
+    TobAdd.SetString('LISTEDEVIS'      , '');
+  end;
+
+  procedure AddAdress;
+  var
+    Sql     : string;
+    TobAdr  : TOB;
+    TobAdrL : TOB;
+    Cpt     : integer;
+
+    procedure AddValues(Prefix : string);
+    begin
+      TobAdd.SetString(Format('%sADR_LIBELLE'    , [Prefix]), TobAdrL.GetString('ADR_LIBELLE'));
+      TobAdd.SetString(Format('%sADR_ADRESSE1'   , [Prefix]), TobAdrL.GetString('ADR_ADRESSE1'));
+      TobAdd.SetString(Format('%sADR_ADRESSE2'   , [Prefix]), TobAdrL.GetString('ADR_ADRESSE2'));
+      TobAdd.SetString(Format('%sADR_ADRESSE3'   , [Prefix]), TobAdrL.GetString('ADR_ADRESSE3'));
+      TobAdd.SetString(Format('%sADR_CODEPOSTAL' , [Prefix]), TobAdrL.GetString('ADR_CODEPOSTAL'));
+      TobAdd.SetString(Format('%sADR_VILLE'      , [Prefix]), TobAdrL.GetString('ADR_VILLE'));
+      TobAdd.SetString(Format('%sADR_PAYS'       , [Prefix]), TobAdrL.GetString('ADR_PAYS'));
+    end;
+
+  begin
+    TobAdr := TOB.Create('_ADR', nil, -1);
+    try
+      Sql := Format('SELECT ADR_LIBELLE'
+                  + '     , ADR_ADRESSE1'
+                  + '     , ADR_ADRESSE2'
+                  + '     , ADR_ADRESSE3'
+                  + '     , ADR_CODEPOSTAL'
+                  + '     , ADR_VILLE'
+                  + '     , ADR_PAYS'
+                  + '     , ADR_TYPEADRESSE'
+                  + ' FROM ADRESSES'
+                  + ' WHERE ADR_REFCODE     = "%s"'
+                  + '   AND ADR_TYPEADRESSE IN ("INT", "AFA")'
+                  , [TobData.GetString('AFF_AFFAIRE')]);
+      TobAdr.LoadDetailFromSQL(Sql, True);
+      for Cpt := 0 to pred(TobAdr.Detail.count) do
+      begin
+        TobAdrL := TobAdr.Detail[Cpt];
+        if TobAdrL.GetString('ADR_TYPEADRESSE') = 'INT' then
+          AddValues('L')
+        else if TobAdrL.GetString('ADR_TYPEADRESSE') = 'AFA' then
+          AddValues('F');
+      end;
+    finally
+      FreeAndNil(TobAdr);
+    end;
+  end;
+
+  procedure AddQuotationList;
+  var
+    Sql   : string;
+    Value : string;
+    Qry   : TQuery;
+  begin
+    Sql := Format('SELECT GP_NUMERO'
+                + ' FROM PIECE'
+                + ' WHERE GP_NATUREPIECEG = "DBT"'
+                + '       AND GP_TIERS    = "%s"'
+                + '       AND GP_AFFAIRE  = "%s"'
+                  , [TobData.GetString('AFF_TIERS'), TobData.GetString('AFF_AFFAIRE')]);
+    Qry := OpenSql(Sql, True);
+    try
+      while not Qry.Eof do
+      begin
+        Value := Format('%s;%s', [Value, Qry.Fields[0].AsString]);
+        Qry.Next;
+      end;
+    finally
+      Ferme(Qry);
+    end;
+    Value := Copy(Value, 2, length(Value));
+    TobAdd.SetString('LISTEDEVIS' , Value);
+  end;
+
 begin
-  TobLinkedRecords.ClearDetail;
+  TobAdd.ClearDetail;
   case Tn of
     tnChantier :
       begin
-        { Recherche des adresses }
-        Sql := 'SELECT ADR_TYPEADRESSE, ADR_LIBELLE, ADR_ADRESSE1, ADR_ADRESSE2, ADR_ADRESSE3, ADR_CODEPOSTAL, ADR_VILLE, ADR_PAYS'
-             + ' FROM ADRESSES'
-             + Format(' WHERE %s=%s AND ADR_TYPEADRESSE IN ("AFA", "INT")', [GetBTPIndexFieldName, KeyValue1]);
-        TobLinkedRecords.LoadDetailFromSQL(Sql);
-        { Recherche de la liste des devis }
-
-
-
+        ClearValues;
+        AddAdress;
+        AddQuotationList;
       end;
   end;
 end;
@@ -390,11 +522,15 @@ end;
 
 function TTnTreatment.GetFieldsListFromArray(ArrData: array of string): string;
 var
-  Cpt : integer;
+  Cpt       : integer;
+  FieldName : string;
 begin
   Result := '';
-  for Cpt := 0 to High(ArrData) do
-    Result := Format('%s, %s', [Result, ExtractFieldName(ArrData[Cpt])]);
+  for Cpt := Low(ArrData) to High(ArrData) do
+  begin
+    FieldName := ExtractFieldName(ArrData[Cpt]);
+    Result := Format('%s, %s', [Result, FieldName]);
+  end;
   Result := copy(Result, 2, length(Result));
 end;
 
@@ -404,13 +540,12 @@ var
   Value     : variant;     
 begin
   Result := '';
-  
   Value  := TobData.GetValue(FieldNameBTP);
   case FieldType of
-    ttfNumeric, ttfInt                     : Result := StringReplace(Value, ',', '.', [rfReplaceAll]); //TobData.GetString(FieldNameBTP)
-    ttfDate                                : Result := Format('''%s''', [Tools.UsDateTime_(Value)]); //TobData.GetDateTime(FieldNameBTP)
+    ttfNumeric, ttfInt                     : Result := StringReplace(Value, ',', '.', [rfReplaceAll]);
+    ttfDate                                : Result := Format('''%s''', [Tools.UsDateTime_(Value)]); 
     ttfCombo, ttfText, ttfBoolean, ttfMemo : begin
-                                               Result    := Value; //TobData.GetString(FieldNameBTP);
+                                               Result    := Value; 
                                                Result    := Tools.iif(FieldType = ttfMemo, BlobToString(Result), Result);
                                                FieldSize := GetTMPFieldSizeMax(FieldNameTMP);
                                                Result    := Tools.iif(FieldSize > -1, Trim(Copy(Result, 1, FieldSize)), Result);
@@ -428,14 +563,24 @@ var
 begin
   Result := '';
   for Cpt :=  Low(TMPArrFields) to High(TMPArrFields) do
-    Result := Format('%s, %s', [Result, ExtractFieldName(TMPArrFields[Cpt])]); 
+    Result := Format('%s, %s', [Result, ExtractFieldName(TMPArrFields[Cpt])]);
   SystemFields := GetSystemFields;
   while SystemFields <> '' do
     Result := Format('%s, %s', [Result, Tools.ReadTokenSt_(SystemFields, ';')]);
   Result := Copy(Result, 2, length(Result));
 end;
 
-function TTnTreatment.GetSqlInsertValues(TobData: TOB): string;
+function TTnTreatment.GetSqlInsertAdditionalFields : string;
+var
+  Cpt : integer;
+begin
+  Result := '';
+  for Cpt :=  Low(TMPArrAdditionalFields) to High(TMPArrAdditionalFields) do
+    Result := Format('%s, %s', [Result, ExtractFieldName(TMPArrAdditionalFields[Cpt])]);
+  Result := Copy(Result, 2, length(Result));
+end;
+
+function TTnTreatment.GetSqlInsertValues(TobData: TOB; IsAdditional : boolean=False): string;
 var
   Cpt          : integer;
   FieldNameTMP : string;
@@ -443,18 +588,19 @@ var
   FieldType    : tTypeField;
 begin
   Result := '';
-  for Cpt := 0 to High(BTPArrFields) do
+  for Cpt := 0 to Tools.iif(not IsAdditional, High(BTPArrFields), High(BTPArrAdditionalFields)) do
   begin
-    FieldNameBTP := ExtractFieldName(BTPArrFields[Cpt]);
-    FieldNameTMP := ExtractFieldName(TMPArrFields[Cpt]);
-    FieldType    := Tools.GetTypeFieldFromStringType(ExtractFielType(BTPArrFields[Cpt]));
+    FieldNameBTP := ExtractFieldName(Tools.iif(not IsAdditional, BTPArrFields[Cpt], BTPArrAdditionalFields[Cpt]));
+    FieldNameTMP := ExtractFieldName(Tools.iif(not IsAdditional, TMPArrFields[Cpt], TMPArrAdditionalFields[Cpt]));
+    FieldType    := Tools.GetTypeFieldFromStringType(ExtractFieldType(Tools.iif(not IsAdditional, BTPArrFields[Cpt], BTPArrAdditionalFields[Cpt])));
     Result       := Format('%s, %s', [Result, GetValue(FieldNameBTP, FieldNameTMP, FieldType, TobData)]);
   end;
-  Result := Format('%s, ''%s'', ''%s'', ''%s''', [Result, LockDefaultValue, TraiteDefaultValue, DateTraiteDefaultValue]);
+  if not IsAdditional then
+    Result := Format('%s, ''%s'', ''%s'', ''%s''', [Result, LockDefaultValue, TraiteDefaultValue, DateTraiteDefaultValue]);
   Result := Copy(Result, 2, length(Result));
 end;
 
-function TTnTreatment.GetSqlUpdate(TobData : TOB; KeyValue1, KeyValue2 : string) : string;
+function TTnTreatment.GetSqlUpdate(TobData, TobAdd : TOB; KeyValue1, KeyValue2 : string) : string;
 var
   Cpt          : integer;
   FieldNameTMP : string;
@@ -468,8 +614,20 @@ begin
   begin
     FieldNameTMP := ExtractFieldName(TMPArrFields[Cpt]);
     FieldNameBTP := ExtractFieldName(BTPArrFields[Cpt]);
-    FieldType    := Tools.GetTypeFieldFromStringType(ExtractFielType(TMPArrFields[Cpt]));
+    FieldType    := Tools.GetTypeFieldFromStringType(ExtractFieldType(TMPArrFields[Cpt]));
     Sql          := Format('%s, %s=%s', [Sql, FieldNameTMP, GetValue(FieldNameBTP, FieldNameTMP, FieldType, TobData)]);
+  end;
+  case Tn of
+    tnChantier :
+    begin
+      for Cpt :=  Low(BTPArrAdditionalFields) to High(BTPArrAdditionalFields) do
+      begin
+        FieldNameTMP := ExtractFieldName(TMPArrAdditionalFields[Cpt]);
+        FieldNameBTP := ExtractFieldName(BTPArrAdditionalFields[Cpt]);
+        FieldType    := Tools.GetTypeFieldFromStringType(ExtractFieldType(TMPArrAdditionalFields[Cpt]));
+        Sql          := Format('%s, %s=%s', [Sql, FieldNameTMP, GetValue(FieldNameBTP, FieldNameTMP, FieldType, TobAdd)]); //TobAdd.GetString(FieldNameBTP)]);
+      end;
+    end;
   end;
   Prefix       := GetPrefix;
   SystemFields := GetSystemFields;
@@ -490,13 +648,20 @@ begin
   end;
 end;
 
-function TTnTreatment.GetSqlInsert(TobData : TOB) : string;
+function TTnTreatment.GetSqlInsert(TobData, TobAdd : TOB) : string;
 var
-  Fields : string;
-  Values : string;
+  Fields    : string;
+  Values    : string;
 begin
   Fields := GetSqlInsertFields;
   Values := GetSqlInsertValues(TobData);
+  case Tn of
+    tnChantier :
+      begin
+        Fields := Format('%s, %s', [Fields, GetSqlInsertAdditionalFields]);
+        Values := Format('%s, %s', [Values, GetSqlInsertValues(TobAdd, True)]);
+      end;
+  end;
   Result := Format('INSERT INTO %s (%s) VALUES (%s)', [TUtilBTPVerdon.GetTMPTableName(Tn), Fields, Values]);
 end;
 
@@ -510,9 +675,9 @@ function TTnTreatment.GetDataSearchSql : string;
 begin
   case Tn of
     tnTiers    : Result := Format('SELECT %s FROM TIERS   WHERE T_DATEMODIF >= "%s" ORDER BY T_AUXILIAIRE'                                       , [GetFieldsListFromArray(BTPArrFields), GetLastSynchro]);
-    tnChantier : Result := Format('SELECT %s FROM AFFAIRE WHERE AFF_DATEMODIF >= "%s" ORDER BY AFF_AFFAIRE'                                      , [GetFieldsListFromArray(BTPArrFields), GetLastSynchro]);
     tnDevis    : Result := Format('SELECT %s FROM PIECE   WHERE GP_NATUREPIECEG = "DBT" AND GP_DATEMODIF >= "%s" ORDER BY GP_NUMERO'             , [GetFieldsListFromArray(BTPArrFields), GetLastSynchro]);
     tnLignesBR : Result := Format('SELECT %s FROM LIGNE   WHERE GL_NATUREPIECEG = "BLF" AND GL_DATEMODIF >= "%s" ORDER BY GL_NUMERO, GL_NUMLIGNE', [GetFieldsListFromArray(BTPArrFields), GetLastSynchro]);
+    tnChantier : Result := Format('SELECT %s FROM AFFAIRE WHERE AFF_AFFAIRE LIKE "%s" AND AFF_DATEMODIF >= "%s" ORDER BY AFF_AFFAIRE'            , [GetFieldsListFromArray(BTPArrFields), 'A%', GetLastSynchro]);
   else
     Result := '';
   end;
@@ -576,18 +741,22 @@ begin
   end;
 end;
 
-function TTnTreatment.TnTreatment(TobTable, TobQry: TOB; AdoQryL : AdoQry): boolean;
+//function TTnTreatment.TnTreatment(TobTable, TobAdd, TobQry: TOB; AdoQryL : AdoQry; BTPArrFields, TMPArrFields, BTPArrAdditionalFields, TMPArrAdditionalFields : array of string): boolean;
+function TTnTreatment.TnTreatment(TobTable, TobAdd, TobQry: TOB; AdoQryL : AdoQry): boolean;
 var
   TobL          : TOB;
   Cpt           : integer;
   InsertQty     : integer;
   UpdateQty     : integer;
   OtherQty      : integer;
+  FieldSize     : integer;
   SqlUnlock     : string;
   Sql           : string;
   Lock          : string;
   Treat         : string;
-  KeyFieldsName : string;                             
+  KeyFieldsName : string;
+  KeyField1     : string;
+  KeyField2     : string;
   KeyValue1     : string;
   KeyValue2     : string;
   LabelValue    : string;
@@ -605,72 +774,69 @@ begin
   Sql := '';
   if TobTable.Detail.Count > 0 then
   begin
-    TobLinkedRecords := TOB.Create('_LINKEDRECORD', nil, -1);
-    try
-      TUtilBTPVerdon.AddLog(Tn, Format('Recherche des données (%s enregistrement(s) de la table %s)', [IntToStr(TobTable.Detail.Count), TUtilBTPVerdon.GetTMPTableName(Tn)]), LogValues, 1);
-      AdoQryL.FieldsList := Format('%s_LOCK,%s_TRAITE', [GetPrefix, GetPrefix]);
-      AdoQryL.LogValues  := LogValues;
-      AdoQryL.TSLResult.Clear;
-      KeyFieldsName := GetTMPIndexFieldName;
-      SqlUnlock     := Format('UPDATE %s SET %s_LOCK = ''N'' WHERE %s IN(', [TUtilBTPVerdon.GetTMPTableName(Tn), GetPrefix, Tools.ReadTokenSt_(KeyFieldsName, ';')]);
-      FindData      := False;
-      for Cpt := 0 to pred(TobTable.Detail.Count) do
+    TUtilBTPVerdon.AddLog(Tn, Format('Recherche des données (%s enregistrement(s) de la table %s)', [IntToStr(TobTable.Detail.Count), TUtilBTPVerdon.GetTMPTableName(Tn)]), LogValues, 1);
+    AdoQryL.FieldsList := Format('%s_LOCK,%s_TRAITE', [GetPrefix, GetPrefix]);
+    AdoQryL.LogValues  := LogValues;
+    AdoQryL.TSLResult.Clear;
+    KeyFieldsName := GetTMPIndexFieldName;
+    SqlUnlock     := Format('UPDATE %s SET %s_LOCK = ''N'' WHERE %s IN(', [TUtilBTPVerdon.GetTMPTableName(Tn), GetPrefix, Tools.ReadTokenSt_(KeyFieldsName, ';')]);
+    FindData      := False;
+    for Cpt := 0 to pred(TobTable.Detail.Count) do
+    begin
+      TobL          := TobTable.Detail[Cpt];
+      KeyFieldsName := GetBTPIndexFieldName;
+      KeyField1     := Tools.ReadTokenSt_(KeyFieldsName, ';'); //Tools.iif(pos(';', KeyFieldsName) > 0, Tools.ReadTokenSt_(KeyFieldsName, ';'), KeyFieldsName);
+      KeyField2     := Tools.ReadTokenSt_(KeyFieldsName, ';'); //Tools.iif(pos(';', KeyFieldsName) > 0, Tools.ReadTokenSt_(KeyFieldsName, ';'), '');
+      KeyValue1     := TobL.GetString(KeyField1);
+      FieldSize     := GetTMPFieldSizeMax(GetTMPFieldName(KeyField1));
+      KeyValue1     := Tools.iif(FieldSize > -1, Trim(Copy(KeyValue1, 1, FieldSize)), KeyValue1);
+      if KeyField2 <> '' then
       begin
-        TobL          := TobTable.Detail[Cpt];
-        KeyFieldsName := GetBTPIndexFieldName;
-        if pos(';', KeyFieldsName) > 0 then
+        KeyValue2 := TobL.GetString(KeyField2);
+        FieldSize := GetTMPFieldSizeMax(GetTMPFieldName(KeyField2));
+        KeyField2 := Tools.iif(FieldSize > -1, Trim(Copy(KeyField2, 1, FieldSize)), KeyField2);
+      end;
+      SetLinkedRecords(TobAdd, TobL);
+      LabelValue := TobL.GetString(GetBTPLabelFieldName);
+      SqlUnlock  := Format('%s%s''%s''', [SqlUnlock, Tools.iif(Cpt = 0, '', ', '), KeyValue1]); // Prépare update de Unlock
+      AdoQryL.Request := GetSqlDataExist(AdoQryL.FieldsList, KeyValue1, KeyValue2); // Test si enregistrement existe
+      AdoQryL.SingleTableSelect;
+      if LogValues.LogLevel = 2 then TUtilBTPVerdon.AddLog(Tn, Format('%s%s%s%s - %s', [Tools.iif(AdoQryL.RecordCount = 1, 'Modification : ', 'Création : '), KeyValue1, Tools.iif(KeyValue2 <> '', ' ', ''), KeyValue2, LabelValue]), LogValues, 3);
+      if AdoQryL.RecordCount = 1 then // Update
+      begin
+        Values := AdoQryL.TSLResult[0];
+        Lock   := Tools.ReadTokenSt_(Values, ToolsTobToTsl_Separator);
+        Treat  := Tools.ReadTokenSt_(Values, ToolsTobToTsl_Separator);
+        if Lock = 'N' then
         begin
-          KeyValue1 := TobL.GetString(Tools.ReadTokenSt_(KeyFieldsName, ';'));
-          KeyValue2 := TobL.GetString(Tools.ReadTokenSt_(KeyFieldsName, ';'));
-        end else
-        begin
-          KeyValue1 := TobL.GetString(KeyFieldsName);
-          KeyValue2 := '';
-        end;
-        SetLinkedRecords(KeyValue1, KeyValue2);
-        LabelValue := TobL.GetString(GetBTPLabelFieldName);
-        SqlUnlock  := Format('%s%s''%s''', [SqlUnlock, Tools.iif(Cpt = 0, '', ', '), KeyValue1]); // Prépare update de Unlock
-        AdoQryL.Request := GetSqlDataExist(AdoQryL.FieldsList, KeyValue1, KeyValue2); // Test si enregistrement existe
-        AdoQryL.SingleTableSelect;
-        if LogValues.LogLevel = 2 then TUtilBTPVerdon.AddLog(Tn, Format('%s%s%s%s - %s', [Tools.iif(AdoQryL.RecordCount = 1, 'Modification : ', 'Création : '), KeyValue1, Tools.iif(KeyValue2 <> '', ' ', ''), KeyValue2, LabelValue]), LogValues, 3);
-        if AdoQryL.RecordCount = 1 then // Update
-        begin
-          Values := AdoQryL.TSLResult[0];
-          Lock   := Tools.ReadTokenSt_(Values, ToolsTobToTsl_Separator);
-          Treat  := Tools.ReadTokenSt_(Values, ToolsTobToTsl_Separator);
-          if Lock = 'N' then
-          begin
-            inc(UpdateQty);
-            FindData  := True;
-            Sql := GetSqlUpdate(TobL, KeyValue1, KeyValue2);
-          end else
-            Inc(OtherQty);
-        end else
-        begin
-          Inc(InsertQty);
+          inc(UpdateQty);
           FindData  := True;
-          Sql := GetSqlInsert(TobL);
-        end;
-        if Sql <> '' then
-        begin
-          TobL := TOB.Create('_QRYL', TobQry, -1);
-          TobL.AddChampSupValeur('SqlQry', Sql);
-          Sql := '';
-        end;
-      end;
-      if FindData then
+          Sql := GetSqlUpdate(TobL, TobAdd, KeyValue1, KeyValue2);
+        end else
+          Inc(OtherQty);
+      end else
       begin
-        SqlUnlock := Format('%s)', [SqlUnlock]);
-        TobL      := TOB.Create('_QRYL', TobQry, -1);
-        TobL.AddChampSupValeur('SqlQry', SqlUnlock);
+        Inc(InsertQty);
+        FindData  := True;
+        Sql := GetSqlInsert(TobL, TobAdd);
       end;
-      TobQry.AddChampSupValeur('UPDATEQTY', IntToStr(UpdateQty));
-      TobQry.AddChampSupValeur('INSERTQTY', IntToStr(InsertQty));
-      TobQry.AddChampSupValeur('OTHERQTY', IntToStr(OtherQty));
-      InsertUpdateData(AdoQryL, TobQry);
-    finally
-      FreeAndNil(TobLinkedRecords);
+      if Sql <> '' then
+      begin
+        TobL := TOB.Create('_QRYL', TobQry, -1);
+        TobL.AddChampSupValeur('SqlQry', Sql);
+        Sql := '';
+      end;
     end;
+    if FindData then
+    begin
+      SqlUnlock := Format('%s)', [SqlUnlock]);
+      TobL      := TOB.Create('_QRYL', TobQry, -1);
+      TobL.AddChampSupValeur('SqlQry', SqlUnlock);
+    end;
+    TobQry.AddChampSupValeur('UPDATEQTY', IntToStr(UpdateQty));
+    TobQry.AddChampSupValeur('INSERTQTY', IntToStr(InsertQty));
+    TobQry.AddChampSupValeur('OTHERQTY', IntToStr(OtherQty));
+    InsertUpdateData(AdoQryL, TobQry);
   end else
     TUtilBTPVerdon.AddLog(Tn, Format('Aucun tiers n''a été trouvé.', []), LogValues, 1);
 end;

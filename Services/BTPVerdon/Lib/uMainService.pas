@@ -152,6 +152,7 @@ var
       TiersValues.Count     := 0;
       try
         uThreadTiers              := ThreadTiers.Create(True);
+//        uThreadTiers.StaticSynchronize();
         uThreadTiers.TiersValues  := TiersValues;
         uThreadTiers.LogValues    := LogValues;
         uThreadTiers.FolderValues := FolderValues;
@@ -238,9 +239,9 @@ begin
       Inc(DevisValues.Count);
       Inc(LignesBRValues.Count);
       CallThreadTiers;
-//    CallThreadChantiers;
-//    CallThreadDevis;
-//    CallThreadLignesBR;
+      CallThreadChantiers;
+      CallThreadDevis;
+      CallThreadLignesBR;
       Sleep(1000);
       ServiceThread.ProcessRequests(False);
     end;
