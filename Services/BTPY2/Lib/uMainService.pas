@@ -26,7 +26,7 @@ type
 
 var
   SvcSyncBTPY2: TSvcSyncBTPY2;
-
+  
 implementation
 
 uses

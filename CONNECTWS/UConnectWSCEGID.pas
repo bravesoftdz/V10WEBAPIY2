@@ -113,6 +113,7 @@ uses
   , ActiveX
   , AxCtrls
   , SvcMgr
+  , AdoDB
   {$IFNDEF DBXPRESS}
   , dbtables
   {$ELSE DBXPRESS}
@@ -308,7 +309,12 @@ begin
       AdoQryL.DBName     := DBName;
       AdoQryL.FieldsList := 'BE0_ENTITY';
       AdoQryL.Request    := GetSqlExist;
-      AdoQryL.SingleTableSelect;
+      AdoQryL.Connect := TADOConnection.Create(application);
+      try
+        AdoQryL.SingleTableSelect;
+      finally
+        AdoQryL.Connect.Free;
+      end;
       AlreadyExist := (AdoQryL.RecordCount = 1);
       { Exécute l'Update ou l'Insert }
       AdoQryL.RecordCount := 0;
@@ -390,7 +396,12 @@ begin
     AdoQryL.DBName     := DBName;
     AdoQryL.FieldsList := 'SOC_DATA';
     AdoQryL.Request    := Format('SELECT %s FROM PARAMSOC WHERE SOC_NOM IN (''%s'', ''%s'', ''%s'') ORDER BY SOC_NOM DESC', [AdoQryL.FieldsList, WSCDS_SocServer, WSCDS_SocNumPort, WSCDS_SocCegidDos]);
-    AdoQryL.SingleTableSelect;
+    AdoQryL.Connect := TADOConnection.Create(application);
+    try
+      AdoQryL.SingleTableSelect;
+    finally
+      AdoQryL.Connect.Free;
+    end;
     if AdoQryL.RecordCount = 3 then
     begin
       CegidConnect.CEGIDServer := AdoQryL.TSLResult[0];

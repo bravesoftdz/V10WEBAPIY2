@@ -6,9 +6,10 @@ uses
   Classes
   , UConnectWSConst
   , ConstServices
+  , HEnt1
+  , ADODB
   {$IF not defined(APPSRV)}
   , UTob
-  , HEnt1
   {$IFEND !APPSRV}
   ;
 const
@@ -46,9 +47,6 @@ type
   tFormatValueTypeDate = (tvtNone, tvtDate, tvtDateTime);
 
   AdoQry = class
-  private
-    function GetConnectionString(PgiDB : boolean) : string;
-
   public
     ServerName  : string;
     DBName      : string;
@@ -56,12 +54,16 @@ type
     FieldsList  : string;
     ServiceName : string;
     PgiDB       : string;
+    ConnectionString : string;
     TSLResult   : TStringList;
     RecordCount : integer;
     LogValues   : T_WSLogValues;
+    Connect     : TADOConnection;
+    Qry         : TADOQuery;
 
     Constructor Create;
     Destructor Destroy; override;
+    function GetConnectionString(PgiDB : boolean) : string;
     function SingleTableSelect : string;
     procedure InsertUpdate;
   end;
@@ -69,8 +71,8 @@ type
   Tools = class
     class function CaseFromString(Value: string; Values: array of string): integer;
     class function GetTypeFieldFromStringType(TypeString : string) : tTypeField;
-    class function GetStFieldType(FieldName: string{$IFDEF APPSRV}; ServerName, DBName : string; DebugEvents : integer=0{$ENDIF APPSRV}): string;
-    class function GetFieldType(FieldName: string{$IF defined(APPSRV)}; ServerName, DBName : string{$IFEND !APPSRV}): tTypeField;
+    class function GetStFieldType(FieldName: string{$IFDEF APPSRV}; ServerName, DBName : string; Connect : TADOConnection; DebugEvents : integer=0{$ENDIF APPSRV}): string;
+    class function GetFieldType(FieldName: string{$IF defined(APPSRV)}; ServerName, DBName : string; Connect : TADOConnection{$IFEND !APPSRV}): tTypeField;
     class function GetDefaultValueFromtTypeField(FieldType : tTypeField) : string;
     class function iif(Const Expression, TruePart, FalsePart: Boolean): Boolean; overload;
     class function iif(Const Expression: Boolean; Const TruePart, FalsePart: Integer): Integer; overload;
@@ -115,13 +117,13 @@ type
     {$IF not defined(APPSRV)}
     class procedure TobToTStringList(TobOrig : TOB; TSlResult : TStringList; Level : Integer=1);
     {$IFEND !APPSRV}
+    class function BlobToString_(Texte : string) : string;
   end;
 
 implementation
 
 uses
-  ADODB
-  , Forms
+  Forms
   , SysUtils
   , DB
   , StrUtils
@@ -131,6 +133,9 @@ uses
   , UConnectWSCEGID
   , SvcMgr
   , Windows
+  , CbpEnumerator
+  , ComCtrls
+  , ExtCtrls
   {$IF not defined(APPSRV)}
   , hCtrls
   , EntGC
@@ -141,7 +146,7 @@ uses
 { AdoQry }
 function AdoQry.GetConnectionString(PgiDB : boolean) : string;
 begin
-  if PgiDB then
+//  if PgiDB then
     Result := 'Provider=SQLOLEDB.1'
             + ';Password=ADMIN'
             + ';Persist Security Info=True'
@@ -154,20 +159,21 @@ begin
             + ';Workstation ID=LOCALST'
             + ';Use Encryption for Data=False'
             + ';Tag with column collation when possible=False'
+(*
   else
-//************************************
     Result := 'Provider=SQLOLEDB.1'
             + ';Password=cegid.2012'
             + ';Persist Security Info=True'
             + ';User ID=sa'
             + ';Initial Catalog=' + DBName
             + ';Data Source=' + ServerName
-//************************************
+*)
   ;
 end;
 
 constructor AdoQry.Create;
 begin
+  if LogValues.DebugEvents > 0 then TServicesLog.WriteLog(ssbylLog, Format('%sStart AdoQry.Create', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
   TSLResult           := TStringList.Create;
   TSLResult.Delimiter := ToolsTobToTsl_Separator;
   PgiDB               := Tools.iif(PgiDB = '', 'X', PgiDB);
@@ -197,8 +203,8 @@ end;
 }
 function AdoQry.SingleTableSelect : string;
 var
-  Connect     : TADOConnection;
-  Qry         : TADOQuery;
+//  Connect     : TADOConnection;
+//  Qry         : TADOQuery;
   Cpt         : integer;
   Sql         : string;
   Select      : string;
@@ -207,6 +213,7 @@ var
   Start       : integer;
   FieldsArray : Array of string;
 begin
+
   if LogValues.DebugEvents > 0 then TServicesLog.WriteLog(ssbylLog, Format('%s #01 AdoQry.SingleTableSelect - Srv = %s, Folder = %s, Request = %s, FieldsList = %s'
                                                                            , [WSCDS_DebugMsg
                                                                               , ServerName
@@ -214,6 +221,7 @@ begin
                                                                               , Request
                                                                               , FieldsList
                                                                           ]), ServiceName, LogValues, 0);
+
   Result := '';
   if     (ServerName <> '') // Nom du serveur
      and (DBName <> '')     // Nom de la BDD
@@ -221,7 +229,7 @@ begin
      and (FieldsList <> '') // Liste des champs
   then
   begin
-    if LogValues.DebugEvents > 0 then TServicesLog.WriteLog(ssbylLog, Format('%s#02 AdoQry.SingleTableSelect - ', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
+    if LogValues.DebugEvents > 0 then TServicesLog.WriteLog(ssbylLog, Format('%s#02 AdoQry.SingleTableSelect', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
     lFieldsList := FieldsList;
     SetLength(FieldsArray, Tools.CountOccurenceString(lFieldsList, ',') + 1);
     Cpt := 0;
@@ -246,19 +254,20 @@ begin
            + Select
            + Copy(Request, pos('*', Request) + 1, Length(Request));
     end;
-    if LogValues.DebugEvents > 0 then TServicesLog.WriteLog(ssbylLog, Format('%s#03 AdoQry.SingleTableSelect - Before create "Connect"', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
-    Connect := TADOConnection.Create(application);
-    if LogValues.DebugEvents > 0 then TServicesLog.WriteLog(ssbylLog, Format('%s#031 AdoQry.SingleTableSelect - After create "Connect"', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
+//    Connect := TADOConnection.Create(application);
     try
-      Connect.ConnectionString := GetConnectionString((PgiDB = 'X'));
-      Connect.LoginPrompt      := False;
-      Connect.Connected        := True;
+//      Connect.ConnectionString := GetConnectionString((PgiDB = 'X'));
+//      Connect.LoginPrompt      := False;
+
+//      Connect.Connected := True;
       try
-        Connect.BeginTrans;
-        Qry := TADOQuery.Create(Application);
+//        Connect.BeginTrans;
+
+//        Qry := TADOQuery.Create(Application);
         if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - TADOQuery.Create', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
         try
-          Qry.Connection := Connect;
+//          Qry.Connection := Connect;
+          Qry.ConnectionString := GetConnectionString((PgiDB = 'X'));//ConnectionString;
           Qry.SQL.Text   := Sql;
           Qry.Prepared   := True;
           if LogValues.DebugEvents > 0 then TServicesLog.WriteLog(ssbylLog, Format('%s AdoQry.SingleTableSelect / Connected ', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
@@ -273,7 +282,8 @@ begin
               while not Qry.Eof do
               begin
                 for Cpt := 0 to pred(Length(FieldsArray)) do
-                  ResultValue := ResultValue + TSLResult.Delimiter + VarToStr(Qry.FieldValues[FieldsArray[Cpt]]);
+//                  ResultValue := ResultValue + TSLResult.Delimiter + VarToStr(Qry.FieldValues[FieldsArray[Cpt]]);
+                  ResultValue := ResultValue + TSLResult.Delimiter + Qry.Fields[Cpt].asString;
                 ResultValue := Copy(ResultValue, 2, Length(ResultValue));
                 TSLResult.Add(ResultValue);
                 if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - ResultValue =%s', [WSCDS_DebugMsg, ResultValue]), ServiceName, LogValues, 0);
@@ -285,41 +295,31 @@ begin
           except
             begin
               Result := Format('Erreur sur %s', [Qry.SQL.Text]);
-              Connect.RollbackTrans;
+//              Connect.RollbackTrans;
               Raise Exception.Create(Result);
             end;
-(*            on E:Exception do
-            begin
-              if E.Message <> '' then
-                Result := E.Message
-              else
-                Result := Format('Erreur sur %s', [Qry.SQL.Text]);
-              Connect.RollbackTrans;
-              Raise Exception.Create(Result);
-            end;
-*)
           end;
         finally
           if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Start finally Qry', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
-          Qry.active := False;
-          Qry.Free;
+//          Qry.active := False;
+//          Qry.Free;
           if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Stop finally Qry', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
         end;
         if Result = '' then
-          Connect.CommitTrans;
+//          Connect.CommitTrans;
       except
         on E:Exception do
         begin
           if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Exception = %s', [WSCDS_DebugMsg, E.Message]), ServiceName, LogValues, 0);
           Result := E.Message;
-          Connect.RollbackTrans;
+//          Connect.RollbackTrans;
           //Raise;
         end;
       end;
     finally
       if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Start finally Connect', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
-      Connect.Close;
-      Connect.Free;
+//      Connect.Close;
+//      Connect.Free;
       if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Stop finally Connect', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
     end;
   end;
@@ -327,7 +327,7 @@ end;
 
 procedure AdoQry.InsertUpdate;
 var
-  Connect : TADOConnection;
+//  Connect : TADOConnection;
   Qry     : TADOQuery;
 begin
   if     (ServerName <> '') // Nom du serveur
@@ -335,15 +335,16 @@ begin
      and (Request <> '')    // Requête
   then
   begin
-    Connect                  := TADOConnection.Create(application);
-    Connect.ConnectionString := GetConnectionString((PgiDB = 'X'));
-    Connect.LoginPrompt      := False;
+//    Connect                  := TADOConnection.Create(application);
+//    Connect.ConnectionString := GetConnectionString((PgiDB = 'X'));
+//    Connect.LoginPrompt      := False;
     try
-      Connect.Connected := True;
-      Connect.BeginTrans;
+//      Connect.Connected := True;
+//      Connect.BeginTrans;
       try
         Qry            := TADOQuery.Create(Application);
-        Qry.Connection := Connect;
+        Qry.ConnectionString := GetConnectionString((PgiDB = 'X')); //ConnectionString;
+//        Qry.Connection := Connect;
         Qry.SQL.Text   := Request;
         Qry.Prepared   := True;
         RecordCount    := Qry.ExecSQL;
@@ -352,17 +353,17 @@ begin
           Qry.active := False;
           Qry.Free;
         end;
-        Connect.CommitTrans;
+//        Connect.CommitTrans;
       except
         on E:Exception do
         begin
-          Connect.RollbackTrans;
+//          Connect.RollbackTrans;
           Raise;
         end;
       end;
     finally
-      Connect.Close;
-      Connect.Free;
+//      Connect.Close;
+//      Connect.Free;
     end;
   end;
 end;
@@ -406,7 +407,8 @@ begin
     Result := ttfNone;
 end;
 
-class function Tools.GetStFieldType(FieldName: string{$IFDEF APPSRV}; ServerName, DBName : string; DebugEvents : integer=0{$ENDIF !APPSRV}): string;
+//class function Tools.GetStFieldType(FieldName: string{$IFDEF APPSRV}; ServerName, DBName : string; Connect : TADOConnection; DebugEvents : integer=0{$ENDIF !APPSRV}): string;
+class function Tools.GetStFieldType(FieldName: string{$IFDEF APPSRV}; ServerName, DBName : string; Connect : TADOConnection; DebugEvents : integer=0{$ENDIF !APPSRV}): string;
 {$IFDEF APPSRV}
 var
   lAdoQry  : AdoQry;
@@ -427,8 +429,15 @@ begin
       lAdoQry.LogValues.DebugEvents := DebugEvents;
       lAdoQry.FieldsList            := 'DH_TYPECHAMP';
       lAdoQry.Request               := 'SELECT ' + lAdoQry.FieldsList + ' FROM DECHAMPS WHERE DH_NOMCHAMP =''' + FieldName + '''';
-      if (DebugEvents > 0) then TServicesLog.WriteLog(ssbylWindows, Format('%sTools.GetStFieldType - Request = %s', [WSCDS_DebugMsg, lAdoQry.Request]), 'Debug service', LogValue, 0);
-      lAdoQry.SingleTableSelect;
+      if (DebugEvents > 0) then TServicesLog.WriteLog(ssbylWindows, Format('%sTools.GetStFieldType - Before create lAdoQry.Connect', [WSCDS_DebugMsg]), 'Debug service', LogValue, 0);
+//      lAdoQry.Connect := TADOConnection.Create(application);
+      lAdoQry.Connect := Connect;
+//      try
+        if (DebugEvents > 0) then TServicesLog.WriteLog(ssbylWindows, Format('%sTools.GetStFieldType - Before lAdoQry.SingleTableSelect', [WSCDS_DebugMsg]), 'Debug service', LogValue, 0);
+        lAdoQry.SingleTableSelect;
+//      finally
+//        lAdoQry.Connect.Free;
+//      end;
       Result := lAdoQry.TSLResult[0];
     finally
       lAdoQry.Free;
@@ -438,11 +447,11 @@ begin
     Result := '';
 end;
 
-class function Tools.GetFieldType(FieldName: string{$IF defined(APPSRV)}; ServerName, DBName : string{$IFEND !APPSRV}): tTypeField;
+class function Tools.GetFieldType(FieldName: string{$IF defined(APPSRV)}; ServerName, DBName : string; Connect : TADOConnection{$IFEND !APPSRV}): tTypeField;
 var
   FieldType : string;
 begin
-  FieldType := Tools.GetStFieldType(FieldName{$IF defined(APPSRV)}, ServerName, DBName{$IFEND !APPSRV});
+  FieldType := Tools.GetStFieldType(FieldName{$IF defined(APPSRV)}, ServerName, DBName, Connect{$IFEND !APPSRV});
   Result    := Tools.GetTypeFieldFromStringType(FieldType);
 end;
 
@@ -458,7 +467,6 @@ begin
     ttfText    : Result := '';
   end;
 end;
-
 
 class function Tools.iif(Const Expression, TruePart, FalsePart: Boolean): Boolean;
 begin
@@ -713,7 +721,12 @@ begin
       lAdoQry.DBName     := DBName;
       lAdoQry.FieldsList := 'DH_NOMCHAMP';
       lAdoQry.Request    := GetSelect;
-      lAdoQry.SingleTableSelect;
+      lAdoQry.Connect := TADOConnection.Create(application);
+      try
+        lAdoQry.SingleTableSelect;
+      finally
+        lAdoQry.Connect.Free;
+      end;
       for Cpt := 0 to pred(lAdoQry.TSLResult.Count) do
         Result := Result + Separator + lAdoQry.TSLResult[Cpt];
     finally
@@ -918,7 +931,12 @@ begin
       AdoQryAut.DBName     := DBName;
       AdoQryAut.FieldsList := 'BWT_NOMTABLE';
       AdoQryAut.Request    := Format('SELECT %s FROM BTWSTABLEAUTO WHERE BWT_NOMTABLE = ''%s'' AND BWT_AUTORISEE = ''X''', [AdoQryAut.FieldsList, TableName]);
-      AdoQryAut.SingleTableSelect;
+      AdoQryAut.Connect := TADOConnection.Create(application);
+      try
+        AdoQryAut.SingleTableSelect;
+      finally
+        AdoQryAut.Connect.Free;
+      end;
       Result := AdoQryAut.RecordCount = 1;
     finally
       AdoQryAut.Free;
@@ -1176,7 +1194,12 @@ var
     if Prefix = 'GPC' then
       Sql := Sql + Format(' AND GPC_ETABLISSEMENT = ''%s''', [Establishment]);
     lAdoQry.Request    := Sql;
-    lAdoQry.SingleTableSelect;
+    lAdoQry.Connect := TADOConnection.Create(application);
+    try
+      lAdoQry.SingleTableSelect;
+    finally
+      lAdoQry.Connect.Free;
+    end;
     if lAdoQry.RecordCount > 0 then
       Result := lAdoQry.TSLResult[0]
     else
@@ -1250,7 +1273,12 @@ begin
       AdoQryL.DBName      := FolderName;
       AdoQryL.FieldsList  := 'SOC_DATA';
       AdoQryL.Request     := Format('SELECT %s FROM PARAMSOC WHERE SOC_NOM = ''%s''', [AdoQryL.FieldsList, PSocName]);
-      AdoQryL.SingleTableSelect;
+      AdoQryL.Connect := TADOConnection.Create(application);
+      try
+        AdoQryL.SingleTableSelect;
+      finally
+        AdoQryL.Connect.Free;
+      end;
       if AdoQryL.RecordCount > 0 then
         Result := AdoQryL.TSLResult[0];
     finally
@@ -1270,6 +1298,35 @@ end;
 class function Tools.UsDateTime_(dDateTime: TDateTime): string;
 begin
   Result := FormatDateTime('yyyymmdd hh:nn:ss', dDateTime);
+end;
+
+class function Tools.BlobToString_(Texte: string): string;
+var
+  Lignes   : HTStrings;
+  RichEdit : TRichEdit;
+  Panel    : TPanel;
+begin
+  Panel              := TPanel.Create (nil);
+  Panel.Visible      := False;
+  Panel.ParentWindow := GetDesktopWindow;
+  RichEdit           := TRichEdit.Create(Panel);
+  RichEdit.Parent    := Panel;
+  Lignes             := HTStringList.Create;
+  Lignes.Text        := Texte;
+  StringsToRich(RichEdit, Lignes);
+  Result := Trim (RichEdit.Text);
+  Lignes.Free;
+  RichEdit.Free;
+  Panel.Free;
+  // On remplace les saut de lignes et tabulations pour que ça passe dans le fichier d'échange (et pas de saut de ligne en fin de texte)
+  if Result <> '' then
+  begin
+    while (Result [Length (Result)] = #10) or (Result [Length (Result)] = #13) do
+      Delete (Result, Length (Result), 1);
+    Result := StringReplace (Result, #9, ' ', [rfReplaceAll, rfIgnoreCase]);
+    Result := StringReplace (Result, #10, '~~', [rfReplaceAll, rfIgnoreCase]);
+    Result := StringReplace (Result, #13, '', [rfReplaceAll, rfIgnoreCase]);
+  end;
 end;
 
 end.

@@ -66,6 +66,7 @@ uses
   EventDecla
    ,CbpMCD
    ,CbpEnumerator
+   , CommonTools
   ;
 
 // supression d'un enregistrement
@@ -826,33 +827,8 @@ end;
 
 // $$$ JP 26/10/06
 function BlobToString (Texte:string):string;
-var
-   Lignes    :HTStrings;
-   RichEdit  :TRichEdit;
-   Panel     :TPanel;
 begin
-    Panel := TPanel.Create (nil);
-    Panel.Visible := False;
-    Panel.ParentWindow := GetDesktopWindow;
-    RichEdit := TRichEdit.Create(Panel);
-    RichEdit.Parent := Panel;
-    Lignes := HTStringList.Create;
-    Lignes.Text := Texte;
-    StringsToRich (RichEdit, Lignes);
-    Result := Trim (RichEdit.Text);
-    Lignes.Free;
-    RichEdit.Free;
-    Panel.Free;
-
-    // On remplace les saut de lignes et tabulations pour que ça passe dans le fichier d'échange (et pas de saut de ligne en fin de texte)
-    if Result <> '' then
-    begin
-         while (Result [Length (Result)] = #10) or (Result [Length (Result)] = #13) do
-               Delete (Result, Length (Result), 1);
-         Result := StringReplace (Result, #9, ' ', [rfReplaceAll, rfIgnoreCase]);
-         Result := StringReplace (Result, #10, '~~', [rfReplaceAll, rfIgnoreCase]);
-         Result := StringReplace (Result, #13, '', [rfReplaceAll, rfIgnoreCase]);
-    end;
+  Result := Tools.BlobToString_(Texte);
 end;
 
 

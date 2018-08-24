@@ -173,7 +173,9 @@ var
                 break;
             end;
           end else
-            IsFieldDate := (Tools.GetFieldType(FilterField{$IF defined(APPSRV)}, ServerName, FolderName{$IFEND !APPSRV}) = ttfDate);
+//*******************************
+            IsFieldDate := (Tools.GetFieldType(FilterField{$IF defined(APPSRV)}, ServerName, FolderName, nil{$IFEND !APPSRV}) = ttfDate);
+//*******************************
           if IsFieldDate then
             FilterValue := FormatDateTime('yyyy-mm-dd', Int(StrToDateTime(FilterValue))) + 'T' +  FormatDateTime('hh:nn:ss.zzz', StrToDateTime(FilterValue)) + 'Z'
           else
@@ -229,7 +231,9 @@ begin
                 begin
                   Field  := GetFieldName(Fields);
                   Alias  := GetAliasName(Fields);
-                  if Tools.GetFieldType(Field{$IF defined(APPSRV)}, ServerName, FolderName{$IFEND APPSRV}) = ttfBoolean then
+//*******************************
+                  if Tools.GetFieldType(Field{$IF defined(APPSRV)}, ServerName, FolderName, nil{$IFEND APPSRV}) = ttfBoolean then
+//*******************************
                     Value := Tools.iif(Item.Field[Alias].Value, 'X', '-')
                   else
                     Value := VarToStr(Item.Field[Alias].Value);

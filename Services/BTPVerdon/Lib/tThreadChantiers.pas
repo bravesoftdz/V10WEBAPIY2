@@ -8,6 +8,8 @@ uses
   , ConstServices
   , uTob
   , CbpMCD
+  , AdoDB
+  , CommonTools
   {$IFDEF MSWINDOWS}
   , Windows
   {$ENDIF}
@@ -16,16 +18,18 @@ uses
 type
   ThreadChantiers = class(TThread)
   public
-    ChantierValues : T_ChantierValues;
-    LogValues      : T_WSLogValues;
-    FolderValues   : T_FolderValues;
+    TableValues  : T_ChantierValues;
+    LogValues    : T_WSLogValues;
+    FolderValues : T_FolderValues;
+    lTn          : T_TablesName;
+    AdoQryBTP    : AdoQry;
+    AdoQryTMP    : AdoQry;
+    TobT         : TOB;
+    TobAdd       : TOB;
+    TobQry       : TOB;
 
     constructor Create(CreateSuspended : boolean);
     destructor Destroy; override;
-  private
-    lTn : T_TablesName;
-
-//    procedure SetName;
 
   protected
     procedure Execute; override;
@@ -34,12 +38,11 @@ type
 implementation
 
 uses
-  CommonTools
-  , SysUtils
+  SysUtils
   , hCtrls
   , hEnt1
   , StrUtils
-  , ParamSoc
+  , ActiveX
   ;
 
   { Important : les méthodes et propriétés des objets de la VCL peuvent uniquement être
@@ -66,117 +69,79 @@ type
 
 { ThreadChantiers }
 
-(*
-procedure ThreadChantiers.SetName;
-{$IFDEF MSWINDOWS}
-var
-  ThreadNameInfo: TThreadNameInfo;
-{$ENDIF}
-begin
-{$IFDEF MSWINDOWS}
-  ThreadNameInfo.FType := $1000;
-  ThreadNameInfo.FName := 'ThreadNameChantiers';
-  ThreadNameInfo.FThreadID := $FFFFFFFF;
-  ThreadNameInfo.FFlags := 0;
-
-  try
-    RaiseException( $406D1388, 0, sizeof(ThreadNameInfo) div sizeof(LongWord), @ThreadNameInfo );
-  except
-  end;
-{$ENDIF}
-end;
-*)
-
 constructor ThreadChantiers.Create(CreateSuspended: boolean);
 begin
   inherited Create(CreateSuspended);
-  FreeOnTerminate := True;
-  Priority        := tpNormal;
-  lTn             := tnChantier;
-
 end;
 
 destructor ThreadChantiers.Destroy;
 begin
   inherited;
-  TUtilBTPVerdon.AddLog(lTn, TUtilBTPVerdon.GetMsgStartEnd(lTn, False, ChantierValues.LastSynchro), LogValues, 0);
+  TUtilBTPVerdon.AddLog(lTn, TUtilBTPVerdon.GetMsgStartEnd(lTn, False, TableValues.LastSynchro), LogValues, 0);
 end;
 
 procedure ThreadChantiers.Execute;
 var
-  TobT                   : TOB;
-  TobAdd                 : TOB;
-  TobQry                 : TOB;
-  AdoQryL                : AdoQry;
-  BTPArrFields           : array of string;
-  TMPArrFields           : array of string;
-  BTPArrAdditionalFields : array of string;
-  TMPArrAdditionalFields : array of string;
-  Treatment              : TTnTreatment;
-
-  procedure AddFieldsTobAdd;
-  begin
-    TobAdd.AddChampSupValeur('LADR_LIBELLE'    , '');
-    TobAdd.AddChampSupValeur('LADR_ADRESSE1'   , '');
-    TobAdd.AddChampSupValeur('LADR_ADRESSE2'   , '');
-    TobAdd.AddChampSupValeur('LADR_ADRESSE3'   , '');
-    TobAdd.AddChampSupValeur('LADR_CODEPOSTAL' , '');
-    TobAdd.AddChampSupValeur('LADR_VILLE'      , '');
-    TobAdd.AddChampSupValeur('LADR_PAYS'       , '');
-    TobAdd.AddChampSupValeur('LADR_TYPEADRESSE', 'INT');
-    TobAdd.AddChampSupValeur('FADR_LIBELLE'    , '');
-    TobAdd.AddChampSupValeur('FADR_ADRESSE1'   , '');
-    TobAdd.AddChampSupValeur('FADR_ADRESSE2'   , '');
-    TobAdd.AddChampSupValeur('FADR_ADRESSE3'   , '');
-    TobAdd.AddChampSupValeur('FADR_CODEPOSTAL' , '');
-    TobAdd.AddChampSupValeur('FADR_VILLE'      , '');
-    TobAdd.AddChampSupValeur('FADR_PAYS'       , '');
-    TobAdd.AddChampSupValeur('FADR_TYPEADRESSE', 'AFA');
-    TobAdd.AddChampSupValeur('LISTEDEVIS'      , '');
-    TobAdd.AddChampSupValeur('CODESOCIETE'     , GetParamSocSecur('SO_SOCIETE', ''));
-  end;
-
+  TobT      : TOB;
+  TobAdd    : TOB;
+  TobQry    : TOB;
+  AdoQryBTP : AdoQry;
+  AdoQryTMP : AdoQry;
+  Treatment : TTnTreatment;
 begin
-//  SetName;
-  TUtilBTPVerdon.AddLog(lTn, '', LogValues, 0);
-  TUtilBTPVerdon.AddLog(lTn, DupeString('*', 50), LogValues, 0);
-  if (LogValues.DebugEvents > 0) then
-    TUtilBTPVerdon.AddLog(lTn, Format('%sThreadTiers.Execute / BTPSrv=%s, BTPFolder=%s, TMPSrv=%s, TMPFolder=%s', [WSCDS_DebugMsg, FolderValues.BTPServer, FolderValues.BTPDataBase, FolderValues.TMPServer, FolderValues.TMPDataBase]), LogValues, 0);
-  TUtilBTPVerdon.AddLog(lTn, TUtilBTPVerdon.GetMsgStartEnd(lTn, True, ChantierValues.LastSynchro), LogValues, 0);
-  TobQry := TOB.Create('_QRY', nil, -1);
+  Coinitialize(nil);
   try
-    TobT := TOB.Create('_DEVIS', nil, -1);
+    TobQry := TOB.Create('_QRY', nil, -1);
     try
-      TobAdd := TOB.Create('_ADDFIEDS', nil, -1);
+      TobT := TOB.Create('_TABLE', nil, -1);
       try
-        AdoQryL := AdoQry.Create;
+        TobAdd := TOB.Create('_ADDFIEDS', nil, -1);
         try
-          AddFieldsTobAdd;
-          AdoQryL.ServerName  := FolderValues.TMPServer;
-          AdoQryL.DBName      := FolderValues.TMPDataBase;
-          AdoQryL.PgiDB       := '-';
-          Treatment := TTnTreatment.Create;
+          AdoQryBTP := AdoQry.Create;
           try
-            Treatment.Tn           := lTn;
-            Treatment.FolderValues := FolderValues;
-            Treatment.LogValues    := LogValues;
-            Treatment.LastSynchro  := ChantierValues.LastSynchro;
-            //Treatment.TnTreatment(TobT, TobAdd, TobQry, AdoQryL, BTPArrFields, TMPArrFields, BTPArrAdditionalFields,TMPArrAdditionalFields);
-            Treatment.TnTreatment(TobT, TobAdd, TobQry, AdoQryL);
+            AdoQryTMP := AdoQry.Create;
+            try
+              AdoQryBTP.Qry := TADOQuery.Create(nil);
+              try
+                AdoQryTMP.Qry := TADOQuery.Create(nil);
+                try
+                  TUtilBTPVerdon.AddFieldsTobAdd(tnChantier, TobAdd);
+                  TUtilBTPVerdon.AssignAdoQry(AdoQryBTP, AdoQryTMP, FolderValues, LogValues);
+                  Treatment := TTnTreatment.Create;
+                  try
+                    Treatment.Tn           := tnChantier;
+                    Treatment.FolderValues := FolderValues;
+                    Treatment.LogValues    := LogValues;
+                    Treatment.LastSynchro  := TableValues.LastSynchro;
+                    Treatment.AdoQryBTP    := AdoQryBTP;
+                    Treatment.AdoQryTMP    := AdoQryTMP;
+                    Treatment.TnTreatment(TobT, TobAdd, TobQry);
+                  finally
+                    Treatment.Free;
+                  end;
+                finally
+                  AdoQryTMP.Qry.Free;
+                end;
+              finally
+                AdoQryBTP.Qry.Free;
+              end;
+            finally
+              AdoQryTMP.free;
+            end;
           finally
-            Treatment.Free;
+            AdoQryBTP.Free;
           end;
         finally
-          AdoQryL.free;
+          FreeAndNil(TobAdd);
         end;
       finally
-        FreeAndNil(TobAdd);
+        FreeAndNil(TobT);
       end;
     finally
-      FreeAndNil(TobT);
+      FreeAndNil(TobQry);
     end;
-  finally    
-    FreeAndNil(TobQry);
+  finally
+    CoUninitialize();
   end;
 end;
 

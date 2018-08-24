@@ -138,6 +138,7 @@ uses
   , DateUtils
   , TRAFileUtil
   , uLog
+  , AdoDB
   {$IF not defined(APPSRV)}
   , ParamSoc
   {$IFEND (APPSRV)}
@@ -2475,9 +2476,11 @@ begin
           AdoQryBTP.ServerName  := Tools.iif(AdoQryBTP.ServerName = '', BTPValues.Server, AdoQryBTP.ServerName);
           AdoQryBTP.DBName      := Tools.iif(AdoQryBTP.DBName = '', BTPValues.DataBase, AdoQryBTP.DBName);
           AdoQryBTP.LogValues   := LogValues;
+          AdoQryBTP.Connect     := TADOConnection.Create(nil);
           AdoQryY2.ServerName   := Tools.iif(AdoQryY2.ServerName = '', Y2Values.Server, AdoQryY2.ServerName);
           AdoQryY2.DBName       := Tools.iif(AdoQryY2.DBName = '', Y2Values.DataBase, AdoQryY2.DBName);
           AdoQryY2.LogValues    := LogValues;
+          AdoQryY2.Connect      := TADOConnection.Create(nil);
           TSlConnectionValues.Add(Format('%s=%s;%s;%s;%s;%s;%s', [Section, BTPValues.UserAdmin, BTPValues.Server, BTPValues.DataBase, BTPValues.LastSynchro, Y2Values.Server, Y2Values.DataBase]));
         end;
       end;
