@@ -4569,39 +4569,22 @@ var NomChamp: string;
 begin
   result := false;
   NomChamp := '';
-  if VH_GC.GCIfDefCEGID then  // en attendant le parametrage des champs obligatoires c'est en dur
+  {$IFNDEF CCS3}
+  TypeArticle := GetField('GA_TYPEARTICLE');
+  //  BBI correction fiche 10360
+  if TypeArticle = 'NOM' then
+    TypeArticle := TypeArticle + GetField('GA_TYPENOMENC');
+  //  BBI fin correction fiche 10360
+  NomChamp := VerifierChampsObligatoires(Ecran, TypeArticle);
+  if NomChamp <> '' then
   begin
-    if ((GetField('GA_COMPTAARTICLE') = '') and ((GetField('GA_TYPEARTICLE') <> 'NOM') or (GetField('GA_TYPENOMENC') <> 'MAC'))) then
-      NomChamp := 'GA_COMPTAARTICLE'
-    else if (GetField('GA_FAMILLETAXE1') = '') then NomChamp := 'GA_FAMILLETAXE1'
-      ;
-    if NomChamp <> '' then
-    begin
-      SetFocusControl(NomChamp);
-      LastError := 33;
-      LastErrorMsg := TexteMessage[LastError] + champToLibelle(NomChamp);
-      result := True;
-    end;
-  end
-  else
-  begin
-    {$IFNDEF CCS3}
-    TypeArticle := GetField('GA_TYPEARTICLE');
-    //  BBI correction fiche 10360
-    if TypeArticle = 'NOM' then
-      TypeArticle := TypeArticle + GetField('GA_TYPENOMENC');
-    //  BBI fin correction fiche 10360
-    NomChamp := VerifierChampsObligatoires(Ecran, TypeArticle);
-    if NomChamp <> '' then
-    begin
-      NomChamp := ReadTokenSt(NomChamp);
-      SetFocusControl(NomChamp);
-      LastError := 52;
-      LastErrorMsg := TexteMessage[LastError] + champToLibelle(NomChamp);
-      result := True;
-    end;
-    {$ENDIF}
+    NomChamp := ReadTokenSt(NomChamp);
+    SetFocusControl(NomChamp);
+    LastError := 52;
+    LastErrorMsg := TexteMessage[LastError] + champToLibelle(NomChamp);
+    result := True;
   end;
+  {$ENDIF}
 end;
 {$ENDIF}
 

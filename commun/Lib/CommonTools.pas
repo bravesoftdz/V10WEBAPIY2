@@ -113,6 +113,7 @@ type
     class procedure DecodeAccDocReferency(DocReferency : string; var DocType : string; var Stump : string; var DocDate : TDateTime; var DocNumber : integer; var Index : integer);
     class function GetParamSocSecur_(PSocName : string; DefaultValue : string{$IFDEF APPSRV}; ServerName, FolderName : string{$ENDIF APPSRV}) : string;
     class function CastDateTimeForQry(lDate : TDateTime) : string;
+    class function CastDateForQry(lDate : TDateTime) : string;
     class function UsDateTime_(dDateTime : TDateTime) : string;
     {$IF not defined(APPSRV)}
     class procedure TobToTStringList(TobOrig : TOB; TSlResult : TStringList; Level : Integer=1);
@@ -1292,8 +1293,13 @@ end;
 
 class function Tools.CastDateTimeForQry(lDate: TDateTime): string;
 begin
-  Result := FormatDateTime('yyyymmdd', lDate);
+  Result := FormatDateTime('yyyymmdd hh:nn:ss', lDate);
 end;
+
+class function Tools.CastDateForQry(lDate : TDateTime) : string;                               
+begin
+  Result := FormatDateTime('yyyymmdd', lDate);
+end;                                                                                
 
 class function Tools.UsDateTime_(dDateTime: TDateTime): string;
 begin

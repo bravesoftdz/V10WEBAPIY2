@@ -105,7 +105,7 @@ var
     begin
       LogFilePath := Format('%s%s.%s', [ExtractFilePath(ParamStr(0)), ServiceName, 'log']);
       if Logvalues.OneLogPerDay then
-        LogFilePath := Format('%s_%s.log', [Copy(LogFilePath, 1, pos('.log', LogFilePath) -1), Tools.CastDateTimeForQry(Now)]);
+        LogFilePath := Format('%s_%s.log', [Copy(LogFilePath, 1, pos('.log', LogFilePath) -1), Tools.CastDateForQry(Now)]);
       if AddFileName <> '' then
         LogFilePath := Format('%s_%s.log', [Copy(LogFilePath, 1, pos('.log', LogFilePath) -1), AddFileName]);
       AssignFile(LogFile, LogFilePath);

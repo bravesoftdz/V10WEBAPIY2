@@ -209,6 +209,16 @@ var
   Cpt       : integer;
   ArrLen    : integer;
 
+  function GetTMPFieldType(FieldName, BTPFieldType : string) : string;
+  begin
+    case Tools.CaseFromString(FieldName, ['LBR_CODEARTICLE']) of
+      {LBR_CODEARTICLE} 0 : Result := 'INTEGER';
+    else
+      Result := BTPFieldType;
+    end;
+  end;
+
+
   procedure AddValues(BTPFieldName, TMPFieldName : string; IsAdditional : boolean=False);
   var
     FieldType : string;
@@ -225,7 +235,7 @@ var
     if not IsAdditional then
     begin
       BTPArrFields[Cpt] := Format('%s;%s', [BTPFieldName, FieldType]);
-      TMPArrFields[Cpt] := Format('%s;%s', [TMPFieldName, FieldType]);
+      TMPArrFields[Cpt] := Format('%s;%s', [TMPFieldName, GetTMPFieldType(TMPFieldName, FieldType)]);
     end else
     begin
       BTPArrAdditionalFields[Cpt] := Format('%s;%s', [BTPFieldName, FieldType]);
@@ -325,7 +335,7 @@ begin
             7  : AddValues('GL_PUHTDEV'      , 'LBR_PU');
             8  : AddValues('GL_UTILISATEUR'  , 'LBR_UTILISATEUR');
             9  : AddValues('GL_SOCIETE'      , 'LBR_CODESOCIETE');
-            10 : AddValues('GL_DATECREATION', 'LBR_DATECREATION');
+            10 : AddValues('GL_DATECREATION' , 'LBR_DATECREATION');
             11 : AddValues('GL_DATEMODIF'    , 'LBR_DATEMODIF');
           end;
         end;
@@ -434,11 +444,31 @@ begin
 end;
 
 function TTnTreatment.GetSqlDataExist(FieldsList, KeyValue1, KeyValue2 : string) : string;
+var
+  IndexFieldName : string;
+  IndexFieldType : tTypeField;
+  Cpt            : integer;
 begin
   case Tn of
     tnLignesBR : Result := Format('SELECT %s FROM LIGNESBR WHERE LBR_NUMBR = ''%s'' AND LBR_NUMORDRE = %s'  , [FieldsList, KeyValue1, KeyValue2]);
   else
-    Result := Format('SELECT %s FROM %s WHERE %s = ''%s'''  , [FieldsList, TUtilBTPVerdon.GetTMPTableName(Tn), GetTMPIndexFieldName, KeyValue1]);
+    begin
+      IndexFieldName := GetTMPIndexFieldName;
+      IndexFieldType := ttfNone;
+      for Cpt := 0 to High(TMPArrFields) do
+      begin
+        if ExtractFieldName(TMPArrFields[Cpt]) = IndexFieldName then
+        begin
+          IndexFieldType := Tools.GetTypeFieldFromStringType(ExtractFieldType(TMPArrFields[Cpt]));
+          break;
+        end;
+      end;
+      case IndexFieldType of
+        ttfNumeric, ttfInt : Result := Format('SELECT %s FROM %s WHERE %s = %s'  , [FieldsList, TUtilBTPVerdon.GetTMPTableName(Tn), IndexFieldName, KeyValue1]);
+      else ;
+        Result := Format('SELECT %s FROM %s WHERE %s = ''%s'''  , [FieldsList, TUtilBTPVerdon.GetTMPTableName(Tn), IndexFieldName, KeyValue1]);
+      end;
+    end
   end;
 end;
 
@@ -562,11 +592,6 @@ var
   SettingFile : TInifile;
   IniFilePath : string;
 begin
-
-//***************************
-exit;
-//***************************
-
   IniFilePath := TServicesLog.GetFilePath(ServiceName_BTPVerdon, 'ini');
   SettingFile := TIniFile.Create(IniFilePath);
   try
@@ -637,16 +662,19 @@ begin
     ttfNumeric, ttfInt                     : Result := StringReplace(Value, ',', '.', [rfReplaceAll]);
     ttfDate                                : Result := Format('''%s''', [Tools.UsDateTime_(StrToDateTime(Value))]); 
     ttfCombo, ttfText, ttfBoolean, ttfMemo : begin
-                                               Result    := Value;
-                                               if FieldType = ttfMemo then
-                                                 Result := Tools.BlobToString_(Result);
-                                               FieldSize := GetTMPFieldSizeMax(FieldNameTMP);
-                                               Result    := Tools.iif(FieldSize > -1, Trim(Copy(Result, 1, FieldSize)), Result);
-                                               if pos('''', Result) > 0 then
-                                                 Result := StringReplace(Result, '''', '''''', [rfReplaceAll]);
+                                               Result := Value;
+                                               if Result <> '' then
+                                               begin
+                                                 if FieldType = ttfMemo then
+                                                   Result := Tools.BlobToString_(Result);
+                                                 FieldSize := GetTMPFieldSizeMax(FieldNameTMP);
+                                                 Result    := Tools.iif(FieldSize > -1, Trim(Copy(Result, 1, FieldSize)), Result);
+                                                 if pos('''', Result) > 0 then
+                                                   Result := StringReplace(Result, '''', '''''', [rfReplaceAll]);
+                                               end;
                                                Result := Format('''%s''', [Result]);
                                               end;
-  end;    
+  end;
 end;
   
 function TTnTreatment.GetSqlInsertFields : string;
@@ -829,7 +857,6 @@ begin
         AdoQryTMP.Request     := TobData.Detail[Cpt].GetString('SqlQry');
         if LogValues.DebugEvents > 0 then TUtilBTPVerdon.AddLog(Tn, Format('%sExécution de %s ', [WSCDS_DebugMsg, AdoQryTMP.Request]), LogValues, 1);
         AdoQryTMP.InsertUpdate;
-        //InsertUpdate(AdoQryTMP);
       end;
       if UpdateQty > 0 then
         TUtilBTPVerdon.AddLog(Tn, Format('%s enregistrements de la table %s modifié(s)', [IntToStr(UpdateQty), TUtilBTPVerdon.GetTMPTableName(Tn)]), LogValues, 1);
@@ -916,13 +943,21 @@ begin
         Treat  := Tools.ReadTokenSt_(Values, ToolsTobToTsl_Separator);
         if Lock = 'N' then
         begin
+          if LogValues.LogLevel = 2 then
+            TUtilBTPVerdon.AddLog(Tn, Format('Mise à jour de %s%s - %s', [KeyValue1, Tools.iif(KeyValue2 <> '', ' - ' + KeyValue2, ''), LabelValue]), LogValues, 2);
           inc(UpdateQty);
           FindData  := True;
           Sql := GetSqlUpdate(TobL, TobAdd, KeyValue1, KeyValue2);
         end else
+        begin
+          if LogValues.LogLevel = 2 then
+            TUtilBTPVerdon.AddLog(Tn, Format('Mise à jour de %s%s - %s impossible (bloqué)', [KeyValue1, Tools.iif(KeyValue2 <> '', ' - ' + KeyValue2, ''), LabelValue]), LogValues, 2);
           Inc(OtherQty);
+        end;
       end else
       begin
+        if LogValues.LogLevel = 2 then
+          TUtilBTPVerdon.AddLog(Tn, Format('Création de %s%s - %s', [KeyValue1, Tools.iif(KeyValue2 <> '', ' - ' + KeyValue2, ''), LabelValue]), LogValues, 2);
         Inc(InsertQty);
         FindData  := True;
         Sql := GetSqlInsert(TobL, TobAdd);
@@ -945,7 +980,8 @@ begin
     TobQry.AddChampSupValeur('OTHERQTY', IntToStr(OtherQty));
     InsertUpdateData(TobQry);
   end else
-    TUtilBTPVerdon.AddLog(Tn, Format('Aucun tiers n''a été trouvé.', []), LogValues, 1);
+    TUtilBTPVerdon.AddLog(Tn, Format('Aucun %s n''a été trouvé.', [TUtilBTPVerdon.GetTMPTableName(Tn)]), LogValues, 1);
+//  SetLastSynchro;
 end;
 
 end.

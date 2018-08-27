@@ -18,15 +18,15 @@ uses
 type
   ThreadTiers = class(TThread)
   public
-    lTn           : T_TablesName;
-    TableValues   : T_TiersValues;
-    LogValues     : T_WSLogValues;
-    FolderValues  : T_FolderValues;
-    AdoQryBTP : AdoQry;
-    AdoQryTMP : AdoQry;
-    TobT      : TOB;
-    TobAdd    : TOB;
-    TobQry    : TOB;
+    lTn          : T_TablesName;
+    TableValues  : T_TiersValues;
+    LogValues    : T_WSLogValues;
+    FolderValues : T_FolderValues;
+    AdoQryBTP    : AdoQry;
+    AdoQryTMP    : AdoQry;
+    TobT         : TOB;
+    TobAdd       : TOB;
+    TobQry       : TOB;
 
     constructor Create(CreateSuspended : boolean);
     destructor Destroy; override;
@@ -83,12 +83,12 @@ end;
 
 procedure ThreadTiers.Execute;
 var
-  TobT      : TOB;
-  TobAdd    : TOB;
-  TobQry    : TOB;
-  AdoQryBTP : AdoQry;
-  AdoQryTMP : AdoQry;
-  Treatment : TTnTreatment;
+  TobT           : TOB;
+  TobAdd         : TOB;
+  TobQry         : TOB;
+  AdoQryBTP      : AdoQry;
+  AdoQryTMP      : AdoQry;
+  Treatment      : TTnTreatment;
 begin
   Coinitialize(nil);
   try

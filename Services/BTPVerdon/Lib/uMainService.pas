@@ -59,7 +59,6 @@ uses
   , WinSVC
   , ShellAPI
   , IniFiles
-  , uTob
   , StrUtils
   , AdoDB
   ;
@@ -269,7 +268,7 @@ begin
     LogMessage(Format('Impossible d''initialiser le service %s. Le fichier de configuration "%s" est inexistant.', [ServiceName_BTPVerdon, IniPath]), EVENTLOG_ERROR_TYPE);
   end else
   begin
-    ClearTablesValues;
+    ClearTablesValues;                         
     ReadSettings;
     while not Terminated do
     begin
