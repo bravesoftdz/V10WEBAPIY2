@@ -5175,9 +5175,7 @@ end;
 
 function GetFieldType(FieldName : string) : tTypeField;
 begin
-//*******************************
-  Result := Tools.GetFieldType(FieldName{$IF defined(APPSRV)}, '', '', nil{$IFEND APPSRV});
-//*******************************
+  Result := Tools.GetFieldType(FieldName{$IF defined(APPSRV)}, '', ''{$IFEND APPSRV});
 end;
 
 function GetFieldSize(FieldName : string) : integer;

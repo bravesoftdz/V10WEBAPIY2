@@ -162,8 +162,6 @@ end;
 
 procedure TSvcSyncBTPVerdon.ServiceExecute(Sender: TService);
 
-  const WtihThread = True;
-
   procedure StartLog(lTn : T_TablesName; LastSynchro : string);
   begin
     TUtilBTPVerdon.AddLog(lTn, '', LogValues, 0);
@@ -299,101 +297,6 @@ procedure TSvcSyncBTPVerdon.ServiceStart(Sender: TService; var Started: Boolean)
 begin
   LogMessage(Format('Démarrage de de %s.', [ServiceName_BTPVerdon]), EVENTLOG_INFORMATION_TYPE);
 end;
-
-
-(*
-  procedure CallThreadTiers;
-  var
-    AdoQryBTP : AdoQry;
-    AdoQryTMP : AdoQry;
-    Treatment : TTnTreatment;
-    TobT      : TOB;
-    TobAdd    : TOB;
-    TobQry    : TOB;
-  begin
-    StartLog(tnTiers, TiersValues.LastSynchro);
-    TiersValues.FirstExec := False;
-    TiersValues.Count     := 0;
-    TobQry := TOB.Create('_QRY', nil, -1);
-    try
-      TobT := TOB.Create('_TABLE', nil, -1);
-      try
-        TobAdd := TOB.Create('_ADDFIEDS', nil, -1);
-        try
-          AdoQryBTP := AdoQry.Create;
-          try
-            AdoQryTMP := AdoQry.Create;
-            try
-              if not WtihThread then
-              begin
-                if (LogValues.DebugEvents > 0) then TUtilBTPVerdon.AddLog(tnTiers, Format('%sWithout Thread', [WSCDS_DebugMsg]), LogValues, 0);
-                AdoQryBTP.ServerName               := FolderValues.BTPServer;
-                AdoQryBTP.DBName                   := FolderValues.BTPDataBase;
-                AdoQryBTP.PgiDB                    := 'X';
-                AdoQryBTP.Qry                      := TADOQuery.Create(nil);
-                AdoQryBTP.ConnectionString         := AdoQryBTP.GetConnectionString(True);
-                AdoQryBTP.Connect                  := TADOConnection.Create(nil);
-                AdoQryBTP.Connect.ConnectionString := AdoQryBTP.GetConnectionString(True);
-                AdoQryBTP.Connect.LoginPrompt      := False;
-                AdoQryBTP.LogValues                := LogValues;
-                AdoQryTMP.ServerName               := FolderValues.TMPServer;
-                AdoQryTMP.DBName                   := FolderValues.TMPDataBase;
-                AdoQryTMP.PgiDB                    := '-';
-                AdoQryTMP.Qry                      := TADOQuery.Create(nil);
-                AdoQryTMP.ConnectionString         := AdoQryBTP.GetConnectionString(False);
-                AdoQryTMP.Connect                  := TADOConnection.Create(nil);
-                AdoQryTMP.Connect.ConnectionString := AdoQryTMP.GetConnectionString(False);
-                AdoQryTMP.Connect.LoginPrompt      := False;
-                AdoQryTMP.LogValues                := LogValues;
-                Treatment := TTnTreatment.Create;
-                try
-                  Treatment.Tn           := tnTiers;
-                  Treatment.FolderValues := FolderValues;
-                  Treatment.LogValues    := LogValues;
-                  Treatment.LastSynchro  := TiersValues.LastSynchro;
-                  Treatment.AdoQryBTP    := AdoQryBTP;
-                  Treatment.AdoQryTMP    := AdoQryTMP;
-                  Treatment.TnTreatment(TobT, TobAdd, TobQry);
-                finally
-                  Treatment.Free;
-                end;
-              end else
-              begin
-                if (LogValues.DebugEvents > 0) then TUtilBTPVerdon.AddLog(tnTiers, Format('%sWith Thread', [WSCDS_DebugMsg]), LogValues, 0);
-                uThreadTiers                 := ThreadTiers.Create(True);
-                uThreadTiers.FreeOnTerminate := True;
-                uThreadTiers.Priority        := tpNormal;
-                uThreadTiers.lTn             := tnTiers;
-                uThreadTiers.TableValues     := TiersValues;
-                uThreadTiers.LogValues       := LogValues;
-                uThreadTiers.FolderValues    := FolderValues;
-                if (LogValues.DebugEvents > 0) then TUtilBTPVerdon.AddLog(tnTiers, Format('%sBefore Call uThreadTiers.Resume', [WSCDS_DebugMsg]), LogValues, 0);
-                try
-                  uThreadTiers.Resume;
-                except
-                  on E: Exception do
-                    LogMessage(Format('Fin exécution du service avec erreur : %s', [E.Message]), EVENTLOG_ERROR_TYPE);
-                end;
-              end;
-            finally
-              AdoQryTMP.Connect.Free;
-              AdoQryTMP.free;
-            end;
-          finally
-            AdoQryBTP.Connect.Free;
-            AdoQryBTP.Free;
-          end;
-        finally
-          FreeAndNil(TobAdd);
-        end;
-      finally
-        FreeAndNil(TobT);
-      end;
-    finally
-      FreeAndNil(TobQry);
-    end;
-  end;
-*)
 
 end.
 

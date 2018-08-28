@@ -2,7 +2,7 @@ program SvcSynBTPVerdon;
 
 uses
   SvcMgr,
-  uMainService in '..\Lib\uMainService.pas' {SvcSyncBTPVerdon: TService},
+  uMainService in '..\Lib\uMainService.pas' {SvcSyncBTPVerdon: TService},              
   CommonTools in '..\..\..\commun\Lib\CommonTools.pas',
   Zip in '..\..\..\commun\Lib\Zip.pas',
   ZipDlls in '..\..\..\commun\Lib\ZipDlls.pas',

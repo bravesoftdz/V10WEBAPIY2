@@ -3,15 +3,15 @@ unit ConstServices;
 interface
 
 type
-  T_WSLogValues       = Record
-                          LogLevel          : integer;
-                          LogMoMaxSize      : double;
-                          LogMaxQty         : integer;
-                          LogDebug          : integer;
-                          LogDebugMoMaxSize : double;
-                          DebugEvents       : integer;
-                          OneLogPerDay      : boolean;
-                       end;
+  T_WSLogValues = Record
+                    LogLevel          : integer;
+                    LogMoMaxSize      : double;
+                    LogMaxQty         : integer;
+                    LogDebug          : integer;
+                    LogDebugMoMaxSize : double;
+                    DebugEvents       : integer;
+                    OneLogPerDay      : boolean;
+                  end;
 
   T_SvcTypeLog  = (ssbylNone, ssbylLog, ssbylWindows, ssbylAll);
 

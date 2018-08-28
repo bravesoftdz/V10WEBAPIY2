@@ -183,12 +183,12 @@ begin
   AdoQryBTP.ServerName           := FolderValues.BTPServer;
   AdoQryBTP.DBName               := FolderValues.BTPDataBase;
   AdoQryBTP.PgiDB                := 'X';
-  AdoQryBTP.Qry.ConnectionString := AdoQryBTP.GetConnectionString(True);
+  AdoQryBTP.Qry.ConnectionString := AdoQryBTP.GetConnectionString;
   AdoQryBTP.LogValues            := LogValues;
   AdoQryTMP.ServerName           := FolderValues.TMPServer;
   AdoQryTMP.DBName               := FolderValues.TMPDataBase;
   AdoQryTMP.PgiDB                := '-';
-  AdoQryTMP.Qry.ConnectionString := AdoQryTMP.GetConnectionString(False);
+  AdoQryTMP.Qry.ConnectionString := AdoQryTMP.GetConnectionString;
   AdoQryTMP.LogValues            := LogValues;
 end;
   
@@ -663,7 +663,7 @@ begin
     ttfDate                                : Result := Format('''%s''', [Tools.UsDateTime_(StrToDateTime(Value))]); 
     ttfCombo, ttfText, ttfBoolean, ttfMemo : begin
                                                Result := Value;
-                                               if Result <> '' then
+                                               if Result <> '' then                                                   
                                                begin
                                                  if FieldType = ttfMemo then
                                                    Result := Tools.BlobToString_(Result);

@@ -79,7 +79,6 @@ var
   AppPath   : string;
   LogPath   : string;
   FirstExec : boolean;  
-  //uExecute  : SynchroThread;
 begin
   IniPath := TServicesLog.GetFilePath(ServiceName_BTPY2, 'ini');
   AppPath := TServicesLog.GetFilePath(ServiceName_BTPY2, 'exe');
@@ -112,9 +111,6 @@ begin
                 BTPY2Exec.ServiceExecute;
                 try
                   BTPY2Exec.LogFilePath := LogPath;
-                  //uExecute := SynchroThread.Create(True);
-                  //uExecute.ServiceTreatment := BTPY2Exec;
-                  //uExecute.Resume;
                 finally
                   LogMessage('Fin d''exécution du service.', EVENTLOG_INFORMATION_TYPE);
                 end;
@@ -124,7 +120,6 @@ begin
               end;
             end;
             Sleep(1000);
-            //ServiceThread.ProcessRequests(False);
           end;
         finally
         end;

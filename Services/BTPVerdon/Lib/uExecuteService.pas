@@ -39,9 +39,9 @@ uses
   , IniFiles
   , DateUtils
   , uLog
-  {$IF not defined(APPSRV)}
+  {$IFNDEF APPSRV}
   , ParamSoc
-  {$IFEND (APPSRV)}
+  {$ENDIF (APPSRV)}
   ;
 
 

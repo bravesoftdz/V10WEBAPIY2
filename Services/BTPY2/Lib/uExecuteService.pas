@@ -869,6 +869,7 @@ begin
   try
     AdoQryParam.ServerName := AdoQryBTP.ServerName;
     AdoQryParam.DBName     := AdoQryBTP.DBName;
+    AdoQryParam.Qry        := TADOQuery.create(nil);
     for Cpt := 0 to pred(TSlEntry.count) do
     begin
       Values := TSlEntry[Cpt];
@@ -888,6 +889,7 @@ begin
       end;
     end;
   finally
+    AdoQryParam.Qry.Free;
     AdoQryParam.Free;
   end;
 end;
@@ -919,6 +921,7 @@ begin
   try
     AdoQryParam.ServerName := AdoQryBTP.ServerName;
     AdoQryParam.DBName     := AdoQryBTP.DBName;
+    AdoQryParam.Qry        := TADOQuery.create(nil);
     TServicesLog.WriteLog(ssbylLog, 'Tables de paramétrage.', ServiceName_BTPY2, LogValues, 3);
     AddUpdateValues(AdoQryParam, wsdsChoixCod    , GetFieldsList(TSlCacheChoixCodBTP)  , GetKeyValue(wsdsChoixCod)    , '', False); // ChoixCod
     AddUpdateValues(AdoQryParam, wsdsChoixExt    , GetFieldsList(TSlCacheChoixExtBTP)  , GetKeyValue(wsdsChoixExt)    , '', False); // ChoixExt
@@ -926,6 +929,7 @@ begin
     AddUpdateValues(AdoQryParam, wsdsChangeRate  , GetFieldsList(TSlCacheChangeRateBTP), GetKeyValue(wsdsChangeRate)  , '', False); // Taux de change
     AddUpdateValues(AdoQryParam, wsdsPaymenChoice, GetFieldsList(TSlCachePaymentBTP)   , GetKeyValue(wsdsPaymenChoice), '', False); // Mode de règlement
   finally
+    AdoQryParam.Qry.Free;
     AdoQryParam.Free;
   end;
 end;
@@ -1588,7 +1592,7 @@ begin
                      begin
                        sDate := copy(FieldValue, 1, pos(' ', FieldValue) -1);
                        sHour := copy(FieldValue, pos(' ', FieldValue), length(FieldValue));
-                       FieldValue := Tools.CastDateTimeForQry(StrToDate(sDate)) + sHour;
+                       FieldValue := Tools.CastDateForQry(StrToDate(sDate)) + sHour;
                      end;
                    end;
       end;
@@ -1842,6 +1846,7 @@ var
         try
           AdoQryT.ServerName  := BTPValues.Server;
           AdoQryT.DBName      := BTPValues.DataBase;
+          AdoQryT.Qry         := TADOQuery.create(nil);
           AdoQryT.FieldsList  := 'T_LIBELLE';
           AdoQryT.Request     := Format('SELECT %s FROM TIERS WHERE T_AUXILIAIRE = ''%s''', [AdoQryT.FieldsList, Auxiliary]);
           AdoQryT.LogValues   := LogValues;
@@ -1855,6 +1860,7 @@ var
             exit;
           end;
         finally
+          AdoQryT.Qry.Free;
           AdoQryT.free;
         end;
       end else
@@ -1939,6 +1945,7 @@ var
     try
       AdoQryE.ServerName := BTPValues.Server;
       AdoQryE.DBName     := BTPValues.DataBase;
+      AdoQryE.Qry        := TADOQuery.create(nil);
       { Exercice non trouvé dans le cache, ajoute }
       if FiscalYearIndex = -1 then
       begin
@@ -1999,6 +2006,7 @@ var
         exit;
       end;
     finally
+      AdoQryE.Qry.Free;
       AdoQryE.free;
     end;
     { Jamais importé, prépare l'INSERT }
@@ -2153,6 +2161,7 @@ var
           try
             AdoQryL.ServerName := BTPValues.Server;
             AdoQryL.DBName     := BTPValues.DataBase;
+            AdoQryL.Qry        := TADOQuery.create(nil);
             AdoQryL.FieldsList := 'BE0_NATUREPIECEG,BE0_SOUCHE,BE0_NUMERO,BE0_INDICEG';
             AdoQryL.Request    := Format('SELECT %s FROM BTPECRITURE WHERE BE0_ENTITY = %s AND BE0_JOURNAL = ''%s'' AND BE0_EXERCICE = ''%s'' AND BE0_REFERENCEY2 = %s'
                                       , [AdoQryL.FieldsList
@@ -2180,6 +2189,7 @@ var
               exit;
             end;
           finally
+            AdoQryL.Qry.Free;
             AdoQryL.free;
           end;
         end;
@@ -2476,11 +2486,13 @@ begin
           AdoQryBTP.ServerName  := Tools.iif(AdoQryBTP.ServerName = '', BTPValues.Server, AdoQryBTP.ServerName);
           AdoQryBTP.DBName      := Tools.iif(AdoQryBTP.DBName = '', BTPValues.DataBase, AdoQryBTP.DBName);
           AdoQryBTP.LogValues   := LogValues;
-          AdoQryBTP.Connect     := TADOConnection.Create(nil);
+//          AdoQryBTP.Connect     := TADOConnection.Create(nil);
+          AdoQryBTP.Qry         := TADOQuery.Create(nil);
           AdoQryY2.ServerName   := Tools.iif(AdoQryY2.ServerName = '', Y2Values.Server, AdoQryY2.ServerName);
           AdoQryY2.DBName       := Tools.iif(AdoQryY2.DBName = '', Y2Values.DataBase, AdoQryY2.DBName);
           AdoQryY2.LogValues    := LogValues;
-          AdoQryY2.Connect      := TADOConnection.Create(nil);
+//          AdoQryY2.Connect      := TADOConnection.Create(nil);
+          AdoQryY2.Qry         := TADOQuery.Create(nil);
           TSlConnectionValues.Add(Format('%s=%s;%s;%s;%s;%s;%s', [Section, BTPValues.UserAdmin, BTPValues.Server, BTPValues.DataBase, BTPValues.LastSynchro, Y2Values.Server, Y2Values.DataBase]));
         end;
       end;
@@ -2490,41 +2502,6 @@ begin
   end;
   ClearValuesConnection;
 end;
-
-(*
-procedure TSvcSyncBTPY2Execute.LogsManagement;
-var
-  SizeFile   : Extended;
-  SearchFile : TSearchRec;
-  MaxSize    : double;
-begin
-  if LogValues.LogLevel > 0 then
-  begin
-    if LogValues.DebugEvents > 0 then TServicesLog.WriteLog(ssbylLog, Format('%s - TSvcSyncBTPY2Execute.LogsManagement : LogFilePath = %s', [WSCDS_DebugMsg, LogFilePath]), ServiceName_BTPY2, LogValues, 0);
-    if not LogValues.OneLogPerDay then
-    begin
-      MaxSize := LogValues.LogMoMaxSize;
-      { Si dépasse la taille max, supprime puis créé un nouveau }
-      if (MaxSize > 0) then
-      begin
-        if FindFirst(LogFilePath, faAnyFile, SearchFile) = 0 then
-        try
-          begin
-            SizeFile := Tools.GetFileSize(LogFilePath, tssMo);
-            if SizeFile > MaxSize then
-              DeleteFile(LogFilePath);
-          end;
-        finally
-          FindClose(SearchFile);
-        end;
-      end;
-    end else
-    begin
-      LogFilePath := Format('%s_%s.log', [Copy(LogFilePath, 1, pos('.log', LogFilePath) -1), Tools.CastDateTimeForQry(Now)]);
-    end;
-  end;
-end;
-*)
 
 function TSvcSyncBTPY2Execute.GetData: boolean;
 
@@ -2701,9 +2678,11 @@ begin
             try
               AdoQryEcr.ServerName := AdoQryBTP.ServerName;
               AdoQryEcr.DBName     := AdoQryBTP.DBName;
+              AdoQryEcr.Qry        := TADOQuery.Create(nil);
               AdoQryEcr.FieldsList := Tools.GetFieldsListFromPrefix('E' {$IF defined(APPSRV)}, AdoQryBTP.ServerName, AdoQryBTP.DBName{$IFEND !APPSRV});
               AdoQryAna.ServerName := AdoQryBTP.ServerName;
               AdoQryAna.DBName     := AdoQryBTP.DBName;
+              AdoQryAna.Qry        := TADOQuery.Create(nil);
               AdoQryAna.FieldsList := Tools.GetFieldsListFromPrefix('Y' {$IF defined(APPSRV)}, AdoQryBTP.ServerName, AdoQryBTP.DBName{$IFEND !APPSRV});
               if AdoQryBTP.RecordCount > 0 then
               begin
@@ -2759,9 +2738,11 @@ begin
             FreeAndNil(TSlAccEntries);
           end;
         finally
+          AdoQryAna.Qry.Free;
           AdoQryAna.free;
         end;
       finally
+        AdoQryEcr.Qry.Free;
         AdoQryEcr.free;
       end;
     end;
@@ -2822,6 +2803,7 @@ begin
           AdoQryPAna.FieldsList  := 'SOC_DATA';
           AdoQryPAna.Request     := Format('SELECT %s FROM PARAMSOC WHERE SOC_NOM IN (''%s'', ''%s'', ''%s'') ORDER BY SOC_NOM DESC', [AdoQryPAna.FieldsList, WSCDS_SocServer, WSCDS_SocNumPort, WSCDS_SocCegidDos]);
           AdoQryPAna.LogValues   := LogValues;
+          AdoQryPAna.Qry         := TADOQuery.Create(nil);
           try
             AdoQryPAna.SingleTableSelect;
             if AdoQryPAna.RecordCount > 0 then
@@ -2835,6 +2817,7 @@ begin
             exit;
           end;
         finally
+           AdoQryPAna.Qry.Free;
            AdoQryPAna.Free;
         end;
         { Analytique }

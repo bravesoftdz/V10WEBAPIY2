@@ -6,11 +6,13 @@ uses
   Classes
   , UConnectWSConst
   , ConstServices
-  , HEnt1
   , ADODB
-  {$IF not defined(APPSRV)}
+  {$IFDEF WITHCBP}
+  , HEnt1
+  {$ENDIF WITHCBP}
+  {$IFNDEF APPSRV}
   , UTob
-  {$IFEND !APPSRV}
+  {$ENDIF !APPSRV}
   ;
 const
   ToolsTobToTsl_LevelName = '^LEVEL';
@@ -54,16 +56,14 @@ type
     FieldsList  : string;
     ServiceName : string;
     PgiDB       : string;
-    ConnectionString : string;
     TSLResult   : TStringList;
     RecordCount : integer;
     LogValues   : T_WSLogValues;
-    Connect     : TADOConnection;
     Qry         : TADOQuery;
 
     Constructor Create;
     Destructor Destroy; override;
-    function GetConnectionString(PgiDB : boolean) : string;
+    function GetConnectionString : string;
     function SingleTableSelect : string;
     procedure InsertUpdate;
   end;
@@ -71,8 +71,8 @@ type
   Tools = class
     class function CaseFromString(Value: string; Values: array of string): integer;
     class function GetTypeFieldFromStringType(TypeString : string) : tTypeField;
-    class function GetStFieldType(FieldName: string{$IFDEF APPSRV}; ServerName, DBName : string; Connect : TADOConnection; DebugEvents : integer=0{$ENDIF APPSRV}): string;
-    class function GetFieldType(FieldName: string{$IF defined(APPSRV)}; ServerName, DBName : string; Connect : TADOConnection{$IFEND !APPSRV}): tTypeField;
+    class function GetStFieldType(FieldName: string{$IFDEF APPSRV}; ServerName, DBName : string; DebugEvents : integer=0{$ENDIF APPSRV}): string;
+    class function GetFieldType(FieldName: string{$IFDEF APPSRV}; ServerName, DBName : string{$ENDIF APPSRV}): tTypeField;
     class function GetDefaultValueFromtTypeField(FieldType : tTypeField) : string;
     class function iif(Const Expression, TruePart, FalsePart: Boolean): Boolean; overload;
     class function iif(Const Expression: Boolean; Const TruePart, FalsePart: Integer): Integer; overload;
@@ -80,9 +80,9 @@ type
     class function iif(Const Expression: Boolean; Const TruePart, FalsePart: String): String; overload;
     class function iif(Const Expression: Boolean; Const TruePart, FalsePart: char): char; overload;
     class function iif(Const Expression: Boolean; Const TruePart, FalsePart: TStringList): TStringList; overload;
-    {$IF not defined(APPSRV)}
+    {$IFNDEF APPSRV}
     class function iif(Const Expression: Boolean; Const TruePart, FalsePart: TActionFiche): TActionFiche; overload;
-    {$IFEND !APPSRV}
+    {$ENDIF !APPSRV}
     class function ReadTokenSt_(var S : string; Separator : string) : string;
     class function CountOccurenceString(const S : string; ToCount : string) : integer;
     class function GetArgumentValue(Argument: string; Const MyArg : String; Const WithUpperCase: Boolean = True; const Separator: String = ';'): String;
@@ -93,7 +93,7 @@ type
     class function GetFileSize(FilePath : string; Size : tScaleSize) : Extended;
     class function StrFPoint_(Value : Extended) : string;
     class function IsNumeric_(stValue : string) : boolean;
-    class function GetFieldsListFromPrefix(TablePrefix : string{$IF defined(APPSRV)}; ServerName, DBName : string{$IFEND !APPSRV}; Separator : string=',') : string;
+    class function GetFieldsListFromPrefix(TablePrefix : string{$IFDEF APPSRV}; ServerName, DBName : string{$ENDIF APPSRV}; Separator : string=',') : string;
     class function GetStValueFromTSl(TSlLine, FieldName : string) : string; overload;
     class function GetStValueFromTSl(TSlLine : string; Index : integer; Separator : string=',') : string; overload;
     class function GetTSlIndexFromFieldName(TslLine, FieldName : string; Separator : string=',') : integer;
@@ -108,17 +108,19 @@ type
     class procedure FileCut(FullPath : string; MaxSizeBytes : integer; TSLResult : TStringList; KeepOriginFile : boolean=True);
     class function GetKoFromMo(Mo : integer) : integer;
     class function DeleteDirectroy(Path : string) : boolean;
-    class function IsRecordableDocument(DocType, Establishment : string{$IF defined(APPSRV)}; ServerName, DBName : string{$IFEND !APPSRV}) : boolean;
+    class function IsRecordableDocument(DocType, Establishment : string{$IFDEF APPSRV}; ServerName, DBName : string{$ENDIF APPSRV}) : boolean;
     class function EvalueDateJJMMYYY(sDate : string) : TDateTime;
     class procedure DecodeAccDocReferency(DocReferency : string; var DocType : string; var Stump : string; var DocDate : TDateTime; var DocNumber : integer; var Index : integer);
     class function GetParamSocSecur_(PSocName : string; DefaultValue : string{$IFDEF APPSRV}; ServerName, FolderName : string{$ENDIF APPSRV}) : string;
     class function CastDateTimeForQry(lDate : TDateTime) : string;
     class function CastDateForQry(lDate : TDateTime) : string;
     class function UsDateTime_(dDateTime : TDateTime) : string;
-    {$IF not defined(APPSRV)}
+    {$IFNDEF APPSRV}
     class procedure TobToTStringList(TobOrig : TOB; TSlResult : TStringList; Level : Integer=1);
-    {$IFEND !APPSRV}
+    {$ENDIF !APPSRV}
+    {$IFDEF WITHCBP}
     class function BlobToString_(Texte : string) : string;
+    {$ENDIF WITHCBP}
   end;
 
 implementation
@@ -134,42 +136,34 @@ uses
   , UConnectWSCEGID
   , SvcMgr
   , Windows
-  , CbpEnumerator
   , ComCtrls
   , ExtCtrls
-  {$IF not defined(APPSRV)}
+  {$IFDEF WITHCBP}
+  , CbpEnumerator
+  {$ENDIF WITHCBP}
+  {$IFNDEF APPSRV}
   , hCtrls
   , EntGC
   , ParamSoc
-  {$IFEND !APPSRV}
+  {$ENDIF !APPSRV}
   ;
 
 { AdoQry }
-function AdoQry.GetConnectionString(PgiDB : boolean) : string;
+function AdoQry.GetConnectionString : string;
 begin
-//  if PgiDB then
-    Result := 'Provider=SQLOLEDB.1'
-            + ';Password=ADMIN'
-            + ';Persist Security Info=True'
-            + ';User ID=ADMIN'
-            + ';Initial Catalog=' + DBName
-            + ';Data Source=' + ServerName
-            + ';Use Procedure for Prepare=1'
-            + ';Auto Translate=True'
-            + ';Packet Size=4096'
-            + ';Workstation ID=LOCALST'
-            + ';Use Encryption for Data=False'
-            + ';Tag with column collation when possible=False'
-(*
-  else
-    Result := 'Provider=SQLOLEDB.1'
-            + ';Password=cegid.2012'
-            + ';Persist Security Info=True'
-            + ';User ID=sa'
-            + ';Initial Catalog=' + DBName
-            + ';Data Source=' + ServerName
-*)
-  ;
+  Result := 'Provider=SQLOLEDB.1'
+          + ';Password=ADMIN'
+          + ';Persist Security Info=True'
+          + ';User ID=ADMIN'
+          + ';Initial Catalog=' + DBName
+          + ';Data Source=' + ServerName
+          + ';Use Procedure for Prepare=1'
+          + ';Auto Translate=True'
+          + ';Packet Size=4096'
+          + ';Workstation ID=LOCALST'
+          + ';Use Encryption for Data=False'
+          + ';Tag with column collation when possible=False'
+          ;
 end;
 
 constructor AdoQry.Create;
@@ -204,8 +198,6 @@ end;
 }
 function AdoQry.SingleTableSelect : string;
 var
-//  Connect     : TADOConnection;
-//  Qry         : TADOQuery;
   Cpt         : integer;
   Sql         : string;
   Select      : string;
@@ -214,7 +206,6 @@ var
   Start       : integer;
   FieldsArray : Array of string;
 begin
-
   if LogValues.DebugEvents > 0 then TServicesLog.WriteLog(ssbylLog, Format('%s #01 AdoQry.SingleTableSelect - Srv = %s, Folder = %s, Request = %s, FieldsList = %s'
                                                                            , [WSCDS_DebugMsg
                                                                               , ServerName
@@ -222,7 +213,6 @@ begin
                                                                               , Request
                                                                               , FieldsList
                                                                           ]), ServiceName, LogValues, 0);
-
   Result := '';
   if     (ServerName <> '') // Nom du serveur
      and (DBName <> '')     // Nom de la BDD
@@ -255,116 +245,69 @@ begin
            + Select
            + Copy(Request, pos('*', Request) + 1, Length(Request));
     end;
-//    Connect := TADOConnection.Create(application);
     try
-//      Connect.ConnectionString := GetConnectionString((PgiDB = 'X'));
-//      Connect.LoginPrompt      := False;
-
-//      Connect.Connected := True;
+      if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - TADOQuery.Create', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
       try
-//        Connect.BeginTrans;
-
-//        Qry := TADOQuery.Create(Application);
-        if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - TADOQuery.Create', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
+        Qry.ConnectionString := GetConnectionString;
+        Qry.SQL.Text   := Sql;
+        Qry.Prepared   := True;
+        if LogValues.DebugEvents > 0 then TServicesLog.WriteLog(ssbylLog, Format('%s AdoQry.SingleTableSelect / Connected ', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
         try
-//          Qry.Connection := Connect;
-          Qry.ConnectionString := GetConnectionString((PgiDB = 'X'));//ConnectionString;
-          Qry.SQL.Text   := Sql;
-          Qry.Prepared   := True;
-          if LogValues.DebugEvents > 0 then TServicesLog.WriteLog(ssbylLog, Format('%s AdoQry.SingleTableSelect / Connected ', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
-          try
-            if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Qry.SQL.Text =%s', [WSCDS_DebugMsg, Qry.SQL.Text]), ServiceName, LogValues, 0);
-            Qry.Open;
-            RecordCount := Qry.RecordCount;
-            if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Qry.RecordCount =%s', [WSCDS_DebugMsg, IntToStr(Qry.RecordCount)]), ServiceName, LogValues, 0);
-            if not Qry.Eof then
+          if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Qry.SQL.Text =%s', [WSCDS_DebugMsg, Qry.SQL.Text]), ServiceName, LogValues, 0);
+          Qry.Open;
+          RecordCount := Qry.RecordCount;
+          if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Qry.RecordCount =%s', [WSCDS_DebugMsg, IntToStr(Qry.RecordCount)]), ServiceName, LogValues, 0);
+          if not Qry.Eof then
+          begin
+            Qry.first;
+            while not Qry.Eof do
             begin
-              Qry.first;
-              while not Qry.Eof do
-              begin
-                for Cpt := 0 to pred(Length(FieldsArray)) do
-//                  ResultValue := ResultValue + TSLResult.Delimiter + VarToStr(Qry.FieldValues[FieldsArray[Cpt]]);
-                  ResultValue := ResultValue + TSLResult.Delimiter + Qry.Fields[Cpt].asString;
-                ResultValue := Copy(ResultValue, 2, Length(ResultValue));
-                TSLResult.Add(ResultValue);
-                if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - ResultValue =%s', [WSCDS_DebugMsg, ResultValue]), ServiceName, LogValues, 0);
-                ResultValue := '';
-                Qry.Next;
-                if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - After Qry.Next', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
-              end;
-            end;
-          except
-            begin
-              Result := Format('Erreur sur %s', [Qry.SQL.Text]);
-//              Connect.RollbackTrans;
-              Raise Exception.Create(Result);
+              for Cpt := 0 to pred(Length(FieldsArray)) do
+                ResultValue := ResultValue + TSLResult.Delimiter + Qry.Fields[Cpt].asString;
+              ResultValue := Copy(ResultValue, 2, Length(ResultValue));
+              TSLResult.Add(ResultValue);
+              if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - ResultValue =%s', [WSCDS_DebugMsg, ResultValue]), ServiceName, LogValues, 0);
+              ResultValue := '';
+              Qry.Next;
+              if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - After Qry.Next', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
             end;
           end;
-        finally
-          if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Start finally Qry', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
-//          Qry.active := False;
-//          Qry.Free;
-          if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Stop finally Qry', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
+        except
+          begin
+            Result := Format('Erreur sur %s', [Qry.SQL.Text]);
+            Raise Exception.Create(Result);
+          end;
         end;
-        if Result = '' then
-//          Connect.CommitTrans;
-      except
-        on E:Exception do
-        begin
-          if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Exception = %s', [WSCDS_DebugMsg, E.Message]), ServiceName, LogValues, 0);
-          Result := E.Message;
-//          Connect.RollbackTrans;
-          //Raise;
-        end;
+      finally
       end;
-    finally
-      if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Start finally Connect', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
-//      Connect.Close;
-//      Connect.Free;
-      if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Stop finally Connect', [WSCDS_DebugMsg]), ServiceName, LogValues, 0);
+      if Result = '' then
+    except
+      on E:Exception do
+      begin
+        if LogValues.DebugEvents = 2 then TServicesLog.WriteLog(ssbylLog, Format('%sAdoQry.SingleTableSelect - Exception = %s', [WSCDS_DebugMsg, E.Message]), ServiceName, LogValues, 0);
+        Result := E.Message;
+      end;
     end;
   end;
 end;
 
 procedure AdoQry.InsertUpdate;
-var
-//  Connect : TADOConnection;
-  Qry     : TADOQuery;
 begin
   if     (ServerName <> '') // Nom du serveur
      and (DBName <> '')     // Nom de la BDD
      and (Request <> '')    // Requête
   then
   begin
-//    Connect                  := TADOConnection.Create(application);
-//    Connect.ConnectionString := GetConnectionString((PgiDB = 'X'));
-//    Connect.LoginPrompt      := False;
+    Qry.ConnectionString := GetConnectionString;
+    Qry.SQL.Text         := Request;
+    Qry.Prepared         := True;
     try
-//      Connect.Connected := True;
-//      Connect.BeginTrans;
-      try
-        Qry            := TADOQuery.Create(Application);
-        Qry.ConnectionString := GetConnectionString((PgiDB = 'X')); //ConnectionString;
-//        Qry.Connection := Connect;
-        Qry.SQL.Text   := Request;
-        Qry.Prepared   := True;
-        RecordCount    := Qry.ExecSQL;
-        try
-        finally
-          Qry.active := False;
-          Qry.Free;
-        end;
-//        Connect.CommitTrans;
-      except
-        on E:Exception do
-        begin
-//          Connect.RollbackTrans;
-          Raise;
-        end;
+      RecordCount          := Qry.ExecSQL;
+    except
+      on E:Exception do
+      begin
+        Raise;
       end;
-    finally
-//      Connect.Close;
-//      Connect.Free;
     end;
   end;
 end;
@@ -408,8 +351,7 @@ begin
     Result := ttfNone;
 end;
 
-//class function Tools.GetStFieldType(FieldName: string{$IFDEF APPSRV}; ServerName, DBName : string; Connect : TADOConnection; DebugEvents : integer=0{$ENDIF !APPSRV}): string;
-class function Tools.GetStFieldType(FieldName: string{$IFDEF APPSRV}; ServerName, DBName : string; Connect : TADOConnection; DebugEvents : integer=0{$ENDIF !APPSRV}): string;
+class function Tools.GetStFieldType(FieldName: string{$IFDEF APPSRV}; ServerName, DBName : string; DebugEvents : integer=0{$ENDIF !APPSRV}): string;
 {$IFDEF APPSRV}
 var
   lAdoQry  : AdoQry;
@@ -427,20 +369,16 @@ begin
       if (DebugEvents > 0) then TServicesLog.WriteLog(ssbylWindows, Format('%sTools.GetStFieldType', [WSCDS_DebugMsg]), 'Debug service', LogValue, 0);
       lAdoQry.ServerName            := ServerName;
       lAdoQry.DBName                := DBName;
+      lAdoQry.Qry                   := TADOQuery.create(nil);
       lAdoQry.LogValues.DebugEvents := DebugEvents;
       lAdoQry.FieldsList            := 'DH_TYPECHAMP';
       lAdoQry.Request               := 'SELECT ' + lAdoQry.FieldsList + ' FROM DECHAMPS WHERE DH_NOMCHAMP =''' + FieldName + '''';
       if (DebugEvents > 0) then TServicesLog.WriteLog(ssbylWindows, Format('%sTools.GetStFieldType - Before create lAdoQry.Connect', [WSCDS_DebugMsg]), 'Debug service', LogValue, 0);
-//      lAdoQry.Connect := TADOConnection.Create(application);
-      lAdoQry.Connect := Connect;
-//      try
-        if (DebugEvents > 0) then TServicesLog.WriteLog(ssbylWindows, Format('%sTools.GetStFieldType - Before lAdoQry.SingleTableSelect', [WSCDS_DebugMsg]), 'Debug service', LogValue, 0);
-        lAdoQry.SingleTableSelect;
-//      finally
-//        lAdoQry.Connect.Free;
-//      end;
+      if (DebugEvents > 0) then TServicesLog.WriteLog(ssbylWindows, Format('%sTools.GetStFieldType - Before lAdoQry.SingleTableSelect', [WSCDS_DebugMsg]), 'Debug service', LogValue, 0);
+      lAdoQry.SingleTableSelect;
       Result := lAdoQry.TSLResult[0];
     finally
+      lAdoQry.Qry.Free;
       lAdoQry.Free;
     end;
     {$ENDIF !APPSRV}
@@ -448,11 +386,11 @@ begin
     Result := '';
 end;
 
-class function Tools.GetFieldType(FieldName: string{$IF defined(APPSRV)}; ServerName, DBName : string; Connect : TADOConnection{$IFEND !APPSRV}): tTypeField;
+class function Tools.GetFieldType(FieldName: string{$IFDEF APPSRV}; ServerName, DBName : string{$ENDIF APPSRV}): tTypeField;
 var
   FieldType : string;
 begin
-  FieldType := Tools.GetStFieldType(FieldName{$IF defined(APPSRV)}, ServerName, DBName, Connect{$IFEND !APPSRV});
+  FieldType := Tools.GetStFieldType(FieldName{$IFDEF APPSRV}, ServerName, DBName{$ENDIF APPSRV});
   Result    := Tools.GetTypeFieldFromStringType(FieldType);
 end;
 
@@ -517,7 +455,7 @@ begin
 		Result := FalsePart;
 end;
 
-{$IF not defined(APPSRV)}
+{$IFNDEF APPSRV}
 class function Tools.iif(Const Expression: Boolean; Const TruePart, FalsePart: TActionFiche): TActionFiche;
 begin
 	if Expression then
@@ -525,7 +463,7 @@ begin
 	else
 		Result := FalsePart;
 end;
-{$IFEND !APPSRV}
+{$ENDIF !APPSRV}
 
 class function Tools.ReadTokenSt_(var S : string; Separator : string) : string;
 var
@@ -670,42 +608,42 @@ begin
 end;
 
 class function Tools.StrFPoint_(Value : Extended) : string;
-{$IF defined(APPSRV)}
+{$IFDEF APPSRV}
 var
   stValue : string;
-{$IFEND !APPSRV}
+{$ENDIF APPSRV}
 begin
-  {$IF defined(APPSRV)}
+  {$IFDEF APPSRV}
   stValue := FloatToStr(Value);
   Result  := StringReplace(stValue, ',', '.', [rfReplaceAll]);
-  {$ELSE (APPSRV)}
+  {$ELSE APPSRV}
   Result := StrFPoint(Value);
-  {$IFEND !APPSRV}
+  {$ENDIF !APPSRV}
 end;
 
 class function Tools.IsNumeric_(stValue : string) : boolean;
 begin
-  {$IF defined(APPSRV)}
+  {$IFDEF APPSRV}
   try
     Result := True;
     StrToFloat(stValue);
   except
     Result := False;
   end;
-  {$ELSE (APPSRV)}
+  {$ELSE APPSRV}
   Result := IsNumeric(stValue);
-  {$IFEND !APPSRV}
+  {$ENDIF APPSRV}
 end;
 
-class function Tools.GetFieldsListFromPrefix(TablePrefix : string{$IF defined(APPSRV)}; ServerName, DBName : string{$IFEND !APPSRV}; Separator : string=',') : string;
+class function Tools.GetFieldsListFromPrefix(TablePrefix : string{$IFDEF APPSRV}; ServerName, DBName : string{$ENDIF APPSRV}; Separator : string=',') : string;
 var
-  {$IF defined(APPSRV)}
+  {$IFDEF APPSRV}
   lAdoQry : AdoQry;
   Cpt     : integer;
   {$ELSE APPSRV}
   TobFieldsList : TOB;
   Cpt           : Integer;
-  {$IFEND APPSRV}
+  {$ENDIF APPSRV}
 
   function GetSelect : string;
   begin
@@ -715,25 +653,27 @@ var
 begin
   if TablePrefix <> '' then
   begin
-    {$IF defined(APPSRV)}
+    {$IFDEF APPSRV}
     lAdoQry := AdoQry.Create;
     try
       lAdoQry.ServerName := ServerName;
       lAdoQry.DBName     := DBName;
+      lAdoQry.Qry        := TADOQuery.create(nil);;
       lAdoQry.FieldsList := 'DH_NOMCHAMP';
       lAdoQry.Request    := GetSelect;
-      lAdoQry.Connect := TADOConnection.Create(application);
+//      lAdoQry.Connect := TADOConnection.Create(application);
       try
         lAdoQry.SingleTableSelect;
       finally
-        lAdoQry.Connect.Free;
+//        lAdoQry.Connect.Free;
       end;
       for Cpt := 0 to pred(lAdoQry.TSLResult.Count) do
         Result := Result + Separator + lAdoQry.TSLResult[Cpt];
     finally
+      lAdoQry.Qry.Free;
       lAdoQry.Free;
     end;
-    {$ELSE !APPSRV}
+    {$ELSE APPSRV}
     TobFieldsList := TOB.Create('_FIELD', nil, -1);
     try
       TobFieldsList.LoadDetailFromSQL(GetSelect);
@@ -742,7 +682,7 @@ begin
     finally
       FreeAndNil(TobFieldsList);
     end;
-    {$IFEND !APPSRV}
+    {$ENDIF APPSRV}
     Result := Copy(Result, Length(Separator)+1, Length(Result));
   end else
     Result := '';
@@ -808,7 +748,7 @@ begin
   end;
 end;
 
-{$IF not defined(APPSRV)}
+{$IFNDEF APPSRV}
 class procedure Tools.TobToTStringList(TobOrig: TOB; TSlResult: TStringList; Level : Integer=1);
 var
   Cpt : Integer;
@@ -850,7 +790,7 @@ begin
       TSlAdd(TobOrig.detail[Cpt], False);
   end;
 end;
-{$IFEND !APPSRV}
+{$ENDIF !APPSRV}
 
 class function Tools.GetTableNameFromTtn(Ttn: tTableName): string;
 begin
@@ -916,33 +856,35 @@ begin
 end;
 
 class function Tools.CanInsertedInTable(TableName: string{$IFDEF APPSRV}; ServerName, DBName : string{$ENDIF APPSRV}): Boolean;
-{$IF defined(APPSRV)}
+{$IFDEF APPSRV}
 var
   AdoQryAut : AdoQry;
-{$IFEND APPSRV}
+{$ENDIF APPSRV}
 begin
   if (TableName <> '') and (GetTtnFromTableName(TableName) <> ttnNone) then
   begin
-    {$IF not defined(APPSRV)}
+    {$IFNDEF APPSRV}
     Result := ExisteSql(Format('SELECT 1 FROM BTWSTABLEAUTO WHERE BWT_NOMTABLE = "%s" AND BWT_AUTORISEE = "X"', [TableName]))
     {$ELSE !APPSRV}
     AdoQryAut := AdoQry.create;
     try
       AdoQryAut.ServerName := ServerName;
       AdoQryAut.DBName     := DBName;
+      AdoQryAut.Qry        := TADOQuery.create(nil);
       AdoQryAut.FieldsList := 'BWT_NOMTABLE';
       AdoQryAut.Request    := Format('SELECT %s FROM BTWSTABLEAUTO WHERE BWT_NOMTABLE = ''%s'' AND BWT_AUTORISEE = ''X''', [AdoQryAut.FieldsList, TableName]);
-      AdoQryAut.Connect := TADOConnection.Create(application);
+//      AdoQryAut.Connect := TADOConnection.Create(application);
       try
         AdoQryAut.SingleTableSelect;
       finally
-        AdoQryAut.Connect.Free;
+//        AdoQryAut.Connect.Free;
       end;
       Result := AdoQryAut.RecordCount = 1;
     finally
+      AdoQryAut.Qry.Free;
       AdoQryAut.Free;
     end;
-    {$IFEND !APPSRV}
+    {$ENDIF !APPSRV}
   end else
     Result := True;
 end;
@@ -951,11 +893,11 @@ class function Tools.GetPSocTreeToExport(OnlyAccounting : Boolean=False) : strin
 var
   Sep : string;
 begin
-  {$IF not defined(APPSRV)}
+  {$IFNDEF APPSRV}
   Sep := '"';
   {$ELSE !APPSRV}
   Sep := '''';
-  {$IFEND !APPSRV}
+  {$ENDIF !APPSRV}
   Result := Format('(soc_tree like %s001;001;%%s)', [Sep, Sep]);
   if not OnlyAccounting then
     Result := Result + Format('(soc_tree like %s001;027;%%s)', [Sep, Sep])
@@ -1159,7 +1101,7 @@ begin
          and (SearchRec.Name <> '.')
          and (SearchRec.Name <> '..')
       then
-         SysUtils.DeleteFile(sFileName);
+        SysUtils.DeleteFile(sFileName);
       end else
       begin
         if SearchRec.Attr <> faArchive then
@@ -1174,14 +1116,14 @@ begin
     Result := False;
 end;
 
-class function Tools.IsRecordableDocument(DocType, Establishment : string{$IF defined(APPSRV)}; ServerName, DBName : string{$IFEND !APPSRV}) : boolean;
+class function Tools.IsRecordableDocument(DocType, Establishment : string{$IFDEF APPSRV}; ServerName, DBName : string{$ENDIF APPSRV}) : boolean;
 var
   AccState : string;
-  {$IF defined(APPSRV)}
+  {$IFDEF APPSRV}
   lAdoQry  : AdoQry;
-  {$IFEND !APPSRV}
+  {$ENDIF APPSRV}
 
-  {$IF defined(APPSRV)}
+  {$IFDEF APPSRV}
   function GetAccType(Prefix : string) : string;
   var
     Sql : string;
@@ -1195,36 +1137,38 @@ var
     if Prefix = 'GPC' then
       Sql := Sql + Format(' AND GPC_ETABLISSEMENT = ''%s''', [Establishment]);
     lAdoQry.Request    := Sql;
-    lAdoQry.Connect := TADOConnection.Create(application);
+//    lAdoQry.Connect := TADOConnection.Create(application);
     try
       lAdoQry.SingleTableSelect;
     finally
-      lAdoQry.Connect.Free;
+//      lAdoQry.Connect.Free;
     end;
     if lAdoQry.RecordCount > 0 then
       Result := lAdoQry.TSLResult[0]
     else
       Result := '';
   end;
-  {$IFEND !APPSRV}
+  {$ENDIF APPSRV}
 
 begin
   if DocType <> '' then
   begin
-    {$IF defined(APPSRV)}
+    {$IFDEF APPSRV}
     lAdoQry := AdoQry.Create;
     try
+      lAdoQry.Qry := TADOQuery.create(nil);
       AccState := GetAccType('GPC');
       if AccState = '' then
         AccState := GetAccType('GPP');
     finally
+      lAdoQry.Qry.Free;
       lAdoQry.Free;
     end;
-    {$ELSE !APPSRV}
+    {$ELSE APPSRV}
     AccState := GetInfoParPieceCompl(DocType, Establishment, 'GPC_TYPEECRCPTA');
     if AccState = '' then
       AccState := GetInfoParPiece(DocType, 'GPP_TYPEECRCPTA');
-    {$IFEND !APPSRV}
+    {$ENDIF APPSRV}
     Result := ((AccState <> '') and (AccState <> 'RIE'));
   end else
     Result := False;
@@ -1272,17 +1216,19 @@ begin
     try
       AdoQryL.ServerName  := ServerName;
       AdoQryL.DBName      := FolderName;
+      AdoQryL.Qry         := TADOQuery.create(nil);
       AdoQryL.FieldsList  := 'SOC_DATA';
       AdoQryL.Request     := Format('SELECT %s FROM PARAMSOC WHERE SOC_NOM = ''%s''', [AdoQryL.FieldsList, PSocName]);
-      AdoQryL.Connect := TADOConnection.Create(application);
+//      AdoQryL.Connect := TADOConnection.Create(application);
       try
         AdoQryL.SingleTableSelect;
       finally
-        AdoQryL.Connect.Free;
+//        AdoQryL.Connect.Free;
       end;
       if AdoQryL.RecordCount > 0 then
         Result := AdoQryL.TSLResult[0];
     finally
+      AdoQryL.Qry.Free;
       AdoQryL.free;
     end;
   end;
@@ -1296,7 +1242,7 @@ begin
   Result := FormatDateTime('yyyymmdd hh:nn:ss', lDate);
 end;
 
-class function Tools.CastDateForQry(lDate : TDateTime) : string;                               
+class function Tools.CastDateForQry(lDate : TDateTime) : string;                                                       
 begin
   Result := FormatDateTime('yyyymmdd', lDate);
 end;                                                                                
@@ -1306,6 +1252,7 @@ begin
   Result := FormatDateTime('yyyymmdd hh:nn:ss', dDateTime);
 end;
 
+{$IFDEF WITHCBP}
 class function Tools.BlobToString_(Texte: string): string;
 var
   Lignes   : HTStrings;
@@ -1334,6 +1281,7 @@ begin
     Result := StringReplace (Result, #13, '', [rfReplaceAll, rfIgnoreCase]);
   end;
 end;
+{$ENDIF WITHCBP}
 
 end.
 

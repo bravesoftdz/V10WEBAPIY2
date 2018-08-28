@@ -20,11 +20,11 @@ uses
   , DateUtils
   , UConnectWSConst
   , ConstServices
-  {$IF not defined(APPSRV)}
+  {$IFNDEF APPSRV}
   , UTOB
   , HMsgBox
   , ParamSoc
-  {$IFEND !APPSRV}
+  {$ENDIF !APPSRV}
   ;
 
 type
@@ -40,19 +40,19 @@ type
     procedure SetDossier(const Value: string);
     procedure SetServer(const Value: string);
     function AppelEntriesWS(DocInfo : T_WSDocumentInf; TheXml: WideString; var NumDocOut: Integer): Boolean;
-    {$IF not defined(APPSRV)}
+    {$IFNDEF APPSRV}
     procedure RemplitTOBDossiers(ListeDoss: TOB; HTTPResponse: WideString);
     procedure RemplitTOBExercices(TOBexer: TOB; HTTPResponse: WideString);
-    {$IFEND !APPSRV}
+    {$ENDIF !APPSRV}
     function GetStartUrl: string;
     
   public
     constructor create;
     destructor destroy; override;
-    {$IF not defined(APPSRV)}
+    {$IFNDEF APPSRV}
     procedure GetDossiers(var ListeDoss: TOB; var TheResponse: WideString);
     procedure GetExCpta(TOBexer: TOB);
-    {$IFEND !APPSRV}
+    {$ENDIF !APPSRV}
 
     //
     property CEGIDServer: string read fServer write SetServer;
@@ -96,9 +96,9 @@ type
     constructor Create;
     destructor Destroy; override;
 
-    {$IF not defined(APPSRV)}
+    {$IFNDEF APPSRV}
     function SendEntryCEGID(WsEt: T_WSEntryType; TOBecr: TOB; DocInfo : T_WSDocumentInf) : integer; overload; //DocType: string; DocNumber: integer): integer; overload;
-  	{$IFEND !APPSRV}
+  	{$ENDIF !APPSRV}
     function SendEntryCEGID(WsEt: T_WSEntryType; TSlEcr: TStringList; DocInfo : T_WSDocumentInf) : integer; overload; //DocType: string; DocNumber: integer): integer; overload;
     function SendAccountingParameters(TSLFullPathFiles : TStringList; LogValues : T_WSLogValues) : boolean; //WithDebugWs : boolean): boolean;
 
@@ -119,13 +119,13 @@ uses
   {$ELSE DBXPRESS}
   , uDbxDataSet
   {$ENDIF DBXPRESS}
-  {$IF not defined(APPSRV)}
+  {$IFNDEF APPSRV}
   , Hctrls
   , Aglinit
   , Hent1
   , wCommuns
   , UtilPGI
-  {$IFEND !APPSRV}
+  {$ENDIF !APPSRV}
   ;
 
 function StringToStream(const AString: string): Tstream;
@@ -152,23 +152,26 @@ end;
 
 function TDate2DateTime(OneTdate: string): TDateTime;
 var
-  TheTDate: string;
-  YYYY, MM, DD: string;
-  PDATE: string;
-  TheTime: string;
-  IposT, II: Integer;
+  TheTDate : string;
+  YYYY     : string;
+  MM       : string;
+  DD       : string;
+  PDATE    : string;
+  TheTime  : string;
+  IposT    : Integer;
+  II       : Integer;
 begin
-  {$IF not defined(APPSRV)}
+  {$IFNDEF APPSRV}
   Result := iDate1900;
   {$ELSE !APPSRV}
   Result := 2;
-  {$IFEND !APPSRV}
+  {$ENDIF !APPSRV}
   IposT := Pos('T', OneTdate);
   if IposT > 0 then
   begin
     II := 0;
     TheTDate := Copy(OneTdate, 1, IposT - 1);
-    TheTime := Copy(OneTdate, IposT + 1, Length(OneTdate) - 1);
+    TheTime  := Copy(OneTdate, IposT + 1, Length(OneTdate) - 1);
     repeat
       PDATE := Tools.ReadTokenSt_(TheTDate, '-');
       if PDATE <> '' then
@@ -231,18 +234,18 @@ var
   eDateComptable : TDateTime;
   eEntity        : integer;
   eNumeroPiece   : integer;
-  {$IF defined(APPSRV)}
+  {$IFDEF APPSRV}
   AdoQryL        : AdoQry;
   AlreadyExist   : boolean;
-  {$IFEND APPSRV}
+  {$ENDIF APPSRV}
 
   function GetSep: string;
   begin
-  {$IF defined(APPSRV)}
+  {$IFDEF APPSRV}
     Result := '''';
   {$ELSE APPSRV}
     Result := '"';
-  {$IFEND APPSRV}
+  {$ENDIF APPSRV}
   end;
 
   function GetWhere: string;
@@ -301,7 +304,7 @@ begin
   eNumeroPiece   := StrToInt(Tools.GetStValueFromTSl(TslLine, 'E_NUMEROPIECE'));
   if eJournal <> '' then
   begin
-    {$IF defined(APPSRV)}
+    {$IFDEF APPSRV}
     AdoQryL := AdoQry.Create;
     try
       { Test si existe }
@@ -309,11 +312,12 @@ begin
       AdoQryL.DBName     := DBName;
       AdoQryL.FieldsList := 'BE0_ENTITY';
       AdoQryL.Request    := GetSqlExist;
-      AdoQryL.Connect := TADOConnection.Create(application);
+//      AdoQryL.Connect    := TADOConnection.Create(application);
+      AdoQryL.Qry        := TADOQuery.create(nil);
       try
         AdoQryL.SingleTableSelect;
       finally
-        AdoQryL.Connect.Free;
+//        AdoQryL.Connect.Free;
       end;
       AlreadyExist := (AdoQryL.RecordCount = 1);
       { Exécute l'Update ou l'Insert }
@@ -324,6 +328,7 @@ begin
       AdoQryL.InsertUpdate;
       Result := (AdoQryL.RecordCount = 1);
     finally
+      AdoQryL.Qry.Free;
       AdoQryL.free;
     end;
     {$ELSE APPSRV}
@@ -331,7 +336,7 @@ begin
       Result := (ExecuteSql(GetSqlUpdate) = 1)
     else
       Result := (ExecuteSql(GetSqlInsert) = 1);
-    {$IFEND APPSRV}
+    {$ENDIF APPSRV}
   end;
 end;
 
@@ -352,8 +357,8 @@ end;
 
 function TSendEntryY2.EncodeAmount(TslLine: string): string;
 var
-  DebAmount: Double;
-  CredAmount: double;
+  DebAmount  : Double;
+  CredAmount : double;
 begin
   DebAmount  := StrToFloat(Tools.GetStValueFromTSl(TslLine, 'E_DEBITDEV'));
   CredAmount := StrToFloat(Tools.GetStValueFromTSl(TslLine, 'E_CREDITDEV'));
@@ -362,7 +367,7 @@ end;
 
 function TSendEntryY2.EncodeDate(TslLine, DateFieldName: string): string;
 var
-  DateValue: TDateTime;
+  DateValue : TDateTime;
 begin
   DateValue := StrToDateTime(Tools.GetStValueFromTSl(TslLine, DateFieldName));
   Result    := DateTime2Tdate(Tools.iif((DateValue < 2), 2, DateValue));
@@ -380,12 +385,12 @@ begin
 end;
 
 procedure TSendEntryY2.SetCegidConnectParameters(CegidConnect : TconnectCEGID);
-{$IF defined(APPSRV)}
+{$IFDEF APPSRV}
 var
   AdoQryL: AdoQry;
-{$IFEND APPSRV}
+{$ENDIF APPSRV}
 begin
-  {$IF not defined(APPSRV)}
+  {$IFNDEF APPSRV}
   CegidConnect.CEGIDServer := TGetParamWSCEGID.GetPSoc(wspsServer);
   CegidConnect.CEGIDPORT   := TGetParamWSCEGID.GetPSoc(wspsPort);
   CegidConnect.DOSSIER     := TGetParamWSCEGID.GetPSoc(wspsFolder);
@@ -396,11 +401,12 @@ begin
     AdoQryL.DBName     := DBName;
     AdoQryL.FieldsList := 'SOC_DATA';
     AdoQryL.Request    := Format('SELECT %s FROM PARAMSOC WHERE SOC_NOM IN (''%s'', ''%s'', ''%s'') ORDER BY SOC_NOM DESC', [AdoQryL.FieldsList, WSCDS_SocServer, WSCDS_SocNumPort, WSCDS_SocCegidDos]);
-    AdoQryL.Connect := TADOConnection.Create(application);
+//    AdoQryL.Connect    := TADOConnection.Create(application);
+    AdoQryL.Qry        := TADOQuery.create(nil);
     try
       AdoQryL.SingleTableSelect;
     finally
-      AdoQryL.Connect.Free;
+//      AdoQryL.Connect.Free;
     end;
     if AdoQryL.RecordCount = 3 then
     begin
@@ -409,9 +415,10 @@ begin
       CegidConnect.DOSSIER     := AdoQryL.TSLResult[2];
     end;
   finally
+    AdoQryL.Qry.Free;
     AdoQryL.free;
   end;
-  {$IFEND APPSRV}
+  {$ENDIF APPSRV}
 end;
 
 procedure TSendEntryY2.SetXmlRootAttributes(RootNode : IXMLNode);
@@ -426,9 +433,6 @@ var
   Root      : IXMLNode;
   SubLevel  : IXMLNode;
   SubLevel1 : IXMLNode;
-//  SubLevel2 : IXMLNode;
-//  SubLevel3 : IXMLNode;
-//  SubLevel4 : IXMLNode;
   Cpt       : Integer;
 
   function GetGuid(Index : integer) : string;
@@ -488,16 +492,6 @@ begin
         SubLevel1 := SubLevel.AddChild('DuplicateEntry');            SubLevel1.Text := WSCDS_XmlTrue;
       SubLevel := Root.AddChild('RejectFile');                       SubLevel.Text := WSCDS_XmlTrue;
       SubLevel := Root.AddChild('Replacement');
-(*
-        SubLevel1 := SubLevel.AddChild('Analytics');
-          for Cpt := 1 to 5 do
-          begin
-            SubLevel2 := SubLevel1.AddChild('Analytic');
-              SubLevel3 := SubLevel2.AddChild('Axis');               SubLevel3.Text := EncodeAxis('A' + IntToStr(Cpt));
-              SubLevel3 := SubLevel2.AddChild('Sections');           SubLevel3.Attributes['xmlns:d5p1'] := GetXmlAttributeArray;
-                SubLevel4 := SubLevel3.AddChild('d5p1:string');      SubLevel4.Text := '';
-          end;
-*)
         SubLevel1 := SubLevel.AddChild('Analytics');                 SubLevel1.Text := '';
         SubLevel1 := SubLevel.AddChild('CustomerAccount');           SubLevel1.Text := '';
         SubLevel1 := SubLevel.AddChild('CustomerCollectiveAccount'); SubLevel1.Text := '';
@@ -534,7 +528,7 @@ begin
   XmlDoc := NewXMLDocument();
   XmlDoc.Options := [doNodeAutoIndent];
   try
-    Root     := XmlDoc.AddChild('ProcessResultAsync'); SetXmlRootAttributes(Root);
+    Root := XmlDoc.AddChild('ProcessResultAsync'); SetXmlRootAttributes(Root);
       SubLevel := Root.AddChild('Error');              SubLevel.Text := Response.Error;
       SubLevel := Root.AddChild('HasError');           SubLevel.Text := BoolToStr(Response.HasError);
       SubLevel := Root.AddChild('ProcessId');          SubLevel.Text := Response.ProcessId;
@@ -768,7 +762,7 @@ begin
 end;
 
 
-{$IF not defined(APPSRV)}
+{$IFNDEF APPSRV}
 function TSendEntryY2.SendEntryCEGID(WsEt: T_WSEntryType; TOBecr: TOB; DocInfo : T_WSDocumentInf) : integer;
 var
   TSlEcr: TStringList;
@@ -782,7 +776,7 @@ begin
     FreeAndNil(TSlEcr);
   end;
 end;
-{$IFEND !APPSRV}
+{$ENDIF !APPSRV}
 
 function TSendEntryY2.SendEntryCEGID(WsEt: T_WSEntryType; TSlEcr: TStringList; DocInfo : T_WSDocumentInf) : integer;
 var
@@ -835,10 +829,10 @@ var
       try
         XmlDoc.LoadFromXML(HTTPResponse);
       except
-        {$IF not defined(APPSRV)}
+        {$IFNDEF APPSRV}
         on E: Exception do
           PgiError('Erreur durant Chargement XML : ' + E.Message);
-        {$IFEND !APPSRV}
+        {$ENDIF !APPSRV}
       end;
       if not XmlDoc.IsEmptyDoc then
       begin
@@ -848,15 +842,15 @@ var
           NodeFolder := XmlDoc.DocumentElement.ChildNodes[Cpt]; 
           case Tools.CaseFromString(NodeFolder.NodeName, ['Error', 'HasError', 'ProcessId', 'ReportFileId', 'Terminated']) of
             {Error}        0 : if IsUpload then ResponseImportEntries.Error           := VarToStr(NodeFolder.NodeValue)
-                               else             ResponseImportEntriesEnd.Error        := VarToStr(NodeFolder.NodeValue);
+                                           else ResponseImportEntriesEnd.Error        := VarToStr(NodeFolder.NodeValue);
             {HasError}     1 : if IsUpload then ResponseImportEntries.HasError        := Boolean(NodeFolder.NodeValue)
-                               else             ResponseImportEntriesEnd.HasError     := Boolean(NodeFolder.NodeValue);
+                                           else ResponseImportEntriesEnd.HasError     := Boolean(NodeFolder.NodeValue);
             {ProcessId}    2 : if IsUpload then ResponseImportEntries.ProcessId       := VarToStr(NodeFolder.NodeValue)
-                               else             ResponseImportEntriesEnd.ProcessId    := VarToStr(NodeFolder.NodeValue);
+                                           else ResponseImportEntriesEnd.ProcessId    := VarToStr(NodeFolder.NodeValue);
             {ReportFileId} 3 : if IsUpload then ResponseImportEntries.ReportFileId    := VarToStr(NodeFolder.NodeValue)
-                               else             ResponseImportEntriesEnd.ReportFileId := VarToStr(NodeFolder.NodeValue);
+                                           else ResponseImportEntriesEnd.ReportFileId := VarToStr(NodeFolder.NodeValue);
             {Terminated}   4 : if IsUpload then ResponseImportEntries.Terminated      := Boolean(NodeFolder.NodeValue)
-                               else             ResponseImportEntriesEnd.Terminated   := Boolean(NodeFolder.NodeValue);
+                                           else ResponseImportEntriesEnd.Terminated   := Boolean(NodeFolder.NodeValue);
           end;
         end;
       end;
@@ -1038,7 +1032,7 @@ end;
 { TconnectCEGID }
 function TconnectCEGID.AppelEntriesWS(DocInfo : T_WSDocumentInf; TheXml: WideString; var NumDocOut: Integer): Boolean;
 
-  {$IF not defined(APPSRV)}
+  {$IFNDEF APPSRV}
   procedure EnregistreEVT(NumDocOut: Integer; MessageOut: widestring);
   var
     TobJnal  : TOB;
@@ -1093,7 +1087,7 @@ function TconnectCEGID.AppelEntriesWS(DocInfo : T_WSDocumentInf; TheXml: WideStr
   begin
 
   end;
-  {$IFEND !APPSRV}
+  {$ENDIF !APPSRV}
 
   procedure EnregistreResponse(HTTPResponse: Widestring; var NumDocOut: integer);
   var
@@ -1109,10 +1103,10 @@ function TconnectCEGID.AppelEntriesWS(DocInfo : T_WSDocumentInf; TheXml: WideStr
       try
         XmlDoc.LoadFromXML(HTTPResponse);
       except
-        {$IF not defined(APPSRV)}
+        {$IFNDEF APPSRV}
         on E: Exception do
           PgiError('Erreur durant Chargement XML : ' + E.Message);
-        {$IFEND !APPSRV}
+        {$ENDIF !APPSRV}
       end;
       if not XmlDoc.IsEmptyDoc then
       begin
@@ -1183,11 +1177,10 @@ end;
 
 destructor TconnectCEGID.destroy;
 begin
-
   inherited;
 end;
 
-{$IF not defined(APPSRV)}
+{$IFNDEF APPSRV}
 procedure TconnectCEGID.GetDossiers(var ListeDoss: TOB; var TheResponse: WideString);
 var
   http: IWinHttpRequest;
@@ -1223,10 +1216,9 @@ begin
     http := nil;
   end;
 end;
-{$IFEND !APPSRV}
+{$ENDIF !APPSRV}
 
-{$IF not defined(APPSRV)}
-
+{$IFNDEF APPSRV}
 procedure TconnectCEGID.GetExCpta(TOBexer: TOB);
 var
   http        : IWinHttpRequest;
@@ -1250,14 +1242,14 @@ begin
     http := nil;
   end;
 end;
-{$IFEND !APPSRV}
+{$ENDIF !APPSRV}
 
 function TconnectCEGID.GetPort: string;
 begin
   Result := IntToStr(fPort);
 end;
 
-{$IF not defined(APPSRV)}
+{$IFNDEF APPSRV}
 procedure TconnectCEGID.RemplitTOBDossiers(ListeDoss: TOB; HTTPResponse: WideString);
 var
   XmlDoc: IXMLDocument;
@@ -1292,16 +1284,17 @@ begin
     XmlDoc := nil;
   end;
 end;
-{$IFEND !APPSRV}
+{$ENDIF !APPSRV}
 
-{$IF not defined(APPSRV)}
-
+{$IFNDEF APPSRV}
 procedure TconnectCEGID.RemplitTOBExercices(TOBexer: TOB; HTTPResponse: WideString);
 var
-  XmlDoc: IXMLDocument;
-  NodeFolder, OneStep: IXMLNode;
-  II, JJ: Integer;
-  TOBL: TOB;
+  XmlDoc     : IXMLDocument;
+  NodeFolder : IXMLNode;
+  OneStep    : IXMLNode;
+  II         : Integer;
+  JJ         : Integer;
+  TOBL       : TOB;
 begin
   XmlDoc := NewXMLDocument();
   try
@@ -1330,7 +1323,7 @@ begin
     XmlDoc := nil;
   end;
 end;
-{$IFEND !APPSRV}
+{$ENDIF !APPSRV}
 
 function TconnectCEGID.GetStartUrl: string;
 begin
@@ -1375,16 +1368,16 @@ end;
 
 class function TGetParamWSCEGID.ConnectToY2: Boolean;
 begin
-  {$IF not defined(APPSRV)}
+  {$IFNDEF APPSRV}
   Result := (GetPSoc(wspsFolder) <> '');
   {$ELSE !APPSRV}
   Result := True;
-  {$IFEND !APPSRV}
+  {$ENDIF !APPSRV}
 end;
 
 class function TGetParamWSCEGID.GetPSoc(PSocType: T_WSPSocType): string;
 begin
-  {$IF not defined(APPSRV)}
+  {$IFNDEF APPSRV}
   case PSocType of
     wspsServer      : Result := GetParamSocSecur(WSCDS_SocServer, '');
     wspsPort        : Result := GetParamSocSecur(WSCDS_SocNumPort, '');
@@ -1395,7 +1388,7 @@ begin
   end;
   {$ELSE !APPSRV}
   Result := '';
-  {$IFEND !APPSRV}
+  {$ENDIF !APPSRV}
 end;
 
 end.
